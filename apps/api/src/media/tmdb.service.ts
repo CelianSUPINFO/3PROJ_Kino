@@ -9,19 +9,38 @@ const CACHE_MS = 48 * 60 * 60 * 1000;
 @Injectable()
 export class TmdbService {
   private readonly base = 'https://api.themoviedb.org/3';
-  private readonly key: string;
+  private readonly key?: string;
+  private readonly readAccessToken?: string;
+  private readonly genreMap = new Map<
+    MediaType,
+    { cachedAt: number; values: Record<number, string> }
+  >();
 
   constructor(
     private readonly config: ConfigService,
     private readonly prisma: PrismaService,
   ) {
-    this.key = this.config.getOrThrow<string>('TMDB_API_KEY');
+    this.key = this.config.get<string>('TMDB_API_KEY');
+    this.readAccessToken = this.config.get<string>('TMDB_READ_ACCESS_TOKEN');
+    if (!this.key && !this.readAccessToken) {
+      throw new Error(
+        'TMDB_API_KEY ou TMDB_READ_ACCESS_TOKEN doit être défini',
+      );
+    }
   }
 
   private client() {
+    const headers: Record<string, string> = {};
+    const params: Record<string, string> = {};
+    if (this.readAccessToken) {
+      headers.Authorization = `Bearer ${this.readAccessToken}`;
+    } else if (this.key) {
+      params.api_key = this.key;
+    }
     return axios.create({
       baseURL: this.base,
-      params: { api_key: this.key },
+      headers,
+      params,
       timeout: 15000,
     });
   }
@@ -31,6 +50,8 @@ export class TmdbService {
     page: number,
     year?: number,
     genreId?: number,
+    minVote?: number,
+    mediaType?: 'movie' | 'tv',
   ) {
     const c = this.client();
     const { data } = await c.get('/search/multi', {
@@ -42,10 +63,19 @@ export class TmdbService {
       },
     });
     let results = (data.results ?? []) as Record<string, unknown>[];
+    if (mediaType) {
+      results = results.filter((r) => r.media_type === mediaType);
+    }
     if (genreId) {
       results = results.filter((r) => {
         const ids = (r.genre_ids as number[] | undefined) ?? [];
         return ids.includes(genreId);
+      });
+    }
+    if (typeof minVote === 'number') {
+      results = results.filter((r) => {
+        const vote = Number(r.vote_average ?? 0);
+        return vote >= minVote;
       });
     }
     return {
@@ -62,8 +92,10 @@ export class TmdbService {
     sortBy: string,
     year?: number,
     genreId?: number,
+    minVote?: number,
   ) {
-    const path = mediaType === MediaType.MOVIE ? '/discover/movie' : '/discover/tv';
+    const path =
+      mediaType === MediaType.MOVIE ? '/discover/movie' : '/discover/tv';
     const c = this.client();
     const { data } = await c.get(path, {
       params: {
@@ -72,9 +104,35 @@ export class TmdbService {
         primary_release_year: mediaType === MediaType.MOVIE ? year : undefined,
         first_air_date_year: mediaType === MediaType.TV ? year : undefined,
         with_genres: genreId,
+        'vote_average.gte': minVote,
       },
     });
     return data;
+  }
+
+  async resolveGenres(mediaType: MediaType, ids: number[] | undefined) {
+    if (!ids?.length) return [];
+    const mapping = await this.getGenreMap(mediaType);
+    return ids.map((id) => mapping[id]).filter(Boolean);
+  }
+
+  private async getGenreMap(mediaType: MediaType) {
+    const cached = this.genreMap.get(mediaType);
+    if (cached && Date.now() - cached.cachedAt < 24 * 60 * 60 * 1000) {
+      return cached.values;
+    }
+    const path =
+      mediaType === MediaType.MOVIE ? '/genre/movie/list' : '/genre/tv/list';
+    const c = this.client();
+    const { data } = await c.get(path);
+    const values = Object.fromEntries(
+      ((data.genres as { id: number; name: string }[]) ?? []).map((g) => [
+        g.id,
+        g.name,
+      ]),
+    );
+    this.genreMap.set(mediaType, { cachedAt: Date.now(), values });
+    return values;
   }
 
   async getDetails(mediaType: MediaType, tmdbId: number) {
@@ -107,7 +165,7 @@ export class TmdbService {
     const runtime =
       mediaType === MediaType.MOVIE
         ? (data.runtime as number | null)
-        : (data.episode_run_time?.[0] as number | undefined) ?? null;
+        : ((data.episode_run_time?.[0] as number | undefined) ?? null);
     await this.prisma.cachedWork.upsert({
       where: { tmdbId_mediaType: { tmdbId, mediaType } },
       create: {
