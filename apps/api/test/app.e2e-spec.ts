@@ -1,24 +1,238 @@
+import {
+  CanActivate,
+  ExecutionContext,
+  INestApplication,
+  ValidationPipe,
+} from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication } from '@nestjs/common';
 import * as request from 'supertest';
-import { AppModule } from './../src/app.module';
+import { ConfigService } from '@nestjs/config';
+import { AppController } from '../src/app.controller';
+import { AppService } from '../src/app.service';
+import { AuthController } from '../src/auth/auth.controller';
+import { AuthService } from '../src/auth/auth.service';
+import { RegisterDto } from '../src/auth/dto/register.dto';
+import { UsersController } from '../src/users/users.controller';
+import { UsersService } from '../src/users/users.service';
+import { JwtAuthGuard } from '../src/common/guards/jwt-auth.guard';
+import { RecommendationsController } from '../src/recommendations/recommendations.controller';
+import { RecommendationsService } from '../src/recommendations/recommendations.service';
+import { HomeController } from '../src/home/home.controller';
+import { HomeService } from '../src/home/home.service';
+import { OptionalJwtAuthGuard } from '../src/common/guards/optional-jwt.guard';
+import { EngagementController } from '../src/engagement/engagement.controller';
+import { EngagementService } from '../src/engagement/engagement.service';
 
-describe('AppController (e2e)', () => {
+class TestJwtGuard implements CanActivate {
+  canActivate(ctx: ExecutionContext): boolean {
+    const req = ctx.switchToHttp().getRequest();
+    req.user = { sub: 'user-test', email: 'test@kino.local', role: 'USER' };
+    return true;
+  }
+}
+
+class TestOptionalJwtGuard implements CanActivate {
+  canActivate(ctx: ExecutionContext): boolean {
+    const req = ctx.switchToHttp().getRequest();
+    req.user = { sub: 'user-test', email: 'test@kino.local', role: 'USER' };
+    return true;
+  }
+}
+
+describe('Targeted API e2e', () => {
   let app: INestApplication;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
-    }).compile();
+      controllers: [
+        AppController,
+        AuthController,
+        UsersController,
+        RecommendationsController,
+        HomeController,
+        EngagementController,
+      ],
+      providers: [
+        AppService,
+        {
+          provide: AuthService,
+          useValue: {
+            register: jest.fn(
+              async (
+                email: string,
+                _password: string,
+                displayName: string,
+              ) => ({
+                accessToken: 'access-token',
+                refreshToken: 'refresh-token',
+                user: { email, displayName },
+              }),
+            ),
+            login: jest.fn(async () => ({
+              accessToken: 'access-token',
+              refreshToken: 'refresh-token',
+            })),
+            refresh: jest.fn(),
+            logout: jest.fn(),
+            issueTokens: jest.fn(),
+          },
+        },
+        {
+          provide: UsersService,
+          useValue: {
+            me: jest.fn(async () => ({ id: 'user-test', displayName: 'Test' })),
+            updateMe: jest.fn(),
+            exportData: jest.fn(async () => ({ ok: true })),
+            exportCsv: jest.fn(async () => 'kind,tmdbId\nstatus,1'),
+            publicProfile: jest.fn(),
+            followers: jest.fn(),
+            following: jest.fn(),
+            follow: jest.fn(),
+            unfollow: jest.fn(),
+          },
+        },
+        {
+          provide: ConfigService,
+          useValue: { get: () => 'http://localhost:3001' },
+        },
+        {
+          provide: RecommendationsService,
+          useValue: {
+            tonight: jest.fn(async () => ({
+              personalized: false,
+              source: 'random',
+              results: [
+                {
+                  id: 550,
+                  title: 'Fight Club',
+                  mediaType: 'movie',
+                  score: 8.4,
+                },
+              ],
+            })),
+            swipe: jest.fn(async () => ({ ok: true })),
+          },
+        },
+        {
+          provide: HomeService,
+          useValue: {
+            getHome: jest.fn(async () => ({
+              trending: { movies: [], tv: [] },
+              latestRatings: [],
+              recentWatched: [],
+              categories: [],
+            })),
+          },
+        },
+        {
+          provide: EngagementService,
+          useValue: {
+            summary: jest.fn(async () => ({
+              authenticated: true,
+              weekly: {
+                reviews: 2,
+                completed: 3,
+                targetReviews: 3,
+                targetCompleted: 5,
+              },
+              streakDays: 4,
+              recommendationRefreshAt: new Date().toISOString(),
+            })),
+          },
+        },
+      ],
+    })
+      .overrideGuard(JwtAuthGuard)
+      .useClass(TestJwtGuard)
+      .overrideGuard(OptionalJwtAuthGuard)
+      .useClass(TestOptionalJwtGuard)
+      .compile();
 
     app = moduleFixture.createNestApplication();
+    app.setGlobalPrefix('v1');
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+      }),
+    );
     await app.init();
   });
 
-  it('/ (GET)', () => {
+  afterAll(async () => {
+    await app.close();
+  });
+
+  it('GET /v1 returns health string', () => {
     return request(app.getHttpServer())
-      .get('/')
+      .get('/v1')
       .expect(200)
       .expect('Hello World!');
+  });
+
+  it('POST /v1/auth/register rejects weak password', () => {
+    const body: RegisterDto = {
+      email: 'u@x.com',
+      displayName: 'u',
+      password: 'weak',
+    };
+    return request(app.getHttpServer())
+      .post('/v1/auth/register')
+      .send(body)
+      .expect(400);
+  });
+
+  it('POST /v1/auth/register returns token payload when valid', async () => {
+    const body: RegisterDto = {
+      email: 'u@x.com',
+      displayName: 'User',
+      password: 'StrongP4ssword',
+    };
+    const res = await request(app.getHttpServer())
+      .post('/v1/auth/register')
+      .send(body)
+      .expect(201);
+    expect(res.body.accessToken).toBeDefined();
+    expect(res.body.refreshToken).toBeDefined();
+  });
+
+  it('GET /v1/users/export.csv returns downloadable csv', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/v1/users/export.csv')
+      .set('Authorization', 'Bearer any')
+      .expect(200);
+    expect(res.text).toContain('kind,tmdbId');
+    expect(String(res.headers['content-type'])).toContain('text/csv');
+  });
+
+  it('GET /v1/reco/tonight returns recommendation payload', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/v1/reco/tonight?type=movie&limit=5')
+      .expect(200);
+    expect(Array.isArray(res.body.results)).toBe(true);
+  });
+
+  it('POST /v1/reco/swipe accepts smash/pass input', async () => {
+    const res = await request(app.getHttpServer())
+      .post('/v1/reco/swipe')
+      .set('Authorization', 'Bearer any')
+      .send({ tmdbId: 550, type: 'movie', choice: 'SMASH' })
+      .expect(201);
+    expect(res.body.ok).toBe(true);
+  });
+
+  it('GET /v1/home returns aggregate sections', async () => {
+    const res = await request(app.getHttpServer()).get('/v1/home').expect(200);
+    expect(res.body).toHaveProperty('trending');
+    expect(res.body).toHaveProperty('categories');
+  });
+
+  it('GET /v1/engagement/summary returns streak and weekly counters', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/v1/engagement/summary')
+      .expect(200);
+    expect(res.body).toHaveProperty('streakDays');
+    expect(res.body).toHaveProperty('weekly');
   });
 });
