@@ -11,18 +11,9 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 
-const realtimeOrigins = (
-  process.env.CORS_ORIGINS ??
-  process.env.FRONTEND_URL ??
-  'http://localhost:3000,http://localhost:3001'
-)
-  .split(',')
-  .map((origin) => origin.trim())
-  .filter(Boolean);
-
 @WebSocketGateway({
   namespace: '/realtime',
-  cors: { origin: realtimeOrigins, credentials: true },
+  cors: { origin: '*' },
 })
 export class NotificationsGateway implements OnGatewayConnection {
   private readonly logger = new Logger(NotificationsGateway.name);
