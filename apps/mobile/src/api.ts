@@ -1,25 +1,24 @@
-const base = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/v1";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import Constants from "expo-constants";
 
-function getTokens() {
-  if (typeof window === "undefined") return { access: null as string | null, refresh: null as string | null };
-  return {
-    access: localStorage.getItem("kino_access"),
-    refresh: localStorage.getItem("kino_refresh"),
-  };
+const extra = Constants.expoConfig?.extra as { apiUrl?: string } | undefined;
+const base =
+  process.env.EXPO_PUBLIC_API_URL ??
+  extra?.apiUrl ??
+  "http://127.0.0.1:4000/v1";
+
+const ACCESS = "kino_access";
+const REFRESH = "kino_refresh";
+
+export async function setTokens(access: string, refresh: string) {
+  await AsyncStorage.multiSet([
+    [ACCESS, access],
+    [REFRESH, refresh],
+  ]);
 }
 
-export function getAccessToken() {
-  return getTokens().access;
-}
-
-export function setTokens(access: string, refresh: string) {
-  localStorage.setItem("kino_access", access);
-  localStorage.setItem("kino_refresh", refresh);
-}
-
-export function clearTokens() {
-  localStorage.removeItem("kino_access");
-  localStorage.removeItem("kino_refresh");
+export async function clearTokens() {
+  await AsyncStorage.multiRemove([ACCESS, REFRESH]);
 }
 
 export async function apiFetch<T>(
@@ -29,12 +28,12 @@ export async function apiFetch<T>(
   const headers = new Headers(init.headers);
   headers.set("Content-Type", "application/json");
   if (init.auth !== false) {
-    const { access } = getTokens();
+    const access = await AsyncStorage.getItem(ACCESS);
     if (access) headers.set("Authorization", `Bearer ${access}`);
   }
   let res = await fetch(`${base}${path}`, { ...init, headers });
   if (res.status === 401 && init.auth !== false) {
-    const { refresh } = getTokens();
+    const refresh = await AsyncStorage.getItem(REFRESH);
     if (refresh) {
       const r2 = await fetch(`${base}/auth/refresh`, {
         method: "POST",
@@ -46,7 +45,7 @@ export async function apiFetch<T>(
           accessToken: string;
           refreshToken: string;
         };
-        setTokens(data.accessToken, data.refreshToken);
+        await setTokens(data.accessToken, data.refreshToken);
         headers.set("Authorization", `Bearer ${data.accessToken}`);
         res = await fetch(`${base}${path}`, { ...init, headers });
       }
