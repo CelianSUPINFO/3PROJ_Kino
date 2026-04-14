@@ -11,9 +11,18 @@ import {
 import { MediaType } from '@prisma/client';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { OptionalJwtAuthGuard } from '../common/guards/optional-jwt.guard';
-import { CurrentUser, JwtUser } from '../common/decorators/current-user.decorator';
+import {
+  CurrentUser,
+  JwtUser,
+} from '../common/decorators/current-user.decorator';
 import { AdminGuard } from '../common/guards/admin.guard';
 import { ReviewsService } from './reviews.service';
+import {
+  CreateCommentDto,
+  CreateReviewDto,
+  FeaturedReviewDto,
+  ReportReviewDto,
+} from './dto/review.dto';
 
 @Controller('reviews')
 export class ReviewsController {
@@ -33,14 +42,7 @@ export class ReviewsController {
   @UseGuards(JwtAuthGuard)
   create(
     @CurrentUser() user: JwtUser,
-    @Body()
-    body: {
-      tmdbId: number;
-      mediaType: MediaType;
-      rating: number;
-      body: string;
-      spoiler?: boolean;
-    },
+    @Body() body: CreateReviewDto,
   ) {
     return this.reviews.upsertReview(
       user.sub,
@@ -74,7 +76,7 @@ export class ReviewsController {
   addComment(
     @CurrentUser() user: JwtUser,
     @Param('id') id: string,
-    @Body() body: { body: string; parentId?: string },
+    @Body() body: CreateCommentDto,
   ) {
     return this.reviews.addComment(user.sub, id, body.body, body.parentId);
   }
@@ -84,14 +86,14 @@ export class ReviewsController {
   report(
     @CurrentUser() user: JwtUser,
     @Param('id') id: string,
-    @Body() body: { reason: string },
+    @Body() body: ReportReviewDto,
   ) {
     return this.reviews.reportReview(user.sub, id, body.reason);
   }
 
   @Post('admin/:id/featured')
   @UseGuards(JwtAuthGuard, AdminGuard)
-  featured(@Param('id') id: string, @Body() body: { featured: boolean }) {
+  featured(@Param('id') id: string, @Body() body: FeaturedReviewDto) {
     return this.reviews.setFeatured(id, body.featured);
   }
 }
