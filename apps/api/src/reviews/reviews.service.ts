@@ -151,19 +151,13 @@ export class ReviewsService {
   async reportReview(reporterId: string, reviewId: string, reason: string) {
     const review = await this.prisma.review.findUnique({ where: { id: reviewId } });
     if (!review) throw new NotFoundException();
-    const existing = await this.prisma.report.findFirst({
-      where: { reporterId, reviewId },
+    await this.prisma.report.upsert({
+      where: {
+        reporterId_reviewId: { reporterId, reviewId },
+      },
+      create: { reporterId, reviewId, reason },
+      update: { reason, status: 'OPEN' },
     });
-    if (existing) {
-      await this.prisma.report.update({
-        where: { id: existing.id },
-        data: { reason, status: 'OPEN' },
-      });
-    } else {
-      await this.prisma.report.create({
-        data: { reporterId, reviewId, reason },
-      });
-    }
     return { ok: true };
   }
 
