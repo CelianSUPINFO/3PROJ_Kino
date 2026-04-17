@@ -120,36 +120,14 @@ export class LibraryService {
   async myLists(userId: string) {
     return this.prisma.customList.findMany({
       where: { userId },
-      orderBy: { updatedAt: 'desc' },
       include: { _count: { select: { items: true } } },
-    });
-  }
-
-  async listPublicLists(search?: string, take = 20) {
-    const limit = Math.min(Math.max(take, 1), 50);
-    return this.prisma.customList.findMany({
-      where: {
-        isPublic: true,
-        ...(search?.trim()
-          ? { name: { contains: search.trim(), mode: 'insensitive' } }
-          : {}),
-      },
-      take: limit,
-      orderBy: { updatedAt: 'desc' },
-      include: {
-        user: { select: { id: true, displayName: true } },
-        _count: { select: { items: true } },
-      },
     });
   }
 
   async getListPublic(listId: string, viewerId?: string) {
     const list = await this.prisma.customList.findUnique({
       where: { id: listId },
-      include: {
-        items: true,
-        user: { select: { id: true, displayName: true } },
-      },
+      include: { items: true },
     });
     if (!list) throw new NotFoundException();
     if (!list.isPublic && list.userId !== viewerId) {

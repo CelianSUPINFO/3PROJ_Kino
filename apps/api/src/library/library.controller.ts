@@ -13,17 +13,8 @@ import {
 import { MediaType, WatchStatus } from '@prisma/client';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { OptionalJwtAuthGuard } from '../common/guards/optional-jwt.guard';
-import {
-  CurrentUser,
-  JwtUser,
-} from '../common/decorators/current-user.decorator';
+import { CurrentUser, JwtUser } from '../common/decorators/current-user.decorator';
 import { LibraryService } from './library.service';
-import {
-  CreateListDto,
-  ListItemDto,
-  SetStatusDto,
-  UpdateListDto,
-} from './dto/library.dto';
 
 @Controller('library')
 export class LibraryController {
@@ -31,7 +22,11 @@ export class LibraryController {
 
   @Post('status')
   @UseGuards(JwtAuthGuard)
-  setStatus(@CurrentUser() user: JwtUser, @Body() body: SetStatusDto) {
+  setStatus(
+    @CurrentUser() user: JwtUser,
+    @Body()
+    body: { tmdbId: number; mediaType: MediaType; status: WatchStatus },
+  ) {
     return this.library.setStatus(
       user.sub,
       body.tmdbId,
@@ -68,7 +63,10 @@ export class LibraryController {
 
   @Post('lists')
   @UseGuards(JwtAuthGuard)
-  createList(@CurrentUser() user: JwtUser, @Body() body: CreateListDto) {
+  createList(
+    @CurrentUser() user: JwtUser,
+    @Body() body: { name: string; isPublic: boolean },
+  ) {
     return this.library.createList(user.sub, body.name, body.isPublic);
   }
 
@@ -77,7 +75,7 @@ export class LibraryController {
   updateList(
     @CurrentUser() user: JwtUser,
     @Param('id') id: string,
-    @Body() body: UpdateListDto,
+    @Body() body: { name?: string; isPublic?: boolean },
   ) {
     return this.library.updateList(user.sub, id, body);
   }
@@ -93,7 +91,7 @@ export class LibraryController {
   addItem(
     @CurrentUser() user: JwtUser,
     @Param('id') id: string,
-    @Body() body: ListItemDto,
+    @Body() body: { tmdbId: number; mediaType: MediaType },
   ) {
     return this.library.addToList(user.sub, id, body.tmdbId, body.mediaType);
   }
@@ -116,17 +114,13 @@ export class LibraryController {
     return this.library.myLists(user.sub);
   }
 
-  /** Avant `lists/:id` pour que le segment `public` ne soit pas capturé comme identifiant */
-  @Get('lists/public')
-  listPublic(@Query('q') q?: string, @Query('limit') limit?: string) {
-    const take = limit ? parseInt(limit, 10) || 20 : 20;
-    return this.library.listPublicLists(q, take);
-  }
-
   /** Après routes statiques `lists/mine` pour éviter que `mine` soit pris pour un :id */
   @Get('lists/:id')
   @UseGuards(OptionalJwtAuthGuard)
-  oneList(@Param('id') id: string, @CurrentUser() user?: JwtUser) {
+  oneList(
+    @Param('id') id: string,
+    @CurrentUser() user?: JwtUser,
+  ) {
     return this.library.getListPublic(id, user?.sub);
   }
 }
