@@ -9,7 +9,14 @@ export class SearchService {
     private readonly tmdb: TmdbService,
   ) {}
 
-  async unified(q: string, page = 1) {
+  async unified(
+    q: string,
+    page = 1,
+    year?: number,
+    genreId?: number,
+    minVote?: number,
+    mediaType?: 'movie' | 'tv',
+  ) {
     const [users, lists, tmdb] = await Promise.all([
       this.prisma.user.findMany({
         where: {
@@ -29,7 +36,7 @@ export class SearchService {
           user: { select: { id: true, displayName: true } },
         },
       }),
-      this.tmdb.search(q, page),
+      this.tmdb.search(q, page, year, genreId, minVote, mediaType),
     ]);
     return { users, lists, works: tmdb };
   }

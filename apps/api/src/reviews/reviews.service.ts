@@ -1,10 +1,18 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { MediaType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationsGateway } from '../notifications/notifications.gateway';
 
 @Injectable()
 export class ReviewsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notificationsGateway: NotificationsGateway,
+  ) {}
 
   async listForWork(tmdbId: number, mediaType: MediaType) {
     return this.prisma.review.findMany({
@@ -45,7 +53,11 @@ export class ReviewsService {
       data: {
         userId,
         type: 'REVIEWED',
-        payload: { tmdbId, mediaType: mediaType.toString(), reviewId: review.id },
+        payload: {
+          tmdbId,
+          mediaType: mediaType.toString(),
+          reviewId: review.id,
+        },
       },
     });
     await this.prisma.activity.create({
@@ -80,31 +92,48 @@ export class ReviewsService {
       where: { id: reviewId },
     });
     if (review && review.userId !== userId) {
-      await this.prisma.notification.create({
+      const notification = await this.prisma.notification.create({
         data: {
           userId: review.userId,
           type: 'REVIEW_LIKED',
           payload: { reviewId, by: userId },
         },
       });
+      this.notificationsGateway.pushToUser(
+        review.userId,
+        'notification:new',
+        notification,
+      );
     }
     return { liked: true };
   }
 
-  async addComment(userId: string, reviewId: string, body: string, parentId?: string) {
-    const review = await this.prisma.review.findUnique({ where: { id: reviewId } });
+  async addComment(
+    userId: string,
+    reviewId: string,
+    body: string,
+    parentId?: string,
+  ) {
+    const review = await this.prisma.review.findUnique({
+      where: { id: reviewId },
+    });
     if (!review) throw new NotFoundException();
     const c = await this.prisma.comment.create({
       data: { reviewId, userId, body, parentId },
     });
     if (review.userId !== userId) {
-      await this.prisma.notification.create({
+      const notification = await this.prisma.notification.create({
         data: {
           userId: review.userId,
           type: 'REVIEW_COMMENT',
           payload: { reviewId, commentId: c.id, by: userId },
         },
       });
+      this.notificationsGateway.pushToUser(
+        review.userId,
+        'notification:new',
+        notification,
+      );
     }
     return c;
   }
@@ -114,15 +143,20 @@ export class ReviewsService {
       where: { reviewId, parentId: null },
       include: {
         user: { select: { id: true, displayName: true, avatarUrl: true } },
-        // replies shallow
       },
       orderBy: { createdAt: 'asc' },
     });
   }
 
   async reportReview(reporterId: string, reviewId: string, reason: string) {
-    await this.prisma.report.create({
-      data: { reporterId, reviewId, reason },
+    const review = await this.prisma.review.findUnique({ where: { id: reviewId } });
+    if (!review) throw new NotFoundException();
+    await this.prisma.report.upsert({
+      where: {
+        reporterId_reviewId: { reporterId, reviewId },
+      },
+      create: { reporterId, reviewId, reason },
+      update: { reason, status: 'OPEN' },
     });
     return { ok: true };
   }
