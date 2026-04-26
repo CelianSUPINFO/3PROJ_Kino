@@ -1,0 +1,140 @@
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import axios from 'axios';
+import { MediaType } from '@prisma/client';
+import { PrismaService } from '../prisma/prisma.service';
+
+const CACHE_MS = 48 * 60 * 60 * 1000;
+
+@Injectable()
+export class TmdbService {
+  private readonly base = 'https://api.themoviedb.org/3';
+  private readonly key: string;
+
+  constructor(
+    private readonly config: ConfigService,
+    private readonly prisma: PrismaService,
+  ) {
+    this.key = this.config.getOrThrow<string>('TMDB_API_KEY');
+  }
+
+  private client() {
+    return axios.create({
+      baseURL: this.base,
+      params: { api_key: this.key },
+      timeout: 15000,
+    });
+  }
+
+  async search(
+    query: string,
+    page: number,
+    year?: number,
+    genreId?: number,
+  ) {
+    const c = this.client();
+    const { data } = await c.get('/search/multi', {
+      params: {
+        query,
+        page,
+        include_adult: false,
+        year: year || undefined,
+      },
+    });
+    let results = (data.results ?? []) as Record<string, unknown>[];
+    if (genreId) {
+      results = results.filter((r) => {
+        const ids = (r.genre_ids as number[] | undefined) ?? [];
+        return ids.includes(genreId);
+      });
+    }
+    return {
+      page: data.page,
+      total_pages: data.total_pages,
+      total_results: data.total_results,
+      results,
+    };
+  }
+
+  async discover(
+    mediaType: MediaType,
+    page: number,
+    sortBy: string,
+    year?: number,
+    genreId?: number,
+  ) {
+    const path = mediaType === MediaType.MOVIE ? '/discover/movie' : '/discover/tv';
+    const c = this.client();
+    const { data } = await c.get(path, {
+      params: {
+        page,
+        sort_by: sortBy,
+        primary_release_year: mediaType === MediaType.MOVIE ? year : undefined,
+        first_air_date_year: mediaType === MediaType.TV ? year : undefined,
+        with_genres: genreId,
+      },
+    });
+    return data;
+  }
+
+  async getDetails(mediaType: MediaType, tmdbId: number) {
+    const cached = await this.prisma.cachedWork.findUnique({
+      where: {
+        tmdbId_mediaType: { tmdbId, mediaType },
+      },
+    });
+    const now = Date.now();
+    if (cached && now - cached.cachedAt.getTime() < CACHE_MS) {
+      return { source: 'cache' as const, data: cached.payload };
+    }
+    const path =
+      mediaType === MediaType.MOVIE ? `/movie/${tmdbId}` : `/tv/${tmdbId}`;
+    const c = this.client();
+    const { data } = await c.get(path, {
+      params: { append_to_response: 'credits,videos' },
+    });
+    if (!data) {
+      throw new NotFoundException('Œuvre introuvable');
+    }
+    const title =
+      mediaType === MediaType.MOVIE
+        ? (data.title as string)
+        : (data.name as string);
+    const releaseDate =
+      mediaType === MediaType.MOVIE
+        ? (data.release_date as string | null)
+        : (data.first_air_date as string | null);
+    const runtime =
+      mediaType === MediaType.MOVIE
+        ? (data.runtime as number | null)
+        : (data.episode_run_time?.[0] as number | undefined) ?? null;
+    await this.prisma.cachedWork.upsert({
+      where: { tmdbId_mediaType: { tmdbId, mediaType } },
+      create: {
+        tmdbId,
+        mediaType,
+        title,
+        posterPath: (data.poster_path as string | null) ?? null,
+        overview: (data.overview as string) ?? '',
+        releaseDate: releaseDate ?? undefined,
+        runtime: runtime ?? undefined,
+        payload: data as object,
+      },
+      update: {
+        title,
+        posterPath: (data.poster_path as string | null) ?? null,
+        overview: (data.overview as string) ?? '',
+        releaseDate: releaseDate ?? undefined,
+        runtime: runtime ?? undefined,
+        payload: data as object,
+        cachedAt: new Date(),
+      },
+    });
+    return { source: 'live' as const, data };
+  }
+
+  posterUrl(path: string | null | undefined) {
+    if (!path) return null;
+    return `https://image.tmdb.org/t/p/w500${path}`;
+  }
+}

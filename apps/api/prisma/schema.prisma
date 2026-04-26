@@ -1,0 +1,235 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum MediaType {
+  MOVIE
+  TV
+}
+
+enum WatchStatus {
+  WATCHLIST
+  IN_PROGRESS
+  COMPLETED
+  DROPPED
+}
+
+enum ActivityType {
+  RATED
+  REVIEWED
+  LIST_ADDED
+  STATUS_CHANGED
+  FOLLOW
+}
+
+enum ReportStatus {
+  OPEN
+  RESOLVED
+  DISMISSED
+}
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  passwordHash String?
+  displayName  String
+  bio          String    @default("")
+  website      String?
+  avatarUrl    String?
+  role         Role      @default(USER)
+  bannedUntil  DateTime?
+  theme        String    @default("light")
+  locale       String    @default("fr")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  oauthAccounts OAuthAccount[]
+  refreshTokens RefreshToken[]
+
+  reviewsWritten Review[] @relation("ReviewAuthor")
+  reviewLikes    ReviewLike[]
+  comments       Comment[]
+
+  followers Follow[] @relation("Following")
+  following Follow[] @relation("Follower")
+
+  activities Activity[]
+  notifications Notification[]
+
+  customLists CustomList[]
+
+  userWorkStatuses UserWorkStatus[]
+
+  reportsFiled Report[] @relation("Reporter")
+  messagesSent   Message[] @relation("MsgSender")
+  messagesRecv   Message[] @relation("MsgRecipient")
+}
+
+model OAuthAccount {
+  id             String @id @default(uuid())
+  provider       String
+  providerUserId String
+  userId         String
+  user           User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerUserId])
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  tokenHash String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+/// Cache minimal TMDB + payload JSON pour affichage rapide
+model CachedWork {
+  id        String    @id @default(uuid())
+  tmdbId    Int
+  mediaType MediaType
+  title     String
+  posterPath String?
+  overview  String    @default("")
+  releaseDate String?
+  runtime   Int?
+  payload   Json
+  cachedAt  DateTime  @default(now())
+
+  @@unique([tmdbId, mediaType])
+}
+
+model UserWorkStatus {
+  id        String       @id @default(uuid())
+  userId    String
+  tmdbId    Int
+  mediaType MediaType
+  status    WatchStatus
+  updatedAt DateTime     @updatedAt
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, tmdbId, mediaType])
+}
+
+model CustomList {
+  id        String   @id @default(uuid())
+  userId    String
+  name      String
+  isPublic  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     CustomListItem[]
+}
+
+model CustomListItem {
+  id         String    @id @default(uuid())
+  listId     String
+  tmdbId     Int
+  mediaType  MediaType
+  addedAt    DateTime  @default(now())
+  list       CustomList @relation(fields: [listId], references: [id], onDelete: Cascade)
+
+  @@unique([listId, tmdbId, mediaType])
+}
+
+model Review {
+  id         String    @id @default(uuid())
+  userId     String
+  tmdbId     Int
+  mediaType  MediaType
+  rating     Int
+  body       String    @default("")
+  spoiler    Boolean   @default(false)
+  featured   Boolean   @default(false)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  user       User      @relation("ReviewAuthor", fields: [userId], references: [id], onDelete: Cascade)
+  likes      ReviewLike[]
+  comments   Comment[]
+  reports    Report[]
+
+  @@unique([userId, tmdbId, mediaType])
+}
+
+model ReviewLike {
+  reviewId String
+  userId   String
+  review   Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([reviewId, userId])
+}
+
+model Comment {
+  id        String   @id @default(uuid())
+  reviewId  String
+  userId    String
+  body      String
+  parentId  String?
+  createdAt DateTime @default(now())
+  review    Review   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Follow {
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+  follower    User @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
+  following   User @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@id([followerId, followingId])
+}
+
+model Activity {
+  id        String       @id @default(uuid())
+  userId    String
+  type      ActivityType
+  payload   Json
+  createdAt DateTime     @default(now())
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  type      String
+  payload   Json
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Message {
+  id          String   @id @default(uuid())
+  senderId    String
+  recipientId String
+  body        String
+  readAt      DateTime?
+  createdAt   DateTime @default(now())
+  sender      User @relation("MsgSender", fields: [senderId], references: [id], onDelete: Cascade)
+  recipient   User @relation("MsgRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+}
+
+model Report {
+  id         String       @id @default(uuid())
+  reporterId String
+  reviewId   String
+  reason     String
+  status     ReportStatus @default(OPEN)
+  createdAt  DateTime     @default(now())
+  reporter   User   @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  review     Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+}
