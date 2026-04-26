@@ -4,14 +4,16 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { apiFetch } from "@/lib/api";
+import { useLocale } from "../../components/AppProviders";
 
 type ListDetail = {
   name: string;
   isPublic: boolean;
-  items: { tmdbId: number; mediaType: string }[];
+  items: { tmdbId: number; mediaType: string; title?: string }[];
 };
 
 export default function ListPage() {
+  const { t } = useLocale();
   const params = useParams<{ id: string }>();
   const [l, setL] = useState<ListDetail | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -19,9 +21,28 @@ export default function ListPage() {
   useEffect(() => {
     if (!params?.id) return;
     apiFetch<ListDetail>(`/library/lists/${params.id}`, { auth: false })
-      .then(setL)
-      .catch(() => setErr("List not found or private"));
-  }, [params]);
+      .then(async (list) => {
+        const enriched = await Promise.all(
+          list.items.map(async (item) => {
+            const type = item.mediaType === "TV" ? "tv" : "movie";
+            try {
+              const r = await apiFetch<{ data: { title?: string; name?: string } }>(
+                `/media/${type}/${item.tmdbId}`,
+                { auth: false },
+              );
+              return {
+                ...item,
+                title: r.data?.title ?? r.data?.name ?? `#${item.tmdbId}`,
+              };
+            } catch {
+              return { ...item, title: `#${item.tmdbId}` };
+            }
+          }),
+        );
+        setL({ ...list, items: enriched });
+      })
+      .catch(() => setErr(t("list.notFound")));
+  }, [params, t]);
 
   if (err) {
     return (
@@ -41,11 +62,12 @@ export default function ListPage() {
     <div className="space-y-6">
       <header className="space-y-2">
         <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-kino-hot">
-          Custom list
+          {t("list.custom")}
         </p>
         <h1 className="text-display text-4xl font-bold text-white">{l.name}</h1>
         <span className="chip">
-          {l.isPublic ? "Public" : "Private"} · {l.items.length} items
+          {l.isPublic ? t("common.public") : t("common.private")} ·{" "}
+          {t("list.items", { count: l.items.length })}
         </span>
       </header>
       <ul className="grid gap-2 md:grid-cols-2">
@@ -55,13 +77,15 @@ export default function ListPage() {
               href={`/title/${i.mediaType === "TV" ? "tv" : "movie"}/${i.tmdbId}`}
               className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-white transition hover:border-kino/40 hover:bg-white/5"
             >
-              <span className="text-kino-muted">{i.mediaType}</span>
-              <span className="font-medium">title #{i.tmdbId} →</span>
+              <span className="text-kino-muted">
+                {i.mediaType === "TV" ? t("nav.series") : t("nav.movies")}
+              </span>
+              <span className="font-medium">{i.title ?? `#${i.tmdbId}`} →</span>
             </Link>
           </li>
         ))}
         {l.items.length === 0 && (
-          <li className="text-kino-muted md:col-span-2">This list is empty.</li>
+          <li className="text-kino-muted md:col-span-2">{t("list.empty")}</li>
         )}
       </ul>
     </div>

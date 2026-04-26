@@ -4,9 +4,11 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { apiFetch, setTokens } from "@/lib/api";
+import { useLocale } from "../components/AppProviders";
 import { AuthShell } from "../components/AuthShell";
 
 export default function RegisterPage() {
+  const { t } = useLocale();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -29,8 +31,8 @@ export default function RegisterPage() {
       );
       setTokens(res.accessToken, res.refreshToken);
       router.push("/feed");
-    } catch (ex) {
-      setErr(ex instanceof Error ? ex.message : "Error");
+    } catch {
+      setErr(t("auth.registerFailed"));
     } finally {
       setLoading(false);
     }
@@ -38,28 +40,28 @@ export default function RegisterPage() {
 
   return (
     <AuthShell
-      eyebrow="Join Kino"
-      title="Create your account"
-      subtitle="Password: 8+ characters with upper, lower and a number."
+      eyebrow={t("auth.registerEyebrow")}
+      title={t("auth.registerTitle")}
+      subtitle={t("auth.registerPasswordHint")}
       footer={
         <p className="pt-3 text-center text-sm text-kino-muted">
-          Already have an account?{" "}
+          {t("auth.hasAccount")}{" "}
           <Link className="font-semibold text-kino hover:text-kino-hot" href="/login">
-            Log in
+            {t("auth.signInLink")}
           </Link>
         </p>
       }
     >
       <form className="space-y-4" onSubmit={onSubmit}>
         <Field
-          label="Display name"
+          label={t("auth.displayName")}
           value={displayName}
           onChange={setDisplayName}
           required
         />
-        <Field label="Email" type="email" value={email} onChange={setEmail} required />
+        <Field label={t("common.email")} type="email" value={email} onChange={setEmail} required />
         <Field
-          label="Password"
+          label={t("common.password")}
           type="password"
           value={password}
           onChange={setPassword}
@@ -75,7 +77,7 @@ export default function RegisterPage() {
           disabled={loading}
           className="btn-primary w-full disabled:opacity-60"
         >
-          {loading ? "Creating..." : "Create account"}
+          {loading ? t("auth.creating") : t("auth.createAccount")}
         </button>
       </form>
     </AuthShell>

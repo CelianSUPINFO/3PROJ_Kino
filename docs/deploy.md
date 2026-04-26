@@ -3,7 +3,7 @@
 This guide covers three deployment paths:
 
 1. **Local development** (hot reload, Postgres in Docker, native Node for API/Web/Mobile)
-2. **Production-like stack with Docker Compose** (containerized API + Web + Postgres + Redis)
+2. **Production-like stack with Docker Compose** (containerized API + Web + Postgres, plus Redis available for future cache/rate-limit needs)
 3. **Mobile publishing with EAS** (Android APK/AAB, iOS IPA)
 
 All commands are written for Windows PowerShell. On macOS/Linux the same commands work with `bash`.
@@ -47,7 +47,7 @@ Minimum values to set:
 
 ## 2. Local development
 
-Spin up Postgres + Redis only, then run API and Web natively for hot reload.
+Spin up Postgres and Redis, then run API and Web natively for hot reload. Redis is included in the stack so the deployment shape stays stable if cache or rate-limit features are enabled later.
 
 ```powershell
 docker compose up -d db redis
@@ -71,9 +71,9 @@ npm start
 
 Health checks:
 
-- API root:   `GET http://localhost:4000/v1` → `"Hello World!"`
+- API root: `GET http://localhost:4000/v1` → `"Hello World!"`
 - API health: `GET http://localhost:4000/v1/health` → `{ "status": "ok", ... }`
-- Web native:  <http://localhost:3000>
+- Web native: <http://localhost:3000>
 
 ### Seed data
 
@@ -95,12 +95,12 @@ docker compose up -d
 
 Services:
 
-| Service | Host port | Purpose |
-|---------|-----------|---------|
-| `db`    | 5432      | Postgres 16 (volume `kino_pg`) |
-| `redis` | 6379      | Redis 7 (volume `kino_redis`)  |
-| `api`   | 4000      | NestJS (runs Prisma migrations on boot) |
-| `web`   | 3001      | Next.js standalone runtime     |
+| Service | Host port | Purpose                                                            |
+| ------- | --------- | ------------------------------------------------------------------ |
+| `db`    | 5432      | Postgres 16 (volume `kino_pg`)                                     |
+| `redis` | 6379      | Redis 7, optional extension point for distributed cache/rate-limit |
+| `api`   | 4000      | NestJS (runs Prisma migrations on boot)                            |
+| `web`   | 3001      | Next.js standalone runtime                                         |
 
 Open <http://localhost:3001>. The web container talks to the API on the Docker network; the browser calls `NEXT_PUBLIC_API_URL` from your `.env` (default `http://localhost:4000/v1`).
 
@@ -142,11 +142,11 @@ The images are self-contained. A typical deployment:
 
 `apps/mobile/eas.json` exposes three profiles:
 
-| Profile       | Distribution | Channel       | `EXPO_PUBLIC_API_URL` default                 |
-|---------------|--------------|---------------|-----------------------------------------------|
-| `development` | internal     | `development` | `http://localhost:4000/v1`                    |
-| `preview`     | internal     | `preview`     | `https://api.kino.example.com/v1`             |
-| `production`  | store        | `production`  | `https://api.kino.example.com/v1`             |
+| Profile       | Distribution | Channel       | `EXPO_PUBLIC_API_URL` default     |
+| ------------- | ------------ | ------------- | --------------------------------- |
+| `development` | internal     | `development` | `http://localhost:4000/v1`        |
+| `preview`     | internal     | `preview`     | `https://api.kino.example.com/v1` |
+| `production`  | store        | `production`  | `https://api.kino.example.com/v1` |
 
 Replace `https://api.kino.example.com/v1` with your deployed API URL before building `preview`/`production`.
 
@@ -182,7 +182,7 @@ eas submit -p ios --profile production --latest
 
 Store metadata lives in the respective consoles (Google Play / App Store Connect). The bundle identifier / package are already set in `app.json`:
 
-- iOS:     `com.cultureconnect.kino`
+- iOS: `com.cultureconnect.kino`
 - Android: `com.cultureconnect.kino`
 
 ### OTA updates (optional)
@@ -198,14 +198,14 @@ eas update --branch production --message "Release 1.0.1"
 
 ## 5. Troubleshooting
 
-| Symptom | Fix |
-|---------|-----|
-| `P1001: Can't reach database server` | `docker compose up -d db` and wait for the healthcheck |
-| Web shows empty carousels | `TMDB_API_KEY` / `TMDB_READ_ACCESS_TOKEN` missing — check `.env` and restart the API |
-| `EADDRINUSE: :::4000` | Another Node process is running the API — `taskkill /F /IM node.exe` on Windows |
-| `OAuth2Strategy requires a clientID option` | Leave `GOOGLE_CLIENT_*` unset **or** set both; do not leave one empty |
-| Mobile cannot reach the API on a physical device | Replace `localhost` with your machine's LAN IP in `EXPO_PUBLIC_API_URL` |
-| Next.js build complains about `useSearchParams` | Pages using it must be wrapped in `<Suspense>` — already handled in `app/search/page.tsx` |
+| Symptom                                          | Fix                                                                                       |
+| ------------------------------------------------ | ----------------------------------------------------------------------------------------- |
+| `P1001: Can't reach database server`             | `docker compose up -d db` and wait for the healthcheck                                    |
+| Web shows empty carousels                        | `TMDB_API_KEY` / `TMDB_READ_ACCESS_TOKEN` missing — check `.env` and restart the API      |
+| `EADDRINUSE: :::4000`                            | Another Node process is running the API — `taskkill /F /IM node.exe` on Windows           |
+| `OAuth2Strategy requires a clientID option`      | Leave `GOOGLE_CLIENT_*` unset **or** set both; do not leave one empty                     |
+| Mobile cannot reach the API on a physical device | Replace `localhost` with your machine's LAN IP in `EXPO_PUBLIC_API_URL`                   |
+| Next.js build complains about `useSearchParams`  | Pages using it must be wrapped in `<Suspense>` — already handled in `app/search/page.tsx` |
 
 ---
 

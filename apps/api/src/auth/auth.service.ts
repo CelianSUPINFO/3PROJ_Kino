@@ -135,10 +135,4 @@ export class AuthService {
     });
     return user;
   }
-
-  /** Recommandation TMDB : nouveautés d’un réalisateur favori (stub enrichi si besoin) */
-  async enqueueTasteNotifications(_userId: string) {
-    // Placeholder: cron ou job pour parcourir les goûts et notifier — peut appeler TMDB côté serveur
-    return { ok: true };
-  }
 }

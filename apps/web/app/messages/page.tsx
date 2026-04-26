@@ -2,8 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
+import { useLocale } from "../components/AppProviders";
 
-type Partner = { id: string; displayName: string };
+type Partner = { id: string; displayName: string; unreadCount?: number };
 type Message = {
   id: string;
   body: string;
@@ -23,6 +24,7 @@ function initials(name: string) {
 }
 
 export default function MessagesPage() {
+  const { locale, t } = useLocale();
   const [me, setMe] = useState<Me | null>(null);
   const [partners, setPartners] = useState<Partner[]>([]);
   const [selected, setSelected] = useState<Partner | null>(null);
@@ -40,8 +42,8 @@ export default function MessagesPage() {
         setPartners(rows);
         if (rows.length > 0) setSelected(rows[0]);
       })
-      .catch(() => setErr("Sign in required for messaging."));
-  }, []);
+      .catch(() => setErr(t("messages.signIn")));
+  }, [t]);
 
   useEffect(() => {
     if (!selected) return;
@@ -58,7 +60,7 @@ export default function MessagesPage() {
     if (!selected || !body.trim()) return;
     await apiFetch("/messages", {
       method: "POST",
-      body: JSON.stringify({ recipientId: selected.id, body }),
+      body: JSON.stringify({ recipientId: selected.id, body: body.trim() }),
     });
     setBody("");
     const rows = await apiFetch<Message[]>(`/messages/${selected.id}`);
@@ -67,7 +69,9 @@ export default function MessagesPage() {
 
   if (err) {
     return (
-      <div className="glass rounded-2xl p-6 text-center text-kino-muted">{err}</div>
+      <div className="glass rounded-2xl p-6 text-center text-kino-muted">
+        {err}
+      </div>
     );
   }
 
@@ -75,7 +79,7 @@ export default function MessagesPage() {
     <div className="grid gap-4 md:grid-cols-[280px_1fr]">
       <aside className="glass h-fit rounded-2xl p-3 md:sticky md:top-24">
         <h1 className="text-display px-2 pb-2 text-lg font-semibold text-white">
-          Conversations
+          {t("messages.title")}
         </h1>
         <ul className="space-y-1">
           {partners.map((p) => (
@@ -91,14 +95,19 @@ export default function MessagesPage() {
                 <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-kino to-kino-hot text-xs font-bold text-white">
                   {initials(p.displayName)}
                 </span>
-                <span className="truncate text-sm font-medium">{p.displayName}</span>
+                <span className="truncate text-sm font-medium">
+                  {p.displayName}
+                </span>
+                {!!p.unreadCount && (
+                  <span className="ml-auto rounded-full bg-kino-hot px-2 py-0.5 text-[10px] font-bold text-white">
+                    {p.unreadCount}
+                  </span>
+                )}
               </button>
             </li>
           ))}
           {partners.length === 0 && (
-            <li className="px-2 text-sm text-kino-muted">
-              No chat partners yet (mutual follow required).
-            </li>
+            <li className="px-2 text-sm text-kino-muted">{t("messages.noPartners")}</li>
           )}
         </ul>
       </aside>
@@ -115,7 +124,7 @@ export default function MessagesPage() {
             </>
           ) : (
             <h2 className="text-display text-lg font-semibold text-white">
-              Select a conversation
+              {t("messages.selectConversation")}
             </h2>
           )}
         </header>
@@ -135,20 +144,20 @@ export default function MessagesPage() {
                   }`}
                 >
                   <p>{m.body}</p>
-                  <p className={`mt-1 text-[10px] ${mine ? "text-white/75" : "text-kino-muted"}`}>
-                    {new Date(m.createdAt).toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
+                  <p
+                    className={`mt-1 text-[10px] ${mine ? "text-white/75" : "text-kino-muted"}`}
+                  >
+                    {new Date(m.createdAt).toLocaleTimeString(
+                      locale === "fr" ? "fr-FR" : "en-US",
+                      { hour: "2-digit", minute: "2-digit" },
+                    )}
                   </p>
                 </div>
               </div>
             );
           })}
           {selected && messages.length === 0 && (
-            <p className="text-center text-sm text-kino-muted">
-              No messages yet. Say hi.
-            </p>
+            <p className="text-center text-sm text-kino-muted">{t("messages.empty")}</p>
           )}
           <div ref={endRef} />
         </div>
@@ -164,13 +173,13 @@ export default function MessagesPage() {
                   void send();
                 }
               }}
-              placeholder="Type a message..."
+              placeholder={t("messages.placeholder")}
             />
             <button
               className="rounded-full bg-gradient-to-r from-kino to-kino-hot px-5 py-2 text-sm font-semibold text-white shadow-kino"
               onClick={send}
             >
-              Send
+              {t("common.send")}
             </button>
           </div>
         )}

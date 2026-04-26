@@ -6,6 +6,27 @@
   color-scheme: dark;
 }
 
+html.light {
+  color-scheme: light;
+}
+
+html.light body {
+  color: #1a1020;
+  background-color: #f8f5fa;
+  background-image:
+    radial-gradient(1200px 600px at 85% 95%, rgba(255, 46, 126, 0.08) 0%, transparent 60%),
+    radial-gradient(900px 500px at 10% 0%, rgba(120, 60, 200, 0.06) 0%, transparent 55%),
+    linear-gradient(180deg, #f8f5fa 0%, #f0ebf4 100%);
+}
+
+html.light .glass {
+  @apply border-black/10 bg-white/70 text-gray-900;
+}
+
+html.light .chip {
+  @apply border-black/10 bg-black/[0.04] text-gray-800 hover:text-gray-950;
+}
+
 html,
 body {
   background-color: #0a0710;

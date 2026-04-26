@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { apiFetch } from "@/lib/api";
+import { useLocale } from "../components/AppProviders";
 import { Chip } from "../components/Chip";
 import { PosterCard, type PosterCardData } from "../components/PosterCard";
 import { ScrollToTop } from "../components/ScrollToTop";
@@ -14,22 +15,34 @@ type Unified = {
   works: { results: PosterCardData[] };
 };
 
-type SortKey = "relevance" | "popularity.desc" | "vote_average.desc" | "release_date.desc";
-
-const SORTS: { id: SortKey; label: string }[] = [
-  { id: "relevance", label: "Relevance" },
-  { id: "popularity.desc", label: "Popularity" },
-  { id: "vote_average.desc", label: "Top rated" },
-  { id: "release_date.desc", label: "Most recent" },
-];
-
-const TYPES: { id: "all" | "movie" | "tv"; label: string }[] = [
-  { id: "all", label: "All" },
-  { id: "movie", label: "Movies" },
-  { id: "tv", label: "TV shows" },
-];
+const SORT_KEYS = ["relevance", "popularity.desc", "vote_average.desc", "release_date.desc"] as const;
+type SortKey = (typeof SORT_KEYS)[number];
 
 export default function SearchPage() {
+  const { t } = useLocale();
+  const SORTS = useMemo(
+    () =>
+      SORT_KEYS.map((id) => ({
+        id,
+        label:
+          id === "relevance"
+            ? t("search.sort.relevance")
+            : id === "popularity.desc"
+              ? t("search.sort.popularity")
+              : id === "vote_average.desc"
+                ? t("search.sort.topRated")
+                : t("search.sort.recent"),
+      })),
+    [t],
+  );
+  const TYPES = useMemo(
+    () => [
+      { id: "all" as const, label: t("nav.all") },
+      { id: "movie" as const, label: t("nav.movies") },
+      { id: "tv" as const, label: t("nav.series") },
+    ],
+    [t],
+  );
   const [q, setQ] = useState("");
   const [data, setData] = useState<Unified | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -73,11 +86,11 @@ export default function SearchPage() {
           setPage(1);
           setTotalPages(Math.max(1, media.total_pages ?? 1));
         })
-        .catch(() => setErr("Network error"))
+        .catch(() => setErr(t("common.networkError")))
         .finally(() => setLoading(false));
       return;
     }
-    const t = setTimeout(() => {
+    const timer = setTimeout(() => {
       setLoading(true);
       setErr(null);
       const qs = new URLSearchParams({
@@ -105,11 +118,11 @@ export default function SearchPage() {
           setPage(1);
           setTotalPages(Math.max(1, media.total_pages ?? 1));
         })
-        .catch(() => setErr("Network error"))
+        .catch(() => setErr(t("common.networkError")))
         .finally(() => setLoading(false));
     }, 300);
-    return () => clearTimeout(t);
-  }, [q, type, year, minVote, sort]);
+    return () => clearTimeout(timer);
+  }, [q, type, year, minVote, sort, t]);
 
   const loadMore = useCallback(async () => {
     if (page >= totalPages) return;
@@ -154,14 +167,12 @@ export default function SearchPage() {
     <div className="space-y-8">
       <header className="space-y-2">
         <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-kino-hot">
-          Explore
+          {t("search.title")}
         </p>
         <h1 className="text-display text-4xl font-bold text-white md:text-5xl">
-          Search Kino
+          {t("search.pageTitle")}
         </h1>
-        <p className="max-w-2xl text-kino-muted">
-          Find movies, shows, creators and curated lists. Refine with filters and scroll for more.
-        </p>
+        <p className="max-w-2xl text-kino-muted">{t("search.subtitle")}</p>
       </header>
 
       <div className="glass rounded-2xl p-4 md:p-5">
@@ -182,7 +193,7 @@ export default function SearchPage() {
           </svg>
           <input
             className="w-full rounded-full border border-white/10 bg-black/30 py-3 pl-11 pr-4 text-white placeholder:text-white/40 focus:border-kino/60 focus:outline-none"
-            placeholder="Movies, shows, users, lists..."
+            placeholder={t("search.placeholder")}
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
@@ -204,7 +215,7 @@ export default function SearchPage() {
 
         <div className="mt-3 grid gap-2 sm:grid-cols-2 md:max-w-xl">
           <label className="flex items-center gap-2 rounded-full border border-white/10 bg-black/30 px-3 py-1.5 text-sm text-white/80">
-            <span className="text-xs uppercase tracking-wider text-kino-muted">Year</span>
+            <span className="text-xs uppercase tracking-wider text-kino-muted">{t("search.year")}</span>
             <input
               className="w-full bg-transparent text-white focus:outline-none"
               placeholder="2024"
@@ -214,7 +225,7 @@ export default function SearchPage() {
           </label>
           <label className="flex items-center gap-3 rounded-full border border-white/10 bg-black/30 px-4 py-1.5 text-sm text-white/80">
             <span className="text-xs uppercase tracking-wider text-kino-muted">
-              Min rating
+              {t("search.minRating")}
             </span>
             <input
               type="range"
@@ -246,12 +257,12 @@ export default function SearchPage() {
       )}
 
       {!loading && q.trim() && !hasResults && !err && (
-        <p className="text-sm text-kino-muted">No results yet.</p>
+        <p className="text-sm text-kino-muted">{t("search.noResults")}</p>
       )}
 
       {works.length > 0 && (
         <section className="space-y-3">
-          <h2 className="text-display text-xl font-semibold text-white">Titles</h2>
+          <h2 className="text-display text-xl font-semibold text-white">{t("search.titles")}</h2>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
             {works.map((w, idx) => (
               <PosterCard
@@ -265,7 +276,7 @@ export default function SearchPage() {
             ))}
           </div>
           {page < totalPages && (
-            <p className="pt-3 text-center text-sm text-kino-muted">Loading more...</p>
+            <p className="pt-3 text-center text-sm text-kino-muted">{t("search.loadingMore")}</p>
           )}
         </section>
       )}
@@ -274,7 +285,7 @@ export default function SearchPage() {
         <section className="grid gap-6 md:grid-cols-2">
           {data.users.length > 0 && (
             <div className="glass rounded-2xl p-5">
-              <h2 className="text-display mb-3 text-xl font-semibold text-white">Users</h2>
+              <h2 className="text-display mb-3 text-xl font-semibold text-white">{t("search.users")}</h2>
               <ul className="space-y-2">
                 {data.users.map((u) => (
                   <li key={u.id}>
@@ -292,7 +303,7 @@ export default function SearchPage() {
           {data.lists.length > 0 && (
             <div className="glass rounded-2xl p-5">
               <h2 className="text-display mb-3 text-xl font-semibold text-white">
-                Public lists
+                {t("search.publicLists")}
               </h2>
               <ul className="space-y-2">
                 {data.lists.map((l) => (

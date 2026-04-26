@@ -3,14 +3,21 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
   Param,
   Patch,
   Post,
+  Res,
   UseGuards,
 } from '@nestjs/common';
+import { Response } from 'express';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
-import { CurrentUser, JwtUser } from '../common/decorators/current-user.decorator';
+import {
+  CurrentUser,
+  JwtUser,
+} from '../common/decorators/current-user.decorator';
 import { UsersService } from './users.service';
+import { UpdateProfileDto } from './dto/user.dto';
 
 @Controller('users')
 export class UsersController {
@@ -24,18 +31,7 @@ export class UsersController {
 
   @Patch('me')
   @UseGuards(JwtAuthGuard)
-  updateMe(
-    @CurrentUser() user: JwtUser,
-    @Body()
-    body: {
-      displayName?: string;
-      bio?: string;
-      website?: string;
-      avatarUrl?: string;
-      theme?: string;
-      locale?: string;
-    },
-  ) {
+  updateMe(@CurrentUser() user: JwtUser, @Body() body: UpdateProfileDto) {
     return this.users.updateMe(user.sub, body);
   }
 
@@ -43,6 +39,25 @@ export class UsersController {
   @UseGuards(JwtAuthGuard)
   export(@CurrentUser() user: JwtUser) {
     return this.users.exportData(user.sub);
+  }
+
+  @Get('export.csv')
+  @UseGuards(JwtAuthGuard)
+  async exportCsv(@CurrentUser() user: JwtUser, @Res() res: Response) {
+    const csv = await this.users.exportCsv(user.sub);
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename="kino-export.csv"',
+    );
+    return res.send(csv);
+  }
+
+  @Delete('me')
+  @HttpCode(200)
+  @UseGuards(JwtAuthGuard)
+  deleteMe(@CurrentUser() user: JwtUser) {
+    return this.users.deleteMe(user.sub);
   }
 
   @Get(':id')

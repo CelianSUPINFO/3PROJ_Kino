@@ -99,11 +99,7 @@ export class ReviewsService {
           payload: { reviewId, by: userId },
         },
       });
-      this.notificationsGateway.pushToUser(
-        review.userId,
-        'notification:new',
-        notification,
-      );
+      await this.pushIfEnabled(review.userId, notification);
     }
     return { liked: true };
   }
@@ -129,13 +125,25 @@ export class ReviewsService {
           payload: { reviewId, commentId: c.id, by: userId },
         },
       });
-      this.notificationsGateway.pushToUser(
-        review.userId,
-        'notification:new',
-        notification,
-      );
+      await this.pushIfEnabled(review.userId, notification);
     }
     return c;
+  }
+
+  private async pushIfEnabled(
+    userId: string,
+    notification: { id: string; type: string; payload: unknown; read: boolean },
+  ) {
+    const prefs = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { notifyPush: true },
+    });
+    if (prefs?.notifyPush === false) return;
+    this.notificationsGateway.pushToUser(
+      userId,
+      'notification:new',
+      notification,
+    );
   }
 
   async listComments(reviewId: string) {
@@ -143,6 +151,7 @@ export class ReviewsService {
       where: { reviewId, parentId: null },
       include: {
         user: { select: { id: true, displayName: true, avatarUrl: true } },
+        // replies shallow
       },
       orderBy: { createdAt: 'asc' },
     });
@@ -151,13 +160,19 @@ export class ReviewsService {
   async reportReview(reporterId: string, reviewId: string, reason: string) {
     const review = await this.prisma.review.findUnique({ where: { id: reviewId } });
     if (!review) throw new NotFoundException();
-    await this.prisma.report.upsert({
-      where: {
-        reporterId_reviewId: { reporterId, reviewId },
-      },
-      create: { reporterId, reviewId, reason },
-      update: { reason, status: 'OPEN' },
+    const existing = await this.prisma.report.findFirst({
+      where: { reporterId, reviewId },
     });
+    if (existing) {
+      await this.prisma.report.update({
+        where: { id: existing.id },
+        data: { reason, status: 'OPEN' },
+      });
+    } else {
+      await this.prisma.report.create({
+        data: { reporterId, reviewId, reason },
+      });
+    }
     return { ok: true };
   }
 

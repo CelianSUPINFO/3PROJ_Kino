@@ -99,6 +99,6 @@ Ne jamais committer `.env`, clés TMDB, secrets JWT ou mots de passe base.
 
 ## Couverture fonctionnelle
 
-- Web : recherche, fiches média, bibliothèque/listes, critiques, likes, commentaires, signalement, profils, follow, fil, notifications temps réel, messagerie, paramètres, export RGPD et admin.
-- Mobile : consultation rapide, recherche, fiches média, statuts, publication d’avis, avis communautaires, recommandations “Ce soir”, fil, notifications par polling, messages, paramètres et export JSON.
+- Web : recherche, fiches média, bibliothèque/listes, critiques, likes, commentaires, signalement, profils, follow, fil, notifications temps réel, messagerie avec état non lu, paramètres, export RGPD JSON/CSV, suppression de compte et admin.
+- Mobile : consultation rapide, recherche, fiches média, statuts, publication d’avis, avis communautaires, recommandations “Ce soir”, fil, notifications par polling, messages avec compteur non lu, paramètres, export JSON et suppression de compte.
 - Serveur : toute la logique métier et tous les appels TMDB passent par l’API NestJS.

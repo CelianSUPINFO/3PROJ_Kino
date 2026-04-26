@@ -1,9 +1,14 @@
 {
   "name": "kino-supcontent",
   "private": true,
-  "workspaces": ["apps/api"],
+  "workspaces": ["apps/api", "apps/web"],
   "scripts": {
     "dev:api": "npm run start:dev -w api",
-    "build:api": "npm run build -w api"
+    "dev:web": "npm run dev -w web",
+    "dev:mobile": "npm run start --prefix apps/mobile",
+    "build:api": "npm run build -w api",
+    "build:web": "npm run build -w web",
+    "typecheck:mobile": "npx tsc --noEmit -p apps/mobile/tsconfig.json",
+    "verify": "npm run build:api && npm run build:web && npm run typecheck:mobile && npm run test:e2e -w api -- --runInBand"
   }
 }

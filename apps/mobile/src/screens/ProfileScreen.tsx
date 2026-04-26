@@ -1,0 +1,450 @@
+import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useCallback, useEffect, useState } from "react";
+import {
+  FlatList,
+  Image,
+  ImageBackground,
+  Pressable,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
+import { apiFetch } from "../api";
+import { PosterCard, type PosterItem } from "../components/PosterCard";
+import { useLocale } from "../context/LocaleContext";
+import { useThemeColors } from "../context/ThemeContext";
+import type { RootStackParamList } from "../navigation/types";
+import { radius, spacing } from "../theme";
+
+type Props = NativeStackScreenProps<RootStackParamList, "Profile">;
+
+type FavoriteFilm = {
+  tmdbId: number;
+  mediaType: "MOVIE" | "TV";
+  title?: string;
+  posterPath?: string | null;
+};
+
+type Profile = {
+  id: string;
+  displayName: string;
+  bio: string;
+  website?: string | null;
+  avatarUrl?: string | null;
+  bannerUrl?: string | null;
+  favoriteFilms?: FavoriteFilm[];
+};
+
+type PublicUser = { id: string; displayName: string; avatarUrl?: string | null };
+
+function initials(name: string) {
+  return name
+    .split(" ")
+    .map((s) => s[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+}
+
+export function ProfileScreen({ route, navigation }: Props) {
+  const { userId } = route.params;
+  const { t } = useLocale();
+  const { colors } = useThemeColors();
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [followers, setFollowers] = useState<PublicUser[]>([]);
+  const [following, setFollowing] = useState<PublicUser[]>([]);
+  const [meId, setMeId] = useState<string | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState<Profile | null>(null);
+  const [pickQ, setPickQ] = useState("");
+  const [pickResults, setPickResults] = useState<
+    { id: number; title?: string; name?: string; poster_path?: string; media_type?: string }[]
+  >([]);
+
+  const load = useCallback(async () => {
+    try {
+      const [p, fol, fing, me] = await Promise.all([
+        apiFetch<Profile>(`/users/${userId}`, { auth: false }),
+        apiFetch<PublicUser[]>(`/users/${userId}/followers`, { auth: false }),
+        apiFetch<PublicUser[]>(`/users/${userId}/following`, { auth: false }),
+        apiFetch<{ id: string }>("/users/me").catch(() => null),
+      ]);
+      setProfile(p);
+      setDraft(p);
+      setFollowers(fol);
+      setFollowing(fing);
+      setMeId(me?.id ?? null);
+      setMsg(null);
+    } catch {
+      setProfile(null);
+      setMsg(t("profile.unavailable"));
+    }
+  }, [userId, t]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  useEffect(() => {
+    if (!pickQ.trim() || pickQ.length < 2) {
+      setPickResults([]);
+      return;
+    }
+    const timer = setTimeout(() => {
+      apiFetch<{ results: typeof pickResults }>(
+        `/media/search?q=${encodeURIComponent(pickQ)}&page=1&type=movie`,
+        { auth: false },
+      )
+        .then((r) => setPickResults(r.results?.slice(0, 6) ?? []))
+        .catch(() => setPickResults([]));
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [pickQ]);
+
+  const isOwn = meId === profile?.id;
+  const isFollowing = meId ? followers.some((u) => u.id === meId) : false;
+  const favorites = profile?.favoriteFilms ?? [];
+
+  async function toggleFollow() {
+    if (!profile || !meId) {
+      setMsg(t("nav.login"));
+      return;
+    }
+    try {
+      await apiFetch(`/users/${profile.id}/follow`, {
+        method: isFollowing ? "DELETE" : "POST",
+      });
+      await load();
+      setMsg(isFollowing ? t("profile.unfollow") : t("profile.follow"));
+    } catch {
+      setMsg(t("common.retry"));
+    }
+  }
+
+  async function saveProfile() {
+    if (!draft) return;
+    try {
+      const updated = await apiFetch<Profile>("/users/me", {
+        method: "PATCH",
+        body: JSON.stringify({
+          displayName: draft.displayName,
+          bio: draft.bio,
+          website: draft.website ?? "",
+          avatarUrl: draft.avatarUrl ?? "",
+          bannerUrl: draft.bannerUrl ?? "",
+          favoriteFilms: draft.favoriteFilms ?? [],
+        }),
+      });
+      setProfile(updated);
+      setDraft(updated);
+      setEditing(false);
+      setMsg(t("common.save"));
+    } catch {
+      setMsg(t("common.retry"));
+    }
+  }
+
+  function addFavorite(item: (typeof pickResults)[0]) {
+    if (!draft) return;
+    const list = [...(draft.favoriteFilms ?? [])];
+    if (list.length >= 5) return;
+    if (list.some((f) => f.tmdbId === item.id)) return;
+    list.push({
+      tmdbId: item.id,
+      mediaType: item.media_type === "tv" ? "TV" : "MOVIE",
+      title: item.title ?? item.name,
+      posterPath: item.poster_path ?? null,
+    });
+    setDraft({ ...draft, favoriteFilms: list });
+    setPickQ("");
+    setPickResults([]);
+  }
+
+  function removeFavorite(tmdbId: number) {
+    if (!draft) return;
+    setDraft({
+      ...draft,
+      favoriteFilms: (draft.favoriteFilms ?? []).filter((f) => f.tmdbId !== tmdbId),
+    });
+  }
+
+  if (!profile) {
+    return (
+      <SafeAreaView style={[s.screen, { backgroundColor: colors.ink }]}>
+        <Text style={[s.err, { color: colors.muted }]}>{msg ?? t("common.loading")}</Text>
+      </SafeAreaView>
+    );
+  }
+
+  const bannerUri = profile.bannerUrl?.startsWith("http") ? profile.bannerUrl : null;
+  const avatarUri = profile.avatarUrl?.startsWith("http") ? profile.avatarUrl : null;
+
+  return (
+    <SafeAreaView style={[s.screen, { backgroundColor: colors.ink }]}>
+      <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
+        <View style={s.bannerWrap}>
+          {bannerUri ? (
+            <ImageBackground source={{ uri: bannerUri }} style={s.banner} resizeMode="cover">
+              <View style={s.bannerOverlay} />
+            </ImageBackground>
+          ) : (
+            <View style={[s.banner, { backgroundColor: colors.panel }]} />
+          )}
+        </View>
+
+        <View style={s.body}>
+          <View style={s.avatarRow}>
+            {avatarUri ? (
+              <Image source={{ uri: avatarUri }} style={s.avatar} />
+            ) : (
+              <View style={[s.avatar, s.avatarFallback, { backgroundColor: colors.kino }]}>
+                <Text style={s.avatarText}>{initials(profile.displayName)}</Text>
+              </View>
+            )}
+            <View style={{ flex: 1 }}>
+              <Text style={[s.h1, { color: colors.text }]}>{profile.displayName}</Text>
+              <Text style={[s.sub, { color: colors.muted }]}>{t("profile.member")}</Text>
+            </View>
+          </View>
+
+          {profile.bio ? (
+            <Text style={[s.bio, { color: colors.text }]}>{profile.bio}</Text>
+          ) : null}
+          {profile.website ? (
+            <Text style={[s.link, { color: colors.kinoHot }]}>{profile.website}</Text>
+          ) : null}
+
+          {isOwn && !editing && (
+            <Pressable
+              style={[s.btn, { backgroundColor: colors.kino }]}
+              onPress={() => setEditing(true)}
+            >
+              <Text style={s.btnText}>{t("profile.edit")}</Text>
+            </Pressable>
+          )}
+          {!isOwn && meId && (
+            <Pressable
+              style={[s.btn, { backgroundColor: colors.kino }]}
+              onPress={toggleFollow}
+            >
+              <Text style={s.btnText}>
+                {isFollowing ? t("profile.unfollow") : t("profile.follow")}
+              </Text>
+            </Pressable>
+          )}
+          {msg && <Text style={[s.sub, { color: colors.muted }]}>{msg}</Text>}
+
+          {editing && draft && (
+            <View style={[s.editBox, { borderColor: colors.border, backgroundColor: colors.panel }]}>
+              <Text style={[s.section, { color: colors.text }]}>{t("profile.edit")}</Text>
+              <Field
+                label={t("profile.bio")}
+                value={draft.bio ?? ""}
+                onChange={(v) => setDraft({ ...draft, bio: v })}
+                colors={colors}
+                multiline
+              />
+              <Field
+                label={t("profile.avatar")}
+                value={draft.avatarUrl ?? ""}
+                onChange={(v) => setDraft({ ...draft, avatarUrl: v })}
+                colors={colors}
+              />
+              <Field
+                label={t("profile.banner")}
+                value={draft.bannerUrl ?? ""}
+                onChange={(v) => setDraft({ ...draft, bannerUrl: v })}
+                colors={colors}
+              />
+              <Field
+                label={t("profile.website")}
+                value={draft.website ?? ""}
+                onChange={(v) => setDraft({ ...draft, website: v })}
+                colors={colors}
+              />
+              <Text style={[s.section, { color: colors.text }]}>{t("profile.favorites")}</Text>
+              <Text style={[s.sub, { color: colors.muted }]}>{t("profile.favoritesHint")}</Text>
+              <TextInput
+                value={pickQ}
+                onChangeText={setPickQ}
+                placeholder={t("nav.searchPlaceholder")}
+                placeholderTextColor={colors.muted}
+                style={[s.input, { borderColor: colors.border, color: colors.text }]}
+              />
+              {pickResults.map((item) => (
+                <Pressable key={item.id} onPress={() => addFavorite(item)} style={s.pickRow}>
+                  <Text style={{ color: colors.kinoHot }}>{item.title ?? item.name}</Text>
+                </Pressable>
+              ))}
+              <FlatList
+                horizontal
+                data={draft.favoriteFilms ?? []}
+                keyExtractor={(f) => String(f.tmdbId)}
+                renderItem={({ item }) => (
+                  <Pressable onPress={() => removeFavorite(item.tmdbId)} style={s.favCard}>
+                    {item.posterPath ? (
+                      <Image
+                        source={{ uri: `https://image.tmdb.org/t/p/w185${item.posterPath}` }}
+                        style={s.favPoster}
+                      />
+                    ) : (
+                      <View style={[s.favPoster, { backgroundColor: colors.border }]} />
+                    )}
+                    <Text numberOfLines={1} style={{ color: colors.muted, fontSize: 11, maxWidth: 72 }}>
+                      {item.title}
+                    </Text>
+                  </Pressable>
+                )}
+              />
+              <View style={{ flexDirection: "row", gap: 8, marginTop: spacing.md }}>
+                <Pressable
+                  style={[s.btn, { flex: 1, backgroundColor: colors.kino }]}
+                  onPress={saveProfile}
+                >
+                  <Text style={s.btnText}>{t("common.save")}</Text>
+                </Pressable>
+                <Pressable
+                  style={[s.btnGhost, { flex: 1, borderColor: colors.border }]}
+                  onPress={() => {
+                    setDraft(profile);
+                    setEditing(false);
+                  }}
+                >
+                  <Text style={{ color: colors.text, fontWeight: "700" }}>{t("common.cancel")}</Text>
+                </Pressable>
+              </View>
+            </View>
+          )}
+
+          {!editing && favorites.length > 0 && (
+            <>
+              <Text style={[s.section, { color: colors.text }]}>{t("profile.favorites")}</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
+                {favorites.map((f) => (
+                  <Pressable
+                    key={f.tmdbId}
+                    style={s.favCard}
+                    onPress={() =>
+                      navigation.navigate("Title", {
+                        type: f.mediaType === "TV" ? "tv" : "movie",
+                        id: f.tmdbId,
+                        title: f.title ?? "…",
+                      })
+                    }
+                  >
+                    {f.posterPath ? (
+                      <Image
+                        source={{ uri: `https://image.tmdb.org/t/p/w185${f.posterPath}` }}
+                        style={s.favPoster}
+                      />
+                    ) : (
+                      <View style={[s.favPoster, { backgroundColor: colors.border }]} />
+                    )}
+                    <Text numberOfLines={1} style={{ color: colors.muted, fontSize: 11, maxWidth: 72 }}>
+                      {f.title}
+                    </Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            </>
+          )}
+
+          <Text style={[s.section, { color: colors.text, marginTop: spacing.lg }]}>
+            {t("profile.followers")} ({followers.length})
+          </Text>
+          {followers.map((u) => (
+            <Pressable key={u.id} onPress={() => navigation.push("Profile", { userId: u.id })}>
+              <Text style={[s.link, { color: colors.kinoHot }]}>{u.displayName}</Text>
+            </Pressable>
+          ))}
+          <Text style={[s.section, { color: colors.text }]}>
+            {t("profile.following")} ({following.length})
+          </Text>
+          {following.map((u) => (
+            <Pressable key={u.id} onPress={() => navigation.push("Profile", { userId: u.id })}>
+              <Text style={[s.link, { color: colors.kinoHot }]}>{u.displayName}</Text>
+            </Pressable>
+          ))}
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+function Field({
+  label,
+  value,
+  onChange,
+  colors,
+  multiline,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  colors: { text: string; muted: string; border: string };
+  multiline?: boolean;
+}) {
+  return (
+    <View style={{ marginTop: spacing.sm }}>
+      <Text style={{ color: colors.muted, fontSize: 12, marginBottom: 4 }}>{label}</Text>
+      <TextInput
+        value={value}
+        onChangeText={onChange}
+        multiline={multiline}
+        placeholderTextColor={colors.muted}
+        style={[
+          s.input,
+          multiline && { minHeight: 72, textAlignVertical: "top" },
+          { borderColor: colors.border, color: colors.text },
+        ]}
+      />
+    </View>
+  );
+}
+
+const s = StyleSheet.create({
+  screen: { flex: 1 },
+  bannerWrap: { height: 140 },
+  banner: { flex: 1 },
+  bannerOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.35)" },
+  body: { padding: spacing.lg, marginTop: -36 },
+  avatarRow: { flexDirection: "row", alignItems: "flex-end", gap: spacing.md },
+  avatar: { width: 72, height: 72, borderRadius: 36, borderWidth: 3, borderColor: "#fff" },
+  avatarFallback: { alignItems: "center", justifyContent: "center" },
+  avatarText: { color: "#fff", fontWeight: "800", fontSize: 22 },
+  h1: { fontSize: 24, fontWeight: "800" },
+  sub: { marginTop: 4, lineHeight: 20 },
+  bio: { marginTop: spacing.md, lineHeight: 22 },
+  link: { marginTop: 4 },
+  err: { padding: spacing.lg },
+  section: { fontWeight: "700", marginTop: spacing.md, marginBottom: 8 },
+  btn: {
+    marginTop: spacing.md,
+    paddingVertical: 12,
+    borderRadius: radius.pill,
+    alignItems: "center",
+  },
+  btnGhost: {
+    marginTop: spacing.md,
+    paddingVertical: 12,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    alignItems: "center",
+  },
+  btnText: { color: "#fff", fontWeight: "700" },
+  editBox: { marginTop: spacing.md, padding: spacing.md, borderRadius: radius.lg, borderWidth: 1 },
+  input: {
+    borderWidth: 1,
+    borderRadius: radius.md,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+  },
+  pickRow: { paddingVertical: 8 },
+  favCard: { marginRight: 10, width: 72 },
+  favPoster: { width: 72, height: 108, borderRadius: 8, marginBottom: 4 },
+});

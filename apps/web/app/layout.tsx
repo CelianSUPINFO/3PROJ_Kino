@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Playfair_Display } from "next/font/google";
 import "./globals.css";
 import { Nav } from "./components/Nav";
+import { AppProviders } from "./components/AppProviders";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -28,14 +29,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="fr" suppressHydrationWarning>
       <body
         className={`${inter.variable} ${playfair.variable} min-h-screen bg-kino-ink text-kino-fg font-sans antialiased`}
       >
-        <Nav />
-        <main className="mx-auto max-w-7xl px-4 pb-20 pt-6 md:px-6">
-          {children}
-        </main>
+        <AppProviders>
+          <Nav />
+          <main className="mx-auto max-w-7xl px-4 pb-20 pt-4 md:px-6 md:pt-6">
+            {children}
+          </main>
+        </AppProviders>
       </body>
     </html>
   );

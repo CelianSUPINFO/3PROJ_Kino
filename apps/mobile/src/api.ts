@@ -10,6 +10,10 @@ const base =
 const ACCESS = "kino_access";
 const REFRESH = "kino_refresh";
 
+export function getApiRoot() {
+  return base.replace(/\/v1\/?$/, "");
+}
+
 export async function setTokens(access: string, refresh: string) {
   await AsyncStorage.multiSet([
     [ACCESS, access],

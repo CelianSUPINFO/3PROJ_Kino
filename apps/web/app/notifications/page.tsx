@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { io, Socket } from "socket.io-client";
 import { apiFetch, getAccessToken } from "@/lib/api";
+import { useLocale } from "../components/AppProviders";
+import { notificationLabel } from "@/lib/i18n";
 
 type N = {
   id: string;
@@ -13,23 +15,25 @@ type N = {
 };
 
 const ICONS: Record<string, string> = {
-  FOLLOW: "👤",
-  LIKE: "♥",
-  COMMENT: "💬",
-  MENTION: "@",
-  MESSAGE: "✉",
-  REVIEW: "✍",
+  NEW_FOLLOWER: "👤",
+  REVIEW_LIKED: "♥",
+  REVIEW_COMMENT: "💬",
+  NEW_MESSAGE: "✉",
   RECOMMENDATION: "✨",
 };
 
 export default function NotificationsPage() {
+  const { locale, t } = useLocale();
   const [items, setItems] = useState<N[]>([]);
 
   useEffect(() => {
-    apiFetch<N[]>("/notifications").then(setItems).catch(() => setItems([]));
+    apiFetch<N[]>("/notifications")
+      .then(setItems)
+      .catch(() => setItems([]));
     const token = getAccessToken();
     if (!token) return;
-    const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/v1";
+    const apiBase =
+      process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/v1";
     const origin = apiBase.replace(/\/v1$/, "");
     const socket: Socket = io(`${origin}/realtime`, {
       auth: { token },
@@ -45,7 +49,9 @@ export default function NotificationsPage() {
 
   async function markRead(id: string) {
     await apiFetch(`/notifications/${id}/read`, { method: "PATCH" });
-    setItems((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+    setItems((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, read: true } : n)),
+    );
   }
 
   async function markAllRead() {
@@ -60,18 +66,22 @@ export default function NotificationsPage() {
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-kino-hot">
-            Alerts
+            {t("notifications.alerts")}
           </p>
-          <h1 className="text-display text-4xl font-bold text-white">Notifications</h1>
+          <h1 className="text-display text-4xl font-bold text-white">
+            {t("notifications.title")}
+          </h1>
           <p className="mt-1 text-kino-muted">
-            {unread > 0 ? `${unread} unread` : "You're all caught up."}
+            {unread > 0
+              ? t("notifications.unread", { count: unread })
+              : t("notifications.caughtUp")}
           </p>
         </div>
         <button
           className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm text-white hover:bg-white/10"
           onClick={markAllRead}
         >
-          Mark all as read
+          {t("notifications.markAll")}
         </button>
       </header>
       <ul className="space-y-2">
@@ -89,24 +99,23 @@ export default function NotificationsPage() {
               {ICONS[n.type] ?? "•"}
             </span>
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium">{n.type.toLowerCase().replace(/_/g, " ")}</p>
+              <p className="text-sm font-medium">
+                {notificationLabel(locale, n.type)}
+              </p>
               <p className="text-xs text-kino-muted">
-                {new Date(n.createdAt).toLocaleString()}
+                {new Date(n.createdAt).toLocaleString(locale === "fr" ? "fr-FR" : "en-US")}
               </p>
             </div>
             {!n.read && (
-              <button
-                className="chip"
-                onClick={() => markRead(n.id)}
-              >
-                Mark read
+              <button className="chip" onClick={() => markRead(n.id)}>
+                {t("notifications.markRead")}
               </button>
             )}
           </li>
         ))}
         {items.length === 0 && (
           <li className="glass rounded-2xl p-6 text-center text-kino-muted">
-            No notifications.
+            {t("notifications.empty")}
           </li>
         )}
       </ul>

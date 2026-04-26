@@ -5,15 +5,6 @@ import { MediaType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 const CACHE_MS = 48 * 60 * 60 * 1000;
-const SEARCH_MULTI_CACHE_MS = 15 * 60 * 1000;
-const SEARCH_MULTI_CACHE_MAX = 200;
-
-type SearchMultiPayload = {
-  page: number;
-  total_pages: number;
-  total_results: number;
-  results: Record<string, unknown>[];
-};
 
 @Injectable()
 export class TmdbService {
@@ -23,10 +14,6 @@ export class TmdbService {
   private readonly genreMap = new Map<
     MediaType,
     { cachedAt: number; values: Record<number, string> }
-  >();
-  private readonly searchMultiCache = new Map<
-    string,
-    { cachedAt: number; payload: SearchMultiPayload }
   >();
 
   constructor(
@@ -58,24 +45,6 @@ export class TmdbService {
     });
   }
 
-  private searchMultiCacheKey(
-    query: string,
-    page: number,
-    year?: number,
-    genreId?: number,
-    minVote?: number,
-    mediaType?: 'movie' | 'tv',
-  ) {
-    return [
-      query.trim().toLowerCase(),
-      page,
-      year ?? '',
-      genreId ?? '',
-      minVote ?? '',
-      mediaType ?? '',
-    ].join('\0');
-  }
-
   async search(
     query: string,
     page: number,
@@ -84,25 +53,6 @@ export class TmdbService {
     minVote?: number,
     mediaType?: 'movie' | 'tv',
   ) {
-    const cacheKey = this.searchMultiCacheKey(
-      query,
-      page,
-      year,
-      genreId,
-      minVote,
-      mediaType,
-    );
-    const cached = this.searchMultiCache.get(cacheKey);
-    if (
-      cached &&
-      Date.now() - cached.cachedAt < SEARCH_MULTI_CACHE_MS
-    ) {
-      return {
-        ...cached.payload,
-        results: [...cached.payload.results],
-      };
-    }
-
     const c = this.client();
     const { data } = await c.get('/search/multi', {
       params: {
@@ -128,27 +78,11 @@ export class TmdbService {
         return vote >= minVote;
       });
     }
-    const payload: SearchMultiPayload = {
+    return {
       page: data.page,
       total_pages: data.total_pages,
       total_results: data.total_results,
       results,
-    };
-    if (this.searchMultiCache.size >= SEARCH_MULTI_CACHE_MAX) {
-      const oldest = this.searchMultiCache.keys().next().value as
-        | string
-        | undefined;
-      if (oldest !== undefined) {
-        this.searchMultiCache.delete(oldest);
-      }
-    }
-    this.searchMultiCache.set(cacheKey, {
-      cachedAt: Date.now(),
-      payload,
-    });
-    return {
-      ...payload,
-      results: [...results],
     };
   }
 
@@ -260,5 +194,49 @@ export class TmdbService {
   posterUrl(path: string | null | undefined) {
     if (!path) return null;
     return `https://image.tmdb.org/t/p/w500${path}`;
+  }
+
+  /** Résout les titres depuis le cache TMDB (ou fetch si absent). */
+  async resolveTitles(
+    works: { tmdbId: number; mediaType: MediaType }[],
+  ): Promise<Record<string, string>> {
+    if (!works.length) return {};
+    const unique = [
+      ...new Map(
+        works.map((w) => [`${w.mediaType}:${w.tmdbId}`, w] as const),
+      ).values(),
+    ];
+    const cached = await this.prisma.cachedWork.findMany({
+      where: {
+        OR: unique.map((w) => ({
+          tmdbId: w.tmdbId,
+          mediaType: w.mediaType,
+        })),
+      },
+      select: { tmdbId: true, mediaType: true, title: true },
+    });
+    const out: Record<string, string> = {};
+    for (const c of cached) {
+      out[`${c.mediaType}:${c.tmdbId}`] = c.title;
+    }
+    const missing = unique.filter((w) => !out[`${w.mediaType}:${w.tmdbId}`]);
+    await Promise.all(
+      missing.map(async (w) => {
+        try {
+          const res = await this.getDetails(w.mediaType, w.tmdbId);
+          const data = res.data as { title?: string; name?: string };
+          out[`${w.mediaType}:${w.tmdbId}`] =
+            w.mediaType === MediaType.MOVIE
+              ? (data.title ?? `Film #${w.tmdbId}`)
+              : (data.name ?? `Série #${w.tmdbId}`);
+        } catch {
+          out[`${w.mediaType}:${w.tmdbId}`] =
+            w.mediaType === MediaType.MOVIE
+              ? `Film #${w.tmdbId}`
+              : `Série #${w.tmdbId}`;
+        }
+      }),
+    );
+    return out;
   }
 }

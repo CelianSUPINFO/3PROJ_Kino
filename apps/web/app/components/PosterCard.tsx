@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useLocale } from "./AppProviders";
 import { StarRating } from "./StarRating";
 
 export type PosterCardData = {
@@ -27,9 +28,10 @@ export function PosterCard({
   index?: number;
   className?: string;
 }) {
+  const { t } = useLocale();
   const sizeStyle = width > 0 ? { width, animationDelay: `${Math.min(index * 40, 280)}ms` } : { animationDelay: `${Math.min(index * 40, 280)}ms` };
   const mediaType = item.media_type === "tv" ? "tv" : item.media_type === "movie" ? "movie" : type;
-  const title = item.title ?? item.name ?? "Untitled";
+  const title = item.title ?? item.name ?? t("common.untitled");
   const year = (item.release_date ?? item.first_air_date ?? "").slice(0, 4);
   const rating = typeof item.vote_average === "number" ? item.vote_average / 2 : undefined;
 

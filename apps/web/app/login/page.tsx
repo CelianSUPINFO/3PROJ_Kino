@@ -4,9 +4,11 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { apiFetch, setTokens } from "@/lib/api";
+import { useLocale } from "../components/AppProviders";
 import { AuthShell } from "../components/AuthShell";
 
 export default function LoginPage() {
+  const { t } = useLocale();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -29,7 +31,7 @@ export default function LoginPage() {
       setTokens(res.accessToken, res.refreshToken);
       router.push("/feed");
     } catch {
-      setErr("Invalid credentials");
+      setErr(t("auth.invalidCredentials"));
     } finally {
       setLoading(false);
     }
@@ -37,28 +39,28 @@ export default function LoginPage() {
 
   return (
     <AuthShell
-      eyebrow="Welcome back"
-      title="Log in"
-      subtitle="Continue your cinematic journey."
+      eyebrow={t("auth.welcomeBack")}
+      title={t("auth.loginTitle")}
+      subtitle={t("auth.loginSubtitle")}
       footer={
         <p className="pt-3 text-center text-sm text-kino-muted">
-          New to Kino?{" "}
+          {t("auth.newToKino")}{" "}
           <Link className="font-semibold text-kino hover:text-kino-hot" href="/register">
-            Create an account
+            {t("auth.createAccount")}
           </Link>
         </p>
       }
     >
       <form className="space-y-4" onSubmit={onSubmit}>
         <LabeledInput
-          label="Email"
+          label={t("common.email")}
           type="email"
           value={email}
           onChange={setEmail}
           required
         />
         <LabeledInput
-          label="Password"
+          label={t("common.password")}
           type="password"
           value={password}
           onChange={setPassword}
@@ -74,18 +76,18 @@ export default function LoginPage() {
           disabled={loading}
           className="btn-primary w-full disabled:opacity-60"
         >
-          {loading ? "Signing in..." : "Log in"}
+          {loading ? t("auth.signingIn") : t("auth.loginTitle")}
         </button>
       </form>
       <div className="relative py-1 text-center text-xs uppercase tracking-widest text-kino-muted">
-        <span className="relative z-10 bg-kino-panel px-3">or</span>
+        <span className="relative z-10 bg-kino-panel px-3">{t("common.or")}</span>
         <span className="absolute left-0 top-1/2 h-px w-full bg-white/10" aria-hidden />
       </div>
       <a
         className="flex w-full items-center justify-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-3 text-sm font-medium text-white hover:bg-white/10"
         href={`${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/v1"}/auth/google`}
       >
-        <GoogleIcon /> Continue with Google
+        <GoogleIcon /> {t("auth.google")}
       </a>
     </AuthShell>
   );

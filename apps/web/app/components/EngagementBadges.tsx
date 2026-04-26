@@ -1,5 +1,7 @@
 "use client";
 
+import { useLocale } from "./AppProviders";
+
 type Engagement = {
   streakDays: number;
   weekly: {
@@ -12,46 +14,53 @@ type Engagement = {
 };
 
 export function EngagementBadges({ data }: { data: Engagement | null }) {
+  const { locale, t } = useLocale();
   if (!data) return null;
-  const next = new Date(data.recommendationRefreshAt).toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const next = new Date(data.recommendationRefreshAt).toLocaleTimeString(
+    locale === "fr" ? "fr-FR" : "en-US",
+    { hour: "2-digit", minute: "2-digit" },
+  );
 
   return (
     <div className="grid gap-3 sm:grid-cols-3">
-      <StreakCard days={data.streakDays} />
+      <StreakCard days={data.streakDays} label={t("engagement.streak")} daysLabel={t("engagement.days")} />
       <RingCard
-        title="Reviews this week"
+        title={t("engagement.reviewsWeek")}
         value={data.weekly.reviews}
         target={data.weekly.targetReviews}
         color="#ff2e7e"
         icon="pen"
       />
       <RingCard
-        title="Completed this week"
+        title={t("engagement.completedWeek")}
         value={data.weekly.completed}
         target={data.weekly.targetCompleted}
         color="#f5c76a"
         icon="check"
-        footer={`Next picks at ${next}`}
+        footer={t("engagement.nextPicks", { time: next })}
       />
     </div>
   );
 }
 
-function StreakCard({ days }: { days: number }) {
+function StreakCard({
+  days,
+  label,
+  daysLabel,
+}: {
+  days: number;
+  label: string;
+  daysLabel: string;
+}) {
   return (
     <div className="glass flex items-center gap-4 rounded-2xl p-4">
       <div className="relative flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-500 to-kino pulse-glow">
         <FlameIcon />
       </div>
       <div>
-        <p className="text-[11px] uppercase tracking-widest text-kino-muted">
-          Streak
-        </p>
+        <p className="text-[11px] uppercase tracking-widest text-kino-muted">{label}</p>
         <p className="text-xl font-bold text-white">
-          {days} <span className="text-sm font-medium text-kino-muted">days</span>
+          {days} <span className="text-sm font-medium text-kino-muted">{daysLabel}</span>
         </p>
       </div>
     </div>
@@ -108,9 +117,7 @@ function RingCard({
         </div>
       </div>
       <div className="min-w-0">
-        <p className="text-[11px] uppercase tracking-widest text-kino-muted">
-          {title}
-        </p>
+        <p className="text-[11px] uppercase tracking-widest text-kino-muted">{title}</p>
         <p className="truncate text-lg font-semibold text-white">
           {value} / {target}
         </p>
@@ -122,13 +129,7 @@ function RingCard({
 
 function FlameIcon() {
   return (
-    <svg
-      width="22"
-      height="22"
-      viewBox="0 0 24 24"
-      fill="white"
-      aria-hidden
-    >
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="white" aria-hidden>
       <path d="M12 2s4 4.5 4 8.5a4 4 0 11-8 0c0-1.7.8-3 .8-3S8 10 6.5 12C5.5 13.5 5 15 5 16.5 5 20 8.1 22 12 22s7-2 7-5.5c0-4-3-6.5-4-8.5-.9-1.7-3-6-3-6z" />
     </svg>
   );

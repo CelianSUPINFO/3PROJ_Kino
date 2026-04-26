@@ -64,8 +64,8 @@ Depuis une fiche film/série:
 - Suivre / ne plus suivre un utilisateur
 - Voir les abonnés et abonnements sur un profil
 - Fil d’actualité des personnes suivies
-- Notifications (likes, commentaires, follows), en temps réel sur web et rafraîchies régulièrement sur mobile
-- Messagerie privée (si follow mutuel)
+- Notifications (likes, commentaires, follows, messages), en temps réel sur web et rafraîchies régulièrement sur mobile
+- Messagerie privée (si follow mutuel) avec indication des conversations non lues
 
 ## 3.6 Paramètres et données personnelles
 
@@ -74,6 +74,7 @@ Depuis une fiche film/série:
 - Exporter ses données:
   - JSON
   - CSV
+- Supprimer définitivement son compte depuis les paramètres
 
 ## 4) Modération (admin)
 

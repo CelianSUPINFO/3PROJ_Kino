@@ -38,6 +38,11 @@ enum ReportStatus {
   DISMISSED
 }
 
+enum SwipeChoice {
+  SMASH
+  PASS
+}
+
 model User {
   id           String    @id @default(uuid())
   email        String    @unique
@@ -46,10 +51,14 @@ model User {
   bio          String    @default("")
   website      String?
   avatarUrl    String?
+  bannerUrl    String?
+  favoriteFilms Json     @default("[]")
   role         Role      @default(USER)
   bannedUntil  DateTime?
   theme        String    @default("light")
   locale       String    @default("fr")
+  notifyEmail  Boolean   @default(true)
+  notifyPush   Boolean   @default(true)
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
@@ -73,6 +82,7 @@ model User {
   reportsFiled Report[] @relation("Reporter")
   messagesSent   Message[] @relation("MsgSender")
   messagesRecv   Message[] @relation("MsgRecipient")
+  swipeDecisions SwipeDecision[]
 }
 
 model OAuthAccount {
@@ -234,4 +244,18 @@ model Report {
   review     Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
 
   @@unique([reporterId, reviewId])
+}
+
+model SwipeDecision {
+  id        String      @id @default(uuid())
+  userId    String
+  tmdbId    Int
+  mediaType MediaType
+  choice    SwipeChoice
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, tmdbId, mediaType])
+  @@index([userId, updatedAt])
 }

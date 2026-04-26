@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useRef, useState } from "react";
+import { useLocale } from "./AppProviders";
 import { PosterCard, type PosterCardData } from "./PosterCard";
 
 export type CarouselItem = PosterCardData;
@@ -11,12 +12,15 @@ export function MediaCarousel({
   type,
   items,
   seeAllHref,
+  seeAllLabel,
 }: {
   title: string;
   type: "movie" | "tv";
   items: CarouselItem[];
   seeAllHref?: string;
+  seeAllLabel?: string;
 }) {
+  const { t } = useLocale();
   const scrollerRef = useRef<HTMLDivElement>(null);
   const [atStart, setAtStart] = useState(true);
   const [atEnd, setAtEnd] = useState(false);
@@ -46,13 +50,13 @@ export function MediaCarousel({
           href={seeAllHref ?? `/search?type=${type}`}
           className="text-sm font-medium text-kino-muted transition hover:text-kino"
         >
-          See all →
+          {seeAllLabel ?? "See all"} →
         </Link>
       </div>
       <div className="group relative">
         <button
           type="button"
-          aria-label="Scroll left"
+          aria-label={t("common.scrollLeft")}
           onClick={() => scrollBy(-1)}
           className={`absolute left-0 top-1/2 z-10 hidden -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-kino-panel/90 p-2 text-white shadow-card backdrop-blur transition md:flex ${
             atStart ? "pointer-events-none opacity-0" : "opacity-0 group-hover:opacity-100"
@@ -62,7 +66,7 @@ export function MediaCarousel({
         </button>
         <button
           type="button"
-          aria-label="Scroll right"
+          aria-label={t("common.scrollRight")}
           onClick={() => scrollBy(1)}
           className={`absolute right-0 top-1/2 z-10 hidden -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-kino-panel/90 p-2 text-white shadow-card backdrop-blur transition md:flex ${
             atEnd ? "pointer-events-none opacity-0" : "opacity-0 group-hover:opacity-100"
@@ -75,14 +79,20 @@ export function MediaCarousel({
           onScroll={updateEdges}
           className="fade-edges flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth pb-2"
         >
-          {items.map((m, idx) => (
-            <PosterCard
-              key={`${m.media_type ?? type}-${m.id}`}
-              item={m}
-              type={type}
-              index={idx}
-            />
-          ))}
+          {items.map((m, idx) => {
+            const itemType =
+              m.media_type === "tv" || m.media_type === "movie"
+                ? m.media_type
+                : type;
+            return (
+              <PosterCard
+                key={`${itemType}-${m.id}`}
+                item={m}
+                type={itemType}
+                index={idx}
+              />
+            );
+          })}
         </div>
       </div>
     </section>

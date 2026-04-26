@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { ReactNode } from "react";
+import { useLocale } from "./AppProviders";
 
 export function AuthShell({
   eyebrow,
@@ -16,6 +17,8 @@ export function AuthShell({
   children: ReactNode;
   footer?: ReactNode;
 }) {
+  const { t } = useLocale();
+
   return (
     <div className="relative -mx-4 grid min-h-[70vh] overflow-hidden rounded-3xl border border-white/10 bg-kino-panel shadow-card md:-mx-6 md:grid-cols-2">
       <div className="relative hidden md:block">
@@ -37,15 +40,12 @@ export function AuthShell({
           </Link>
           <div className="max-w-md">
             <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-kino-hot">
-              Culture Connect
+              {t("authShell.tagline")}
             </p>
             <h2 className="text-display mt-2 text-4xl font-bold leading-tight text-white">
-              Rate, review and discover your next obsession.
+              {t("authShell.headline")}
             </h2>
-            <p className="mt-3 text-white/70">
-              Track every film and show, swap recommendations and build your cinematic
-              identity with friends.
-            </p>
+            <p className="mt-3 text-white/70">{t("authShell.body")}</p>
           </div>
         </div>
       </div>

@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "@/lib/api";
+import { useLocale } from "../components/AppProviders";
+import { statusLabel } from "@/lib/i18n";
 
 type Activity = {
   id: string;
@@ -10,21 +12,6 @@ type Activity = {
   payload: Record<string, unknown>;
   createdAt: string;
   user: { displayName: string; id?: string };
-};
-
-const ACTIVITY_META: Record<string, { icon: string; label: (p: Record<string, unknown>) => string }> = {
-  FOLLOW: { icon: "👤", label: () => "started following someone" },
-  RATED: {
-    icon: "★",
-    label: (p) => `rated title #${String(p.tmdbId ?? "?")} · ${String(p.rating ?? "?")}/5`,
-  },
-  REVIEWED: { icon: "✍", label: (p) => `posted a review on title #${String(p.tmdbId ?? "?")}` },
-  LIST_ADDED: { icon: "＋", label: (p) => `added title #${String(p.tmdbId ?? "?")} to a list` },
-  STATUS_CHANGED: {
-    icon: "⏵",
-    label: (p) =>
-      `marked title #${String(p.tmdbId ?? "?")} as ${String(p.status ?? "?").toLowerCase()}`,
-  },
 };
 
 function initials(name: string) {
@@ -36,33 +23,69 @@ function initials(name: string) {
     .toUpperCase();
 }
 
+function workTitle(p: Record<string, unknown>) {
+  return String(p.title ?? `#${p.tmdbId ?? "?"}`);
+}
+
 export default function FeedPage() {
+  const { locale, t } = useLocale();
   const [items, setItems] = useState<Activity[]>([]);
   const [err, setErr] = useState<string | null>(null);
+
+  const activityMeta = useMemo(
+    () => ({
+      FOLLOW: { icon: "👤", label: () => t("activity.follow") },
+      RATED: {
+        icon: "★",
+        label: (p: Record<string, unknown>) =>
+          t("activity.rated", {
+            title: workTitle(p),
+            rating: String(p.rating ?? "?"),
+          }),
+      },
+      REVIEWED: {
+        icon: "✍",
+        label: (p: Record<string, unknown>) =>
+          t("activity.reviewed", { title: workTitle(p) }),
+      },
+      LIST_ADDED: {
+        icon: "＋",
+        label: (p: Record<string, unknown>) =>
+          t("activity.listAdded", { title: workTitle(p) }),
+      },
+      STATUS_CHANGED: {
+        icon: "⏵",
+        label: (p: Record<string, unknown>) =>
+          t("activity.statusChanged", {
+            title: workTitle(p),
+            status: statusLabel(locale, String(p.status ?? "")).toLowerCase(),
+          }),
+      },
+    }),
+    [locale, t],
+  );
 
   useEffect(() => {
     apiFetch<{ items: Activity[] }>("/feed")
       .then((r) => setItems(r.items))
-      .catch(() => setErr("Sign in to view your feed."));
-  }, []);
+      .catch(() => setErr(t("feed.signIn")));
+  }, [t]);
 
   return (
     <div className="space-y-6">
       <header className="space-y-2">
         <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-kino-hot">
-          Social
+          {t("feed.social")}
         </p>
-        <h1 className="text-display text-4xl font-bold text-white">Activity feed</h1>
-        <p className="text-kino-muted">
-          The latest ratings, reviews and library moves from people you follow.
-        </p>
+        <h1 className="text-display text-4xl font-bold text-white">{t("feed.title")}</h1>
+        <p className="text-kino-muted">{t("feed.subtitle")}</p>
       </header>
 
       {err && <p className="rounded-xl border border-white/10 bg-white/5 p-4 text-kino-muted">{err}</p>}
 
       <ul className="space-y-3">
         {items.map((a, idx) => {
-          const meta = ACTIVITY_META[a.type] ?? {
+          const meta = activityMeta[a.type as keyof typeof activityMeta] ?? {
             icon: "•",
             label: () => a.type.toLowerCase(),
           };
@@ -82,22 +105,18 @@ export default function FeedPage() {
               <div className="min-w-0 flex-1">
                 <p className="text-sm text-kino-muted">
                   <span className="font-semibold text-white">{a.user.displayName}</span>{" "}
-                  · {new Date(a.createdAt).toLocaleString()}
+                  · {new Date(a.createdAt).toLocaleString(locale === "fr" ? "fr-FR" : "en-US")}
                 </p>
                 <p className="mt-1 text-white">
                   <span className="mr-1 text-kino-gold">{meta.icon}</span>
-                  {linkTarget ? (
-                    <>
-                      {meta.label(a.payload)}
-                      <Link
-                        href={linkTarget}
-                        className="ml-2 text-kino hover:text-kino-hot hover:underline"
-                      >
-                        View →
-                      </Link>
-                    </>
-                  ) : (
-                    meta.label(a.payload)
+                  {meta.label(a.payload)}
+                  {linkTarget && (
+                    <Link
+                      href={linkTarget}
+                      className="ml-2 text-kino hover:text-kino-hot hover:underline"
+                    >
+                      {t("feed.view")}
+                    </Link>
                   )}
                 </p>
               </div>
@@ -106,7 +125,7 @@ export default function FeedPage() {
         })}
         {items.length === 0 && !err && (
           <li className="glass rounded-2xl p-6 text-center text-kino-muted">
-            Nothing yet — follow people to see their activity.
+            {t("feed.emptyFollow")}
           </li>
         )}
       </ul>

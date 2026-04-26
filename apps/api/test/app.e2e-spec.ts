@@ -83,12 +83,13 @@ describe('Targeted API e2e', () => {
             me: jest.fn(async () => ({ id: 'user-test', displayName: 'Test' })),
             updateMe: jest.fn(),
             exportData: jest.fn(async () => ({ ok: true })),
-            exportCsv: jest.fn(async () => 'kind,tmdbId\nstatus,1'),
+            exportCsv: jest.fn(async () => 'kind,id,tmdbId\nstatus,s1,1'),
             publicProfile: jest.fn(),
             followers: jest.fn(),
             following: jest.fn(),
             follow: jest.fn(),
             unfollow: jest.fn(),
+            deleteMe: jest.fn(async () => ({ ok: true })),
           },
         },
         {
@@ -202,8 +203,16 @@ describe('Targeted API e2e', () => {
       .get('/v1/users/export.csv')
       .set('Authorization', 'Bearer any')
       .expect(200);
-    expect(res.text).toContain('kind,tmdbId');
+    expect(res.text).toContain('kind,id,tmdbId');
     expect(String(res.headers['content-type'])).toContain('text/csv');
+  });
+
+  it('DELETE /v1/users/me removes the current account', async () => {
+    const res = await request(app.getHttpServer())
+      .delete('/v1/users/me')
+      .set('Authorization', 'Bearer any')
+      .expect(200);
+    expect(res.body.ok).toBe(true);
   });
 
   it('GET /v1/reco/tonight returns recommendation payload', async () => {

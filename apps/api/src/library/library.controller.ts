@@ -31,7 +31,10 @@ export class LibraryController {
 
   @Post('status')
   @UseGuards(JwtAuthGuard)
-  setStatus(@CurrentUser() user: JwtUser, @Body() body: SetStatusDto) {
+  setStatus(
+    @CurrentUser() user: JwtUser,
+    @Body() body: SetStatusDto,
+  ) {
     return this.library.setStatus(
       user.sub,
       body.tmdbId,
@@ -68,7 +71,10 @@ export class LibraryController {
 
   @Post('lists')
   @UseGuards(JwtAuthGuard)
-  createList(@CurrentUser() user: JwtUser, @Body() body: CreateListDto) {
+  createList(
+    @CurrentUser() user: JwtUser,
+    @Body() body: CreateListDto,
+  ) {
     return this.library.createList(user.sub, body.name, body.isPublic);
   }
 
@@ -114,13 +120,6 @@ export class LibraryController {
   @UseGuards(JwtAuthGuard)
   myLists(@CurrentUser() user: JwtUser) {
     return this.library.myLists(user.sub);
-  }
-
-  /** Avant `lists/:id` pour que le segment `public` ne soit pas capturé comme identifiant */
-  @Get('lists/public')
-  listPublic(@Query('q') q?: string, @Query('limit') limit?: string) {
-    const take = limit ? parseInt(limit, 10) || 20 : 20;
-    return this.library.listPublicLists(q, take);
   }
 
   /** Après routes statiques `lists/mine` pour éviter que `mine` soit pris pour un :id */

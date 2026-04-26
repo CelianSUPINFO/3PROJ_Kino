@@ -31,4 +31,22 @@ export class AdminService {
       data: { bannedUntil: until },
     });
   }
+
+  async deleteReview(reviewId: string) {
+    const r = await this.prisma.review.findUnique({ where: { id: reviewId } });
+    if (!r) throw new NotFoundException();
+    await this.prisma.review.delete({ where: { id: reviewId } });
+    return { ok: true };
+  }
+
+  async listReviews(limit = 50) {
+    return this.prisma.review.findMany({
+      take: limit,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        user: { select: { id: true, displayName: true } },
+        _count: { select: { likes: true, comments: true } },
+      },
+    });
+  }
 }

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "@/lib/api";
+import { useLocale } from "../components/AppProviders";
 import { Chip } from "../components/Chip";
 import { EngagementBadges } from "../components/EngagementBadges";
 import { StarRating } from "../components/StarRating";
@@ -28,6 +29,7 @@ type TonightPayload = {
 type ToastTone = "success" | "danger";
 
 export default function CeSoirPage() {
+  const { t } = useLocale();
   const [items, setItems] = useState<TonightItem[]>([]);
   const [idx, setIdx] = useState(0);
   const [msg, setMsg] = useState<string | null>(null);
@@ -47,13 +49,9 @@ export default function CeSoirPage() {
       .then((r) => {
         setItems(r.results);
         setIdx(0);
-        setMsg(
-          r.personalized
-            ? "Suggestions personnalisées selon vos notes."
-            : "Mode découverte : notez plus d'œuvres pour personnaliser."
-        );
+        setMsg(r.personalized ? t("tonight.personalized") : t("tonight.discover"));
       })
-      .catch(() => setMsg("Connectez-vous pour enregistrer vos choix."))
+      .catch(() => setMsg(t("tonight.signInSwipe")))
       .finally(() => setLoading(false));
   }
 
@@ -105,12 +103,10 @@ export default function CeSoirPage() {
     setToast(
       choice === "SMASH"
         ? {
-            msg: saved
-              ? "Ajouté à votre profil de goût"
-              : "Connectez-vous pour mémoriser ce choix",
+            msg: saved ? t("tonight.savedSmash") : t("tonight.signInRemember"),
             tone: saved ? "success" : "danger",
           }
-        : { msg: saved ? "Passé, choix enregistré" : "Passé en mode invité", tone: "danger" },
+        : { msg: saved ? t("tonight.passSaved") : t("tonight.passGuest"), tone: "danger" },
     );
     setTimeout(() => {
       setIdx((prev) => prev + 1);
@@ -123,18 +119,18 @@ export default function CeSoirPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-kino-hot">
-            Ce soir ?
+            {t("tonight.title")}
           </p>
           <h1 className="text-display mt-1 text-3xl font-bold text-white md:text-4xl">
-            À regarder ou passer
+            {t("tonight.headline")}
           </h1>
         </div>
         <div className="flex gap-2">
           <Chip active={type === "movie"} onClick={() => setType("movie")}>
-            Films
+            {t("nav.movies")}
           </Chip>
           <Chip active={type === "tv"} onClick={() => setType("tv")}>
-            Séries
+            {t("nav.series")}
           </Chip>
         </div>
       </div>
@@ -154,10 +150,10 @@ export default function CeSoirPage() {
       ) : !current ? (
         <div className="glass flex h-[400px] flex-col items-center justify-center gap-3 rounded-3xl text-center">
           <p className="text-display text-2xl font-semibold text-white">
-            Vous avez tout vu
+            {t("tonight.allSeen")}
           </p>
           <p className="max-w-sm text-sm text-kino-muted">
-            Alternez entre films et séries, ou rechargez une nouvelle sélection.
+            {t("tonight.allSeenHint")}
           </p>
           <button
             type="button"
@@ -168,7 +164,7 @@ export default function CeSoirPage() {
             }}
             className="btn-primary"
           >
-            Recharger
+            {t("tonight.reload")}
           </button>
         </div>
       ) : (
@@ -182,7 +178,7 @@ export default function CeSoirPage() {
         <div className="flex items-center justify-center gap-6">
           <button
             type="button"
-            aria-label="Pass"
+            aria-label={t("tonight.passAria")}
             onClick={() => swipe("PASS")}
             className="flex h-16 w-16 items-center justify-center rounded-full border border-red-400/30 bg-red-500/10 text-red-300 shadow-card transition hover:scale-105 hover:bg-red-500/20"
           >
@@ -194,11 +190,11 @@ export default function CeSoirPage() {
             href={`/title/${current.mediaType}/${current.id}`}
             className="flex h-12 items-center gap-2 rounded-full border border-white/15 bg-white/5 px-5 text-sm font-medium text-white transition hover:bg-white/10"
           >
-            Détails →
+            {t("tonight.details")}
           </Link>
           <button
             type="button"
-            aria-label="Smash"
+            aria-label={t("tonight.smashAria")}
             onClick={() => swipe("SMASH")}
             className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-kino to-kino-hot text-white shadow-kino transition hover:scale-105"
           >

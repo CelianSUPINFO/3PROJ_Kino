@@ -1,4 +1,8 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { MediaType, WatchStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -37,10 +41,26 @@ export class LibraryService {
   }
 
   async listByUser(userId: string, status?: WatchStatus) {
-    return this.prisma.userWorkStatus.findMany({
+    const rows = await this.prisma.userWorkStatus.findMany({
       where: { userId, ...(status ? { status } : {}) },
       orderBy: { updatedAt: 'desc' },
     });
+    const enriched = await Promise.all(
+      rows.map(async (row) => {
+        const cached = await this.prisma.cachedWork.findUnique({
+          where: {
+            tmdbId_mediaType: { tmdbId: row.tmdbId, mediaType: row.mediaType },
+          },
+          select: { title: true, posterPath: true },
+        });
+        return {
+          ...row,
+          title: cached?.title ?? `Œuvre #${row.tmdbId}`,
+          posterPath: cached?.posterPath ?? null,
+        };
+      }),
+    );
+    return enriched;
   }
 
   async stats(userId: string) {
@@ -49,7 +69,35 @@ export class LibraryService {
       where: { userId },
       _count: true,
     });
-    return Object.fromEntries(grouped.map((g) => [g.status, g._count]));
+    const byStatus = Object.fromEntries(
+      grouped.map((g) => [g.status, g._count]),
+    );
+    const completed = await this.prisma.userWorkStatus.findMany({
+      where: { userId, status: 'COMPLETED' },
+      select: { tmdbId: true, mediaType: true },
+    });
+    let estimatedMinutesWatched = 0;
+    for (const row of completed) {
+      const cached = await this.prisma.cachedWork.findUnique({
+        where: {
+          tmdbId_mediaType: { tmdbId: row.tmdbId, mediaType: row.mediaType },
+        },
+        select: { runtime: true },
+      });
+      estimatedMinutesWatched += cached?.runtime ?? 90;
+    }
+    const total =
+      (byStatus.WATCHLIST ?? 0) +
+      (byStatus.IN_PROGRESS ?? 0) +
+      (byStatus.COMPLETED ?? 0) +
+      (byStatus.DROPPED ?? 0);
+    return {
+      byStatus,
+      total,
+      completed: byStatus.COMPLETED ?? 0,
+      estimatedMinutesWatched,
+      estimatedHoursWatched: Math.round(estimatedMinutesWatched / 60),
+    };
   }
 
   async createList(userId: string, name: string, isPublic: boolean) {
@@ -63,7 +111,9 @@ export class LibraryService {
     listId: string,
     data: { name?: string; isPublic?: boolean },
   ) {
-    const list = await this.prisma.customList.findUnique({ where: { id: listId } });
+    const list = await this.prisma.customList.findUnique({
+      where: { id: listId },
+    });
     if (!list || list.userId !== userId) throw new NotFoundException();
     return this.prisma.customList.update({
       where: { id: listId },
@@ -72,7 +122,9 @@ export class LibraryService {
   }
 
   async deleteList(userId: string, listId: string) {
-    const list = await this.prisma.customList.findUnique({ where: { id: listId } });
+    const list = await this.prisma.customList.findUnique({
+      where: { id: listId },
+    });
     if (!list || list.userId !== userId) throw new NotFoundException();
     await this.prisma.customList.delete({ where: { id: listId } });
     return { ok: true };
@@ -84,7 +136,9 @@ export class LibraryService {
     tmdbId: number,
     mediaType: MediaType,
   ) {
-    const list = await this.prisma.customList.findUnique({ where: { id: listId } });
+    const list = await this.prisma.customList.findUnique({
+      where: { id: listId },
+    });
     if (!list || list.userId !== userId) throw new NotFoundException();
     const item = await this.prisma.customListItem.upsert({
       where: {
@@ -109,7 +163,9 @@ export class LibraryService {
     tmdbId: number,
     mediaType: MediaType,
   ) {
-    const list = await this.prisma.customList.findUnique({ where: { id: listId } });
+    const list = await this.prisma.customList.findUnique({
+      where: { id: listId },
+    });
     if (!list || list.userId !== userId) throw new NotFoundException();
     await this.prisma.customListItem.deleteMany({
       where: { listId, tmdbId, mediaType },
@@ -120,36 +176,14 @@ export class LibraryService {
   async myLists(userId: string) {
     return this.prisma.customList.findMany({
       where: { userId },
-      orderBy: { updatedAt: 'desc' },
       include: { _count: { select: { items: true } } },
-    });
-  }
-
-  async listPublicLists(search?: string, take = 20) {
-    const limit = Math.min(Math.max(take, 1), 50);
-    return this.prisma.customList.findMany({
-      where: {
-        isPublic: true,
-        ...(search?.trim()
-          ? { name: { contains: search.trim(), mode: 'insensitive' } }
-          : {}),
-      },
-      take: limit,
-      orderBy: { updatedAt: 'desc' },
-      include: {
-        user: { select: { id: true, displayName: true } },
-        _count: { select: { items: true } },
-      },
     });
   }
 
   async getListPublic(listId: string, viewerId?: string) {
     const list = await this.prisma.customList.findUnique({
       where: { id: listId },
-      include: {
-        items: true,
-        user: { select: { id: true, displayName: true } },
-      },
+      include: { items: true },
     });
     if (!list) throw new NotFoundException();
     if (!list.isPublic && list.userId !== viewerId) {

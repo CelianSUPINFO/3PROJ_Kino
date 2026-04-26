@@ -4,6 +4,7 @@ import { StatusBar } from "expo-status-bar";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Animated,
   Dimensions,
   FlatList,
@@ -14,46 +15,53 @@ import {
   SafeAreaView,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
-import { apiFetch, clearTokens, setTokens } from "./src/api";
+import * as Linking from "expo-linking";
+import * as WebBrowser from "expo-web-browser";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { apiFetch, clearTokens, getApiRoot, setTokens } from "./src/api";
 import { PosterCard, type PosterItem } from "./src/components/PosterCard";
+import type { RootStackParamList } from "./src/navigation/types";
+import { AdminScreen } from "./src/screens/AdminScreen";
+import { BrowseScreen } from "./src/screens/BrowseScreen";
+import { LibraryScreen } from "./src/screens/LibraryScreen";
+import { LibraryStatusScreen } from "./src/screens/LibraryStatusScreen";
+import { ListDetailScreen } from "./src/screens/ListDetailScreen";
+import { MenuScreen } from "./src/screens/MenuScreen";
+import { ProfileScreen } from "./src/screens/ProfileScreen";
+import { SearchScreen } from "./src/screens/SearchScreen";
+import { TitleScreen } from "./src/screens/TitleScreen";
+import { LocaleProvider } from "./src/context/LocaleContext";
+import { ThemeContextProvider, useThemeColors } from "./src/context/ThemeContext";
 import { colors, radius, spacing, typography } from "./src/theme";
+
+WebBrowser.maybeCompleteAuthSession();
 
 type SearchResult = PosterItem;
 
-type StackParamList = {
-  Home: undefined;
-  Tonight: undefined;
-  Login: undefined;
-  Register: undefined;
-  Search: undefined;
-  Title: { type: "movie" | "tv"; id: number; title: string };
-  Feed: undefined;
-  Library: undefined;
-  Messages: undefined;
-  Notifications: undefined;
-  Settings: undefined;
-};
+const Stack = createNativeStackNavigator<RootStackParamList>();
 
-const Stack = createNativeStackNavigator<StackParamList>();
-
-const navTheme = {
-  ...DefaultTheme,
-  dark: true,
-  colors: {
-    ...DefaultTheme.colors,
-    background: colors.ink,
-    card: colors.panel,
-    text: colors.text,
-    border: colors.border,
-    primary: colors.kino,
-    notification: colors.kinoHot,
-  },
-};
+function useNavTheme() {
+  const { colors: c, theme } = useThemeColors();
+  return {
+    ...DefaultTheme,
+    dark: theme === "dark",
+    colors: {
+      ...DefaultTheme.colors,
+      background: c.ink,
+      card: c.panel,
+      text: c.text,
+      border: c.border,
+      primary: c.kino,
+      notification: c.kinoHot,
+    },
+  };
+}
 
 // ------------ Shared UI atoms ------------
 
@@ -61,7 +69,9 @@ function Logo() {
   return (
     <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
       <View style={logoStyles.square}>
-        <Text style={{ color: "#fff", fontSize: 14, fontWeight: "800" }}>★</Text>
+        <Text style={{ color: "#fff", fontSize: 14, fontWeight: "800" }}>
+          ★
+        </Text>
       </View>
       <Text style={logoStyles.word}>kino</Text>
     </View>
@@ -77,7 +87,12 @@ const logoStyles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  word: { color: colors.text, fontSize: 22, fontWeight: "800", letterSpacing: -0.5 },
+  word: {
+    color: colors.text,
+    fontSize: 22,
+    fontWeight: "800",
+    letterSpacing: -0.5,
+  },
 });
 
 function Eyebrow({ children }: { children: string }) {
@@ -103,7 +118,9 @@ function Chip({
       activeOpacity={0.8}
       style={[s.chip, active ? s.chipActive : null]}
     >
-      <Text style={[s.chipText, active ? s.chipTextActive : null]}>{label}</Text>
+      <Text style={[s.chipText, active ? s.chipTextActive : null]}>
+        {label}
+      </Text>
     </TouchableOpacity>
   );
 }
@@ -129,7 +146,13 @@ function PrimaryButton({
   );
 }
 
-function GhostButton({ label, onPress }: { label: string; onPress: () => void }) {
+function GhostButton({
+  label,
+  onPress,
+}: {
+  label: string;
+  onPress: () => void;
+}) {
   return (
     <TouchableOpacity activeOpacity={0.85} onPress={onPress} style={s.btnGhost}>
       <Text style={s.btnGhostText}>{label}</Text>
@@ -152,7 +175,7 @@ function Section({
         <Text style={s.sectionTitle}>{title}</Text>
         {action && (
           <TouchableOpacity onPress={action.onPress}>
-            <Text style={s.sectionAction}>{action.label} →</Text>
+            <Text style={s.sectionAction}>{action.label} â†’</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -170,9 +193,15 @@ type HomePayload = {
     rating: number;
     tmdbId: number;
     mediaType: "MOVIE" | "TV";
+    title: string;
     user: { displayName: string };
   }[];
-  recentWatched?: { tmdbId: number; mediaType: "MOVIE" | "TV"; status: string }[];
+  recentWatched?: {
+    tmdbId: number;
+    mediaType: "MOVIE" | "TV";
+    status: string;
+    title: string;
+  }[];
   categories?: {
     id: string;
     label: string;
@@ -194,11 +223,18 @@ type EngagementPayload = {
 function HomeScreen({
   navigation,
 }: {
-  navigation: { navigate: (name: keyof StackParamList, params?: object) => void };
+  navigation: {
+    navigate: (name: keyof RootStackParamList, params?: object) => void;
+  };
 }) {
   const [home, setHome] = useState<HomePayload | null>(null);
   const [engagement, setEngagement] = useState<EngagementPayload | null>(null);
   const [authed, setAuthed] = useState(false);
+  const [meNav, setMeNav] = useState<{
+    id: string;
+    displayName: string;
+    avatarUrl?: string | null;
+  } | null>(null);
 
   async function reload() {
     try {
@@ -213,12 +249,21 @@ function HomeScreen({
       }
     }
     try {
-      const e = await apiFetch<EngagementPayload>("/engagement/summary", { auth: true });
+      const e = await apiFetch<EngagementPayload>("/engagement/summary", {
+        auth: true,
+      });
       setEngagement(e);
       setAuthed(true);
+      const me = await apiFetch<{
+        id: string;
+        displayName: string;
+        avatarUrl?: string | null;
+      }>("/users/me");
+      setMeNav(me);
     } catch {
       setEngagement(null);
       setAuthed(false);
+      setMeNav(null);
     }
   }
 
@@ -244,21 +289,47 @@ function HomeScreen({
       >
         <View style={s.topBar}>
           <Logo />
-          <View style={{ flexDirection: "row", gap: 8 }}>
+          <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
+            <TouchableOpacity
+              onPress={() => navigation.navigate("Menu")}
+              style={s.iconBtn}
+            >
+              <Text style={{ color: colors.text, fontSize: 18, fontWeight: "700" }}>☰</Text>
+            </TouchableOpacity>
             <TouchableOpacity
               onPress={() => navigation.navigate("Search")}
               style={s.iconBtn}
             >
               <Text style={{ color: colors.text, fontSize: 16 }}>⌕</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => navigation.navigate(authed ? "Notifications" : "Login")}
-              style={s.iconBtn}
-            >
-              <Text style={{ color: colors.text, fontSize: 16 }}>
-                {authed ? "!" : "→"}
-              </Text>
-            </TouchableOpacity>
+            {authed && meNav ? (
+              <TouchableOpacity
+                onPress={() =>
+                  navigation.navigate("Profile", { userId: meNav.id })
+                }
+                style={s.avatarBtn}
+              >
+                {meNav.avatarUrl?.startsWith("http") ? (
+                  <Image source={{ uri: meNav.avatarUrl }} style={s.avatarImg} />
+                ) : (
+                  <Text style={{ color: "#fff", fontWeight: "800", fontSize: 12 }}>
+                    {meNav.displayName
+                      .split(" ")
+                      .map((p) => p[0])
+                      .slice(0, 2)
+                      .join("")
+                      .toUpperCase()}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                onPress={() => navigation.navigate("Login")}
+                style={s.iconBtn}
+              >
+                <Text style={{ color: colors.text, fontSize: 16 }}>→</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
 
@@ -281,18 +352,18 @@ function HomeScreen({
               >
                 <View style={s.heroOverlay} />
                 <View style={s.heroContent}>
-                  <Eyebrow>À L'AFFICHE</Eyebrow>
+                  <Eyebrow>Ã€ L'AFFICHE</Eyebrow>
                   <Text numberOfLines={2} style={s.heroTitle}>
                     {featured.title ?? featured.name}
                   </Text>
                   {typeof featured.vote_average === "number" && (
                     <Text style={s.heroScore}>
-                      ★ {featured.vote_average.toFixed(1)}
+                      â˜… {featured.vote_average.toFixed(1)}
                     </Text>
                   )}
                   <View style={{ flexDirection: "row", gap: 8, marginTop: 10 }}>
                     <PrimaryButton
-                      label="Détails"
+                      label="DÃ©tails"
                       onPress={() =>
                         openTitle(
                           featured,
@@ -310,7 +381,9 @@ function HomeScreen({
             ) : (
               <View style={s.heroContent}>
                 <Eyebrow>FEATURED TONIGHT</Eyebrow>
-                <Text style={s.heroTitle}>{featured.title ?? featured.name}</Text>
+                <Text style={s.heroTitle}>
+                  {featured.title ?? featured.name}
+                </Text>
               </View>
             )}
           </TouchableOpacity>
@@ -333,7 +406,8 @@ function HomeScreen({
             </View>
             <View style={[s.engBadge, { backgroundColor: "#6b5bff" }]}>
               <Text style={s.engValue}>
-                {engagement.weekly.completed}/{engagement.weekly.targetCompleted}
+                {engagement.weekly.completed}/
+                {engagement.weekly.targetCompleted}
               </Text>
               <Text style={s.engLabel}>completed</Text>
             </View>
@@ -363,7 +437,10 @@ function HomeScreen({
         {home?.trending?.movies && home.trending.movies.length > 0 && (
           <Section
             title="Trending movies"
-            action={{ label: "Search", onPress: () => navigation.navigate("Search") }}
+            action={{
+              label: "Search",
+              onPress: () => navigation.navigate("Search"),
+            }}
           >
             <FlatList
               horizontal
@@ -372,7 +449,10 @@ function HomeScreen({
               data={home.trending.movies.slice(0, 14)}
               keyExtractor={(m) => `mv-${m.id}`}
               renderItem={({ item }) => (
-                <PosterCard item={item} onPress={() => openTitle(item, "movie")} />
+                <PosterCard
+                  item={item}
+                  onPress={() => openTitle(item, "movie")}
+                />
               )}
             />
           </Section>
@@ -400,7 +480,10 @@ function HomeScreen({
               data={cat.items.slice(0, 14)}
               keyExtractor={(m) => `${cat.id}-${m.id}`}
               renderItem={({ item }) => (
-                <PosterCard item={item} onPress={() => openTitle(item, cat.type)} />
+                <PosterCard
+                  item={item}
+                  onPress={() => openTitle(item, cat.type)}
+                />
               )}
             />
           </Section>
@@ -416,11 +499,12 @@ function HomeScreen({
                       {(r.user.displayName ?? "??").slice(0, 2).toUpperCase()}
                     </Text>
                   </View>
-                  <Text style={{ color: colors.text, flex: 1 }}>
+                  <Text style={{ color: colors.text, flex: 1 }} numberOfLines={2}>
                     {r.user.displayName}
-                  </Text>
-                  <Text style={{ color: colors.gold, fontWeight: "700" }}>
-                    ★ {r.rating}/5
+                    {" · "}
+                    <Text style={{ color: colors.kinoHot }}>{r.title}</Text>
+                    {" · ★ "}
+                    {r.rating}/5
                   </Text>
                 </View>
               ))}
@@ -449,13 +533,22 @@ function HomeScreen({
             )}
             <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
               <Chip label="Feed" onPress={() => navigation.navigate("Feed")} />
-              <Chip label="Library" onPress={() => navigation.navigate("Library")} />
-              <Chip label="Messages" onPress={() => navigation.navigate("Messages")} />
+              <Chip
+                label="Library"
+                onPress={() => navigation.navigate("Library")}
+              />
+              <Chip
+                label="Messages"
+                onPress={() => navigation.navigate("Messages")}
+              />
               <Chip
                 label="Notifications"
                 onPress={() => navigation.navigate("Notifications")}
               />
-              <Chip label="Settings" onPress={() => navigation.navigate("Settings")} />
+              <Chip
+                label="Settings"
+                onPress={() => navigation.navigate("Settings")}
+              />
             </View>
           </View>
         </Section>
@@ -483,16 +576,17 @@ function TonightScreen({
   navigation,
 }: {
   navigation: {
-    navigate: (name: "Title", params: StackParamList["Title"]) => void;
+    navigate: (name: "Title", params: RootStackParamList["Title"]) => void;
   };
 }) {
   const [items, setItems] = useState<TonightResult[]>([]);
   const [index, setIndex] = useState(0);
   const [type, setType] = useState<"movie" | "tv">("movie");
   const [status, setStatus] = useState<string | null>(null);
-  const [toast, setToast] = useState<{ msg: string; tone: "success" | "danger" } | null>(
-    null,
-  );
+  const [toast, setToast] = useState<{
+    msg: string;
+    tone: "success" | "danger";
+  } | null>(null);
   const [loading, setLoading] = useState(true);
 
   const pan = useRef(new Animated.ValueXY()).current;
@@ -522,8 +616,8 @@ function TonightScreen({
       setIndex(0);
       setStatus(
         res.personalized
-          ? "Suggestions personnalisées."
-          : "Mode découverte : notez plus d'œuvres pour personnaliser.",
+          ? "Suggestions personnalisÃ©es."
+          : "Mode dÃ©couverte : notez plus d'Å“uvres pour personnaliser.",
       );
     } catch {
       setStatus("Connectez-vous pour enregistrer vos choix.");
@@ -558,17 +652,25 @@ function TonightScreen({
     setToast(
       choice === "SMASH"
         ? {
-            msg: saved ? "Ajouté à votre profil" : "Connectez-vous pour mémoriser ce choix",
+            msg: saved
+              ? "AjoutÃ© Ã  votre profil"
+              : "Connectez-vous pour mÃ©moriser ce choix",
             tone: saved ? "success" : "danger",
           }
-        : { msg: saved ? "Passé, choix enregistré" : "Passé en mode invité", tone: "danger" },
+        : {
+            msg: saved ? "PassÃ©, choix enregistrÃ©" : "PassÃ© en mode invitÃ©",
+            tone: "danger",
+          },
     );
     setTimeout(() => setToast(null), 1400);
   }
 
   function resolveSwipe(direction: "right" | "left") {
     Animated.timing(pan, {
-      toValue: { x: direction === "right" ? SCREEN_WIDTH * 1.5 : -SCREEN_WIDTH * 1.5, y: 0 },
+      toValue: {
+        x: direction === "right" ? SCREEN_WIDTH * 1.5 : -SCREEN_WIDTH * 1.5,
+        y: 0,
+      },
       duration: 280,
       useNativeDriver: false,
     }).start(() => {
@@ -614,12 +716,22 @@ function TonightScreen({
             active={type === "movie"}
             onPress={() => setType("movie")}
           />
-          <Chip label="TV shows" active={type === "tv"} onPress={() => setType("tv")} />
+          <Chip
+            label="TV shows"
+            active={type === "tv"}
+            onPress={() => setType("tv")}
+          />
         </View>
         {status && <Text style={[s.sub, { marginTop: 8 }]}>{status}</Text>}
       </View>
 
-      <View style={{ flex: 1, paddingHorizontal: spacing.lg, paddingTop: spacing.md }}>
+      <View
+        style={{
+          flex: 1,
+          paddingHorizontal: spacing.lg,
+          paddingTop: spacing.md,
+        }}
+      >
         {loading ? (
           <View
             style={{
@@ -633,7 +745,9 @@ function TonightScreen({
         ) : !current ? (
           <View style={s.emptyCard}>
             <Text style={s.h1}>You&apos;re all caught up</Text>
-            <Text style={s.sub}>Switch category or refresh to see fresh picks.</Text>
+            <Text style={s.sub}>
+              Switch category or refresh to see fresh picks.
+            </Text>
             <View style={{ height: 12 }} />
             <PrimaryButton label="Refresh picks" onPress={load} />
           </View>
@@ -657,18 +771,30 @@ function TonightScreen({
               <Animated.View
                 style={[
                   s.swipeBadge,
-                  { left: 20, borderColor: colors.danger, opacity: passOpacity },
+                  {
+                    left: 20,
+                    borderColor: colors.danger,
+                    opacity: passOpacity,
+                  },
                 ]}
               >
-                <Text style={[s.swipeBadgeText, { color: colors.danger }]}>PASS</Text>
+                <Text style={[s.swipeBadgeText, { color: colors.danger }]}>
+                  PASS
+                </Text>
               </Animated.View>
               <Animated.View
                 style={[
                   s.swipeBadge,
-                  { right: 20, borderColor: colors.success, opacity: smashOpacity },
+                  {
+                    right: 20,
+                    borderColor: colors.success,
+                    opacity: smashOpacity,
+                  },
                 ]}
               >
-                <Text style={[s.swipeBadgeText, { color: colors.success }]}>SMASH</Text>
+                <Text style={[s.swipeBadgeText, { color: colors.success }]}>
+                  SMASH
+                </Text>
               </Animated.View>
             </Animated.View>
           </View>
@@ -681,8 +807,10 @@ function TonightScreen({
             style={[s.roundBtn, { borderColor: "rgba(239,68,68,0.4)" }]}
             onPress={() => resolveSwipe("left")}
           >
-            <Text style={{ color: colors.danger, fontSize: 24, fontWeight: "700" }}>
-              ✕
+            <Text
+              style={{ color: colors.danger, fontSize: 24, fontWeight: "700" }}
+            >
+              âœ•
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -695,13 +823,18 @@ function TonightScreen({
               })
             }
           >
-            <Text style={{ color: colors.text, fontWeight: "600" }}>Details →</Text>
+            <Text style={{ color: colors.text, fontWeight: "600" }}>
+              Details â†’
+            </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[s.roundBtn, { backgroundColor: colors.kino, borderColor: colors.kino }]}
+            style={[
+              s.roundBtn,
+              { backgroundColor: colors.kino, borderColor: colors.kino },
+            ]}
             onPress={() => resolveSwipe("right")}
           >
-            <Text style={{ color: "#fff", fontSize: 22 }}>★</Text>
+            <Text style={{ color: "#fff", fontSize: 22 }}>â˜…</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -716,14 +849,22 @@ function TonightScreen({
             },
           ]}
         >
-          <Text style={{ color: colors.text, fontWeight: "600" }}>{toast.msg}</Text>
+          <Text style={{ color: colors.text, fontWeight: "600" }}>
+            {toast.msg}
+          </Text>
         </View>
       )}
     </SafeAreaView>
   );
 }
 
-function TonightCard({ item, stacked }: { item: TonightResult; stacked?: boolean }) {
+function TonightCard({
+  item,
+  stacked,
+}: {
+  item: TonightResult;
+  stacked?: boolean;
+}) {
   const uri = item.backdropPath
     ? `https://image.tmdb.org/t/p/w780${item.backdropPath}`
     : item.posterPath
@@ -745,7 +886,14 @@ function TonightCard({ item, stacked }: { item: TonightResult; stacked?: boolean
           <View style={s.swipeOverlay} />
           <View style={{ padding: spacing.lg }}>
             {item.genreNames && item.genreNames.length > 0 && (
-              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
+              <View
+                style={{
+                  flexDirection: "row",
+                  flexWrap: "wrap",
+                  gap: 6,
+                  marginBottom: 8,
+                }}
+              >
                 {item.genreNames.slice(0, 3).map((g) => (
                   <View key={g} style={s.miniChip}>
                     <Text style={s.miniChipText}>{g}</Text>
@@ -754,8 +902,10 @@ function TonightCard({ item, stacked }: { item: TonightResult; stacked?: boolean
               </View>
             )}
             <Text style={[s.h1, { fontSize: 28 }]}>{item.title}</Text>
-            <Text style={{ color: colors.gold, fontWeight: "700", marginTop: 4 }}>
-              ★ {item.score.toFixed(1)} / 10
+            <Text
+              style={{ color: colors.gold, fontWeight: "700", marginTop: 4 }}
+            >
+              â˜… {item.score.toFixed(1)} / 10
             </Text>
             {item.overview ? (
               <Text numberOfLines={3} style={[s.sub, { marginTop: 8 }]}>
@@ -765,9 +915,11 @@ function TonightCard({ item, stacked }: { item: TonightResult; stacked?: boolean
           </View>
         </ImageBackground>
       ) : (
-        <View style={{ flex: 1, justifyContent: "flex-end", padding: spacing.lg }}>
+        <View
+          style={{ flex: 1, justifyContent: "flex-end", padding: spacing.lg }}
+        >
           <Text style={[s.h1, { fontSize: 28 }]}>{item.title}</Text>
-          <Text style={{ color: colors.gold }}>★ {item.score.toFixed(1)}</Text>
+          <Text style={{ color: colors.gold }}>â˜… {item.score.toFixed(1)}</Text>
         </View>
       )}
     </View>
@@ -779,12 +931,65 @@ function TonightCard({ item, stacked }: { item: TonightResult; stacked?: boolean
 function LoginScreen({
   navigation,
 }: {
-  navigation: { navigate: (name: "Home") => void };
+  navigation: { navigate: (name: keyof RootStackParamList) => void };
 }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const sub = Linking.addEventListener("url", async (event) => {
+      const parsed = Linking.parse(event.url);
+      if (parsed.path !== "oauth") return;
+      const access =
+        typeof parsed.queryParams?.access === "string"
+          ? parsed.queryParams.access
+          : null;
+      const refresh =
+        typeof parsed.queryParams?.refresh === "string"
+          ? parsed.queryParams.refresh
+          : null;
+      if (access && refresh) {
+        await setTokens(access, refresh);
+        navigation.navigate("Home");
+      }
+    });
+    return () => sub.remove();
+  }, [navigation]);
+
+  async function googleLogin() {
+    setLoading(true);
+    setErr(null);
+    try {
+      const redirect = Linking.createURL("oauth");
+      const result = await WebBrowser.openAuthSessionAsync(
+        `${getApiRoot()}/v1/auth/google?mobile=1`,
+        redirect,
+      );
+      if (result.type === "success" && result.url) {
+        const parsed = Linking.parse(result.url);
+        const access =
+          typeof parsed.queryParams?.access === "string"
+            ? parsed.queryParams.access
+            : null;
+        const refresh =
+          typeof parsed.queryParams?.refresh === "string"
+            ? parsed.queryParams.refresh
+            : null;
+        if (access && refresh) {
+          await setTokens(access, refresh);
+          navigation.navigate("Home");
+          return;
+        }
+      }
+      setErr("Connexion Google annulÃ©e ou Ã©chouÃ©e.");
+    } catch {
+      setErr("Connexion Google impossible.");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   async function submit() {
     setLoading(true);
@@ -827,7 +1032,7 @@ function LoginScreen({
         />
         <Label>Password</Label>
         <TextInput
-          placeholder="••••••••"
+          placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
           placeholderTextColor={colors.muted}
           style={s.input}
           secureTextEntry
@@ -839,7 +1044,11 @@ function LoginScreen({
           {loading ? (
             <ActivityIndicator color={colors.kino} />
           ) : (
-            <PrimaryButton label="Log in" onPress={submit} />
+            <>
+              <PrimaryButton label="Log in" onPress={submit} />
+              <View style={{ height: 10 }} />
+              <PrimaryButton label="Continuer avec Google" onPress={googleLogin} />
+            </>
           )}
         </View>
       </View>
@@ -903,7 +1112,7 @@ function RegisterScreen({
         />
         <Label>Password</Label>
         <TextInput
-          placeholder="••••••••"
+          placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
           placeholderTextColor={colors.muted}
           style={s.input}
           value={password}
@@ -923,396 +1132,63 @@ function Label({ children }: { children: string }) {
   return <Text style={s.label}>{children}</Text>;
 }
 
-// ------------ Search ------------
-
-function SearchScreen({
-  navigation,
-}: {
-  navigation: { navigate: (name: "Title", params: StackParamList["Title"]) => void };
-}) {
-  const [q, setQ] = useState("");
-  const [results, setResults] = useState<SearchResult[]>([]);
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [type, setType] = useState<"all" | "movie" | "tv">("all");
-  const [year, setYear] = useState("");
-  const [minVote, setMinVote] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  async function run(targetPage = 1, append = false) {
-    setLoading(true);
-    try {
-      const path =
-        !q.trim() && type !== "all"
-          ? `/media/discover/${type}?page=${targetPage}${year ? `&year=${year}` : ""}${minVote ? `&minVote=${minVote}` : ""}`
-          : `/media/search?q=${encodeURIComponent(q)}&page=${targetPage}${type !== "all" ? `&type=${type}` : ""}${year ? `&year=${year}` : ""}${minVote ? `&minVote=${minVote}` : ""}`;
-      const data = await apiFetch<{
-        results: SearchResult[];
-        total_pages?: number;
-      }>(path, { auth: false });
-      const incoming = data.results ?? [];
-      setResults((prev) => (append ? [...prev, ...incoming] : incoming));
-      setPage(targetPage);
-      setTotalPages(Math.max(1, data.total_pages ?? 1));
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function loadMore() {
-    if (loading || page >= totalPages) return;
-    await run(page + 1, true);
-  }
-
-  return (
-    <SafeAreaView style={s.screen}>
-      <View style={{ paddingHorizontal: spacing.lg }}>
-        <Eyebrow>EXPLORE</Eyebrow>
-        <H1>Search</H1>
-      </View>
-      <View style={{ padding: spacing.lg, gap: 10 }}>
-        <TextInput
-          placeholder="Movies, shows..."
-          placeholderTextColor={colors.muted}
-          style={s.input}
-          value={q}
-          onChangeText={setQ}
-          onSubmitEditing={() => {
-            void run();
-          }}
-          returnKeyType="search"
-        />
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
-          <Chip label="All" active={type === "all"} onPress={() => setType("all")} />
-          <Chip
-            label="Movies"
-            active={type === "movie"}
-            onPress={() => setType("movie")}
-          />
-          <Chip label="TV" active={type === "tv"} onPress={() => setType("tv")} />
-        </View>
-        <View style={{ flexDirection: "row", gap: 8 }}>
-          <TextInput
-            placeholder="Year"
-            placeholderTextColor={colors.muted}
-            style={[s.input, { flex: 1 }]}
-            keyboardType="number-pad"
-            value={year}
-            onChangeText={(v) => setYear(v.replace(/[^0-9]/g, "").slice(0, 4))}
-          />
-          <TextInput
-            placeholder="Min rating"
-            placeholderTextColor={colors.muted}
-            style={[s.input, { flex: 1 }]}
-            keyboardType="decimal-pad"
-            value={minVote}
-            onChangeText={setMinVote}
-          />
-        </View>
-        <PrimaryButton
-          label="Search"
-          onPress={() => {
-            void run();
-          }}
-        />
-      </View>
-      <FlatList
-        contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: 40 }}
-        data={results}
-        numColumns={2}
-        columnWrapperStyle={{ gap: 12, marginBottom: 12 }}
-        keyExtractor={(item) => `${item.media_type}-${item.id}`}
-        onEndReached={loadMore}
-        onEndReachedThreshold={0.7}
-        ListFooterComponent={
-          loading ? <ActivityIndicator color={colors.kino} style={{ marginTop: 16 }} /> : null
-        }
-        renderItem={({ item }) => (
-          <View style={{ flex: 1 / 2 }}>
-            <PosterCard
-              item={item}
-              fullWidth
-              onPress={() =>
-                navigation.navigate("Title", {
-                  type: item.media_type === "tv" ? "tv" : "movie",
-                  id: item.id,
-                  title: item.title ?? item.name ?? "Untitled",
-                })
-              }
-            />
-          </View>
-        )}
-      />
-    </SafeAreaView>
-  );
-}
-
-// ------------ Title ------------
-
-type MobileReview = {
-  id: string;
-  rating: number;
-  body: string;
-  user: { displayName: string };
-  _count?: { likes: number; comments: number };
-};
-
-function TitleScreen({ route }: { route: { params: StackParamList["Title"] } }) {
-  const { type, id, title } = route.params;
-  const [rating, setRating] = useState(4);
-  const [body, setBody] = useState("");
-  const [msg, setMsg] = useState<string | null>(null);
-  const [detail, setDetail] = useState<Record<string, unknown> | null>(null);
-  const [reviews, setReviews] = useState<MobileReview[]>([]);
-
-  useEffect(() => {
-    apiFetch<{ data: Record<string, unknown> }>(`/media/${type}/${id}`, {
-      auth: false,
-    })
-      .then((r) => setDetail(r.data))
-      .catch(() => setDetail(null));
-    apiFetch<MobileReview[]>(`/reviews/work/${type}/${id}`, { auth: false })
-      .then(setReviews)
-      .catch(() => setReviews([]));
-  }, [type, id]);
-
-  async function setStatus(
-    status: "WATCHLIST" | "IN_PROGRESS" | "COMPLETED" | "DROPPED",
-  ) {
-    try {
-      await apiFetch("/library/status", {
-        method: "POST",
-        body: JSON.stringify({
-          tmdbId: id,
-          mediaType: type === "tv" ? "TV" : "MOVIE",
-          status,
-        }),
-      });
-      setMsg(`Status: ${status.toLowerCase().replace(/_/g, " ")}`);
-    } catch {
-      setMsg("Sign in required");
-    }
-  }
-
-  async function publish() {
-    try {
-      await apiFetch("/reviews", {
-        method: "POST",
-        body: JSON.stringify({
-          tmdbId: id,
-          mediaType: type === "tv" ? "TV" : "MOVIE",
-          rating,
-          body,
-          spoiler: false,
-        }),
-      });
-      setMsg("Review posted");
-      setBody("");
-      const rows = await apiFetch<MobileReview[]>(`/reviews/work/${type}/${id}`, {
-        auth: false,
-      });
-      setReviews(rows);
-    } catch {
-      setMsg("Unable to publish");
-    }
-  }
-
-  const backdrop = detail?.backdrop_path as string | undefined;
-  const poster = detail?.poster_path as string | undefined;
-  const overview = (detail?.overview as string) ?? "";
-  const voteAvg = (detail?.vote_average as number) ?? 0;
-
-  return (
-    <SafeAreaView style={s.screen}>
-      <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
-        <View style={{ height: 200, backgroundColor: colors.panel }}>
-          {backdrop && (
-            <ImageBackground
-              source={{ uri: `https://image.tmdb.org/t/p/w780${backdrop}` }}
-              resizeMode="cover"
-              style={{ flex: 1 }}
-            >
-              <View style={s.heroOverlay} />
-            </ImageBackground>
-          )}
-        </View>
-        <View style={{ flexDirection: "row", gap: 12, padding: spacing.lg }}>
-          {poster && (
-            <View style={{ width: 100, aspectRatio: 2 / 3, borderRadius: radius.md, overflow: "hidden", marginTop: -60, borderWidth: 1, borderColor: colors.border }}>
-              <Image
-                source={{ uri: `https://image.tmdb.org/t/p/w342${poster}` }}
-                style={{ width: "100%", height: "100%" }}
-                resizeMode="cover"
-              />
-            </View>
-          )}
-          <View style={{ flex: 1 }}>
-            <Eyebrow>{type === "tv" ? "TV SHOW" : "MOVIE"}</Eyebrow>
-            <H1>{title}</H1>
-            {voteAvg > 0 && (
-              <Text style={{ color: colors.gold, fontWeight: "700" }}>
-                ★ {voteAvg.toFixed(1)}
-              </Text>
-            )}
-          </View>
-        </View>
-        {overview ? (
-          <View style={{ paddingHorizontal: spacing.lg, marginBottom: spacing.lg }}>
-            <Text style={{ color: colors.text, lineHeight: 20 }}>{overview}</Text>
-          </View>
-        ) : null}
-        <View style={{ paddingHorizontal: spacing.lg }}>
-          <Text style={s.sectionTitle}>Quick actions</Text>
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: spacing.lg }}>
-            <Chip label="Watchlist" onPress={() => setStatus("WATCHLIST")} />
-            <Chip label="In progress" onPress={() => setStatus("IN_PROGRESS")} />
-            <Chip label="Completed" onPress={() => setStatus("COMPLETED")} />
-            <Chip label="Dropped" onPress={() => setStatus("DROPPED")} />
-          </View>
-          <Text style={s.sectionTitle}>Your review</Text>
-          <View style={{ flexDirection: "row", gap: 6, marginBottom: spacing.md }}>
-            {[1, 2, 3, 4, 5].map((n) => (
-              <Pressable key={n} onPress={() => setRating(n)}>
-                <Text
-                  style={{
-                    fontSize: 28,
-                    color: n <= rating ? colors.gold : "rgba(255,255,255,0.2)",
-                  }}
-                >
-                  ★
-                </Text>
-              </Pressable>
-            ))}
-            <Text style={[s.sub, { alignSelf: "center", marginLeft: 8 }]}>
-              {rating}/5
-            </Text>
-          </View>
-          <TextInput
-            placeholder="Share your thoughts..."
-            placeholderTextColor={colors.muted}
-            style={[s.input, { height: 100, textAlignVertical: "top" }]}
-            value={body}
-            onChangeText={setBody}
-            multiline
-          />
-          <PrimaryButton label="Post review" onPress={publish} />
-          {msg && <Text style={[s.sub, { marginTop: 8 }]}>{msg}</Text>}
-        </View>
-        <View style={{ paddingHorizontal: spacing.lg, marginTop: spacing.lg }}>
-          <Text style={s.sectionTitle}>Avis de la communauté</Text>
-          {reviews.length === 0 ? (
-            <Text style={s.sub}>Aucun avis pour le moment.</Text>
-          ) : (
-            reviews.slice(0, 5).map((r) => (
-              <View key={r.id} style={[s.card, { marginBottom: 10 }]}>
-                <Text style={{ color: colors.text, fontWeight: "700" }}>
-                  {r.user.displayName} · {r.rating}/5
-                </Text>
-                {r.body ? (
-                  <Text style={{ color: colors.muted, marginTop: 6, lineHeight: 19 }}>
-                    {r.body}
-                  </Text>
-                ) : null}
-                <Text style={[s.sub, { fontSize: 11, marginTop: 6 }]}>
-                  {r._count?.likes ?? 0} j'aime · {r._count?.comments ?? 0} commentaires
-                </Text>
-              </View>
-            ))
-          )}
-        </View>
-      </ScrollView>
-    </SafeAreaView>
-  );
-}
 
 // ------------ Feed ------------
 
 type Act = {
   id: string;
   type: string;
-  user: { displayName: string };
+  user: { displayName: string; id?: string };
   createdAt: string;
 };
 
-function FeedScreen() {
+function FeedScreen({
+  navigation,
+}: {
+  navigation: { navigate: (name: keyof RootStackParamList, params?: object) => void };
+}) {
   const [items, setItems] = useState<Act[]>([]);
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
     apiFetch<{ items: Act[] }>("/feed")
-      .then((data) => setItems(data.items))
-      .catch(() => setErr("Sign in to view your feed."));
+      .then((r) => setItems(r.items))
+      .catch(() => setErr("Connectez-vous pour voir le fil."));
   }, []);
 
   return (
     <SafeAreaView style={s.screen}>
       <View style={{ padding: spacing.lg }}>
-        <Eyebrow>SOCIAL</Eyebrow>
-        <H1>Activity feed</H1>
+        <Eyebrow>FIL D'ACTUALITE</Eyebrow>
+        <H1>Activite</H1>
       </View>
       {err && <Text style={[s.err, { marginLeft: spacing.lg }]}>{err}</Text>}
       <FlatList
-        contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: 40 }}
+        contentContainerStyle={{ padding: spacing.lg, paddingBottom: 40 }}
         data={items}
         keyExtractor={(i) => i.id}
         renderItem={({ item }) => (
-          <View style={s.card}>
+          <Pressable
+            style={s.card}
+            onPress={() => {
+              if (item.user.id) {
+                navigation.navigate("Profile", { userId: item.user.id });
+              }
+            }}
+          >
             <Text style={s.sub}>
               {item.user.displayName} · {new Date(item.createdAt).toLocaleString()}
             </Text>
             <Text style={{ color: colors.text, marginTop: 4 }}>
               {item.type.toLowerCase().replace(/_/g, " ")}
             </Text>
-          </View>
+          </Pressable>
         )}
-      />
-    </SafeAreaView>
-  );
-}
-
-// ------------ Library ------------
-
-type LibraryStatusRow = { tmdbId: number; mediaType: string; status: string };
-
-function LibraryScreen() {
-  const [rows, setRows] = useState<LibraryStatusRow[]>([]);
-  const [msg, setMsg] = useState<string | null>(null);
-
-  async function load() {
-    try {
-      const data = await apiFetch<LibraryStatusRow[]>("/library/me");
-      setRows(data);
-      setMsg(null);
-    } catch {
-      setMsg("Sign in required");
-    }
-  }
-
-  useEffect(() => {
-    load();
-  }, []);
-
-  return (
-    <SafeAreaView style={s.screen}>
-      <View style={{ padding: spacing.lg }}>
-        <Eyebrow>YOUR LIBRARY</Eyebrow>
-        <H1>My library</H1>
-      </View>
-      {msg && <Text style={[s.err, { marginLeft: spacing.lg }]}>{msg}</Text>}
-      <FlatList
-        contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: 40 }}
-        data={rows}
-        keyExtractor={(r) => `${r.mediaType}-${r.tmdbId}`}
-        renderItem={({ item }) => (
-          <View style={s.card}>
-            <Text style={{ color: colors.text, fontWeight: "600" }}>
-              title #{item.tmdbId}
-            </Text>
-            <Text style={s.sub}>
-              {item.mediaType} · {item.status.toLowerCase().replace(/_/g, " ")}
-            </Text>
-          </View>
-        )}
+        ListEmptyComponent={
+          !err ? (
+            <Text style={s.sub}>Suivez des membres pour voir leur activite.</Text>
+          ) : null
+        }
       />
     </SafeAreaView>
   );
@@ -1320,7 +1196,7 @@ function LibraryScreen() {
 
 // ------------ Messages ------------
 
-type Partner = { id: string; displayName: string };
+type Partner = { id: string; displayName: string; unreadCount?: number };
 type Msg = { id: string; body: string; createdAt: string; senderId?: string };
 
 function MessagesScreen() {
@@ -1350,7 +1226,7 @@ function MessagesScreen() {
     if (!selectedId || !body.trim()) return;
     await apiFetch("/messages", {
       method: "POST",
-      body: JSON.stringify({ recipientId: selectedId, body }),
+      body: JSON.stringify({ recipientId: selectedId, body: body.trim() }),
     });
     setBody("");
     const rows = await apiFetch<Msg[]>(`/messages/${selectedId}`);
@@ -1367,19 +1243,30 @@ function MessagesScreen() {
       <FlatList
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: 8 }}
+        contentContainerStyle={{
+          paddingHorizontal: spacing.lg,
+          paddingBottom: 8,
+        }}
         data={partners}
         keyExtractor={(p) => p.id}
         renderItem={({ item }) => (
           <Chip
-            label={item.displayName}
+            label={
+              item.unreadCount
+                ? `${item.displayName} (${item.unreadCount})`
+                : item.displayName
+            }
             active={selectedId === item.id}
             onPress={() => setSelectedId(item.id)}
           />
         )}
       />
       <FlatList
-        contentContainerStyle={{ padding: spacing.lg, paddingBottom: 120, gap: 8 }}
+        contentContainerStyle={{
+          padding: spacing.lg,
+          paddingBottom: 120,
+          gap: 8,
+        }}
         data={messages}
         keyExtractor={(m) => m.id}
         renderItem={({ item }) => (
@@ -1424,13 +1311,17 @@ type Me = {
   website?: string | null;
   theme: string;
   locale: string;
+  notifyEmail: boolean;
+  notifyPush: boolean;
+  role?: string;
 };
 
 function SettingsScreen({
   navigation,
 }: {
-  navigation: { navigate: (name: "Home") => void };
+  navigation: { navigate: (name: keyof RootStackParamList) => void };
 }) {
+  const { setTheme: applyTheme } = useThemeColors();
   const [me, setMe] = useState<Me | null>(null);
   const [status, setStatus] = useState<string | null>(null);
 
@@ -1444,16 +1335,28 @@ function SettingsScreen({
     if (!me) return;
     const updated = await apiFetch<Me>("/users/me", {
       method: "PATCH",
-      body: JSON.stringify(me),
+      body: JSON.stringify({
+        displayName: me.displayName,
+        bio: me.bio,
+        website: me.website ?? "",
+        theme: me.theme,
+        locale: me.locale,
+        notifyEmail: me.notifyEmail,
+        notifyPush: me.notifyPush,
+      }),
     });
     setMe(updated);
+    await AsyncStorage.setItem("kino_theme", updated.theme);
+    if (updated.theme === "light" || updated.theme === "dark") {
+      await applyTheme(updated.theme);
+    }
     setStatus("Profile saved");
   }
 
   async function logout() {
     await clearTokens();
     setMe(null);
-    setStatus("Déconnexion effectuée.");
+    setStatus("Deconnexion effectuee.");
     navigation.navigate("Home");
   }
 
@@ -1461,17 +1364,44 @@ function SettingsScreen({
     try {
       const data = await apiFetch("/users/export");
       const text = JSON.stringify(data);
-      setStatus(`Export ready (${text.length} chars)`);
+      setStatus(`Export RGPD pret (${text.length} caracteres)`);
     } catch {
-      setStatus("Export failed");
+      setStatus("Export impossible");
     }
+  }
+
+  async function deleteAccount() {
+    Alert.alert(
+      "Supprimer le compte",
+      "Cette action supprime definitivement votre compte Kino.",
+      [
+        { text: "Annuler", style: "cancel" },
+        {
+          text: "Supprimer",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await apiFetch("/users/me", { method: "DELETE" });
+              await clearTokens();
+              setMe(null);
+              setStatus("Compte supprimÃ©.");
+              navigation.navigate("Home");
+            } catch {
+              setStatus("Suppression impossible");
+            }
+          },
+        },
+      ],
+    );
   }
 
   return (
     <SafeAreaView style={s.screen}>
-      <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: 40 }}>
+      <ScrollView
+        contentContainerStyle={{ padding: spacing.lg, paddingBottom: 40 }}
+      >
         <Eyebrow>VOTRE COMPTE</Eyebrow>
-        <H1>{me ? `Bonjour, ${me.displayName}` : "Paramètres"}</H1>
+        <H1>{me ? `Bonjour, ${me.displayName}` : "Parametres"}</H1>
         {status && <Text style={[s.sub, { marginBottom: 8 }]}>{status}</Text>}
         {me && (
           <>
@@ -1500,27 +1430,70 @@ function SettingsScreen({
               value={me.website ?? ""}
               onChangeText={(v) => setMe({ ...me, website: v })}
             />
-            <Label>Thème</Label>
-            <TextInput
-              style={s.input}
-              placeholder="light / dark"
-              placeholderTextColor={colors.muted}
-              value={me.theme}
-              onChangeText={(v) => setMe({ ...me, theme: v })}
-            />
+            <Label>Theme</Label>
+            <View style={{ flexDirection: "row", gap: 8, marginBottom: 8 }}>
+              <Chip
+                label="Sombre"
+                active={me.theme === "dark"}
+                onPress={() => setMe({ ...me, theme: "dark" })}
+              />
+              <Chip
+                label="Clair"
+                active={me.theme === "light"}
+                onPress={() => setMe({ ...me, theme: "light" })}
+              />
+            </View>
             <Label>Langue</Label>
-            <TextInput
-              style={s.input}
-              placeholder="en / fr"
-              placeholderTextColor={colors.muted}
-              value={me.locale}
-              onChangeText={(v) => setMe({ ...me, locale: v })}
-            />
+            <View style={{ flexDirection: "row", gap: 8, marginBottom: 8 }}>
+              <Chip
+                label="Francais"
+                active={me.locale === "fr"}
+                onPress={() => setMe({ ...me, locale: "fr" })}
+              />
+              <Chip
+                label="English"
+                active={me.locale === "en"}
+                onPress={() => setMe({ ...me, locale: "en" })}
+              />
+            </View>
+            <Label>Notifications e-mail</Label>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 }}>
+              <Switch
+                value={me.notifyEmail}
+                onValueChange={(v) => setMe({ ...me, notifyEmail: v })}
+                trackColor={{ true: colors.kino }}
+              />
+              <Text style={s.sub}>Recevoir les alertes par e-mail</Text>
+            </View>
+            <Label>Notifications push (temps reel)</Label>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 }}>
+              <Switch
+                value={me.notifyPush}
+                onValueChange={(v) => setMe({ ...me, notifyPush: v })}
+                trackColor={{ true: colors.kino }}
+              />
+              <Text style={s.sub}>Alertes instantanees dans l'app</Text>
+            </View>
+            {me.role === "ADMIN" && (
+              <>
+                <View style={{ height: 8 }} />
+                <PrimaryButton
+                  label="Panneau admin"
+                  onPress={() =>
+                    (navigation as { navigate: (n: string) => void }).navigate(
+                      "Admin",
+                    )
+                  }
+                />
+              </>
+            )}
             <PrimaryButton label="Enregistrer" onPress={save} />
             <View style={{ height: 8 }} />
             <GhostButton label="Export RGPD (JSON)" onPress={exportJson} />
             <View style={{ height: 8 }} />
-            <GhostButton label="Déconnexion" onPress={logout} />
+            <GhostButton label="Supprimer mon compte" onPress={deleteAccount} />
+            <View style={{ height: 8 }} />
+            <GhostButton label="Deconnexion" onPress={logout} />
           </>
         )}
       </ScrollView>
@@ -1531,6 +1504,14 @@ function SettingsScreen({
 // ------------ Notifications ------------
 
 type Notif = { id: string; type: string; read: boolean; createdAt: string };
+
+const notificationLabels: Record<string, string> = {
+  NEW_FOLLOWER: "Nouvel abonne",
+  REVIEW_LIKED: "Nouvelle mention J'aime",
+  REVIEW_COMMENT: "Nouveau commentaire",
+  NEW_MESSAGE: "Nouveau message",
+  RECOMMENDATION: "Nouvelle recommandation",
+};
 
 function NotificationsScreen() {
   const [items, setItems] = useState<Notif[]>([]);
@@ -1548,7 +1529,9 @@ function NotificationsScreen() {
 
   async function readOne(id: string) {
     await apiFetch(`/notifications/${id}/read`, { method: "PATCH" });
-    setItems((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+    setItems((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, read: true } : n)),
+    );
   }
 
   async function readAll() {
@@ -1572,19 +1555,22 @@ function NotificationsScreen() {
           <Chip label="Tout lire" onPress={readAll} />
         </View>
       </View>
-      {status && <Text style={[s.err, { marginLeft: spacing.lg }]}>{status}</Text>}
+      {status && (
+        <Text style={[s.err, { marginLeft: spacing.lg }]}>{status}</Text>
+      )}
       <FlatList
-        contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: 40, gap: 8 }}
+        contentContainerStyle={{
+          paddingHorizontal: spacing.lg,
+          paddingBottom: 40,
+          gap: 8,
+        }}
         data={items}
         keyExtractor={(n) => n.id}
         renderItem={({ item }) => (
           <TouchableOpacity
             activeOpacity={0.85}
             onPress={() => readOne(item.id)}
-            style={[
-              s.card,
-              item.read ? null : { borderColor: colors.kino },
-            ]}
+            style={[s.card, item.read ? null : { borderColor: colors.kino }]}
           >
             <Text
               style={{
@@ -1592,7 +1578,8 @@ function NotificationsScreen() {
                 fontWeight: "600",
               }}
             >
-              {item.type.toLowerCase().replace(/_/g, " ")}
+              {notificationLabels[item.type] ??
+                item.type.toLowerCase().replace(/_/g, " ")}
             </Text>
             <Text style={[s.sub, { fontSize: 11 }]}>
               {new Date(item.createdAt).toLocaleString()}
@@ -1606,10 +1593,12 @@ function NotificationsScreen() {
 
 // ------------ Root App ------------
 
-export default function App() {
+function AppNavigator() {
+  const navTheme = useNavTheme();
+  const { theme } = useThemeColors();
   return (
     <NavigationContainer theme={navTheme}>
-      <StatusBar style="light" />
+      <StatusBar style={theme === "light" ? "dark" : "light"} />
       <Stack.Navigator
         screenOptions={{
           headerStyle: { backgroundColor: colors.ink },
@@ -1628,19 +1617,31 @@ export default function App() {
           component={TonightScreen}
           options={{ title: "Tonight?" }}
         />
-        <Stack.Screen name="Login" component={LoginScreen} options={{ title: "Log in" }} />
+        <Stack.Screen
+          name="Login"
+          component={LoginScreen}
+          options={{ title: "Log in" }}
+        />
         <Stack.Screen
           name="Register"
           component={RegisterScreen}
           options={{ title: "Sign up" }}
         />
-        <Stack.Screen name="Search" component={SearchScreen} options={{ title: "Explore" }} />
+        <Stack.Screen
+          name="Search"
+          component={SearchScreen}
+          options={{ title: "Explore" }}
+        />
         <Stack.Screen
           name="Title"
           component={TitleScreen}
           options={({ route }) => ({ title: route.params.title })}
         />
-        <Stack.Screen name="Feed" component={FeedScreen} options={{ title: "Feed" }} />
+        <Stack.Screen
+          name="Feed"
+          component={FeedScreen}
+          options={{ title: "Feed" }}
+        />
         <Stack.Screen
           name="Library"
           component={LibraryScreen}
@@ -1660,6 +1661,38 @@ export default function App() {
           name="Settings"
           component={SettingsScreen}
           options={{ title: "Settings" }}
+        />
+        <Stack.Screen
+          name="Profile"
+          component={ProfileScreen}
+          options={{ title: "Profil" }}
+        />
+        <Stack.Screen
+          name="ListDetail"
+          component={ListDetailScreen}
+          options={({ route }) => ({ title: route.params.listName })}
+        />
+        <Stack.Screen
+          name="Menu"
+          component={MenuScreen}
+          options={{ title: "Menu" }}
+        />
+        <Stack.Screen
+          name="Browse"
+          component={BrowseScreen}
+          options={({ route }) => ({
+            title: route.params.type === "movie" ? "Films" : "Séries",
+          })}
+        />
+        <Stack.Screen
+          name="LibraryStatus"
+          component={LibraryStatusScreen}
+          options={({ route }) => ({ title: route.params.title })}
+        />
+        <Stack.Screen
+          name="Admin"
+          component={AdminScreen}
+          options={{ title: "Admin" }}
         />
       </Stack.Navigator>
     </NavigationContainer>
@@ -1685,6 +1718,18 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  avatarBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.kino,
+    overflow: "hidden",
+  },
+  avatarImg: { width: 38, height: 38 },
 
   eyebrow: {
     fontSize: 11,
@@ -1826,7 +1871,10 @@ const s = StyleSheet.create({
     borderColor: colors.border,
     backgroundColor: colors.panelSoft,
   },
-  chipActive: { borderColor: colors.kino, backgroundColor: "rgba(255,46,126,0.2)" },
+  chipActive: {
+    borderColor: colors.kino,
+    backgroundColor: "rgba(255,46,126,0.2)",
+  },
   chipText: { color: colors.muted, fontSize: 12, fontWeight: "600" },
   chipTextActive: { color: colors.text },
 
@@ -1939,3 +1987,13 @@ const s = StyleSheet.create({
     backgroundColor: colors.panel,
   },
 });
+
+export default function App() {
+  return (
+    <ThemeContextProvider>
+      <LocaleProvider>
+        <AppNavigator />
+      </LocaleProvider>
+    </ThemeContextProvider>
+  );
+}

@@ -3,6 +3,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { apiFetch } from "@/lib/api";
+import { statusLabel } from "@/lib/i18n";
+import { useLocale } from "../../../components/AppProviders";
+import { FormattedBody } from "../../../components/FormattedBody";
 import { StarRating } from "../../../components/StarRating";
 
 type Detail = { source: string; data: Record<string, unknown> };
@@ -11,6 +14,8 @@ type ReviewRow = {
   id: string;
   rating: number;
   body: string;
+  spoiler: boolean;
+  featured?: boolean;
   userId: string;
   user: { id: string; displayName: string };
   _count?: { likes: number; comments: number };
@@ -26,12 +31,14 @@ type CommentRow = {
 };
 
 export default function TitlePage() {
+  const { locale, t } = useLocale();
   const params = useParams<{ type: string; id: string }>();
   const [detail, setDetail] = useState<Detail | null>(null);
   const [reviews, setReviews] = useState<ReviewRow[]>([]);
   const [lists, setLists] = useState<ListRow[]>([]);
   const [myRating, setMyRating] = useState(4);
   const [myBody, setMyBody] = useState("");
+  const [mySpoiler, setMySpoiler] = useState(false);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [meId, setMeId] = useState<string | null>(null);
@@ -49,7 +56,7 @@ export default function TitlePage() {
       .then(setDetail)
       .catch(() => {
         setDetail(null);
-        setLoadError("Œuvre introuvable ou API TMDB momentanément indisponible.");
+        setLoadError(t("title.notFound"));
       });
     await apiFetch<ReviewRow[]>(`/reviews/work/${params.type}/${params.id}`, {
       auth: false,
@@ -63,11 +70,21 @@ export default function TitlePage() {
       .then((u) => setMeId(u.id))
       .catch(() => setMeId(null));
     setLoading(false);
-  }, [params]);
+  }, [params, t]);
 
   useEffect(() => {
     loadAll();
   }, [loadAll]);
+
+  useEffect(() => {
+    if (!meId) return;
+    const mine = reviews.find((r) => r.userId === meId);
+    if (mine) {
+      setMyBody(mine.body);
+      setMyRating(mine.rating);
+      setMySpoiler(mine.spoiler);
+    }
+  }, [meId, reviews]);
 
   if (loading) {
     return (
@@ -85,12 +102,12 @@ export default function TitlePage() {
   if (!detail) {
     return (
       <section className="glass rounded-3xl p-6 text-center">
-        <h1 className="text-display text-2xl font-bold text-white">Œuvre indisponible</h1>
+        <h1 className="text-display text-2xl font-bold text-white">{t("title.unavailable")}</h1>
         <p className="mt-2 text-sm text-kino-muted">
-          {loadError ?? "Impossible de charger cette fiche."}
+          {loadError ?? t("title.loadFailed")}
         </p>
         <button className="btn-primary mt-5" onClick={loadAll}>
-          Réessayer
+          {t("common.retry")}
         </button>
       </section>
     );
@@ -116,9 +133,9 @@ export default function TitlePage() {
         method: "POST",
         body: JSON.stringify({ tmdbId, mediaType, status }),
       });
-      setMsg(`Status updated: ${status}`);
+      setMsg(t("title.statusUpdated", { status: statusLabel(locale, status) }));
     } catch {
-      setMsg("Sign in required to update your library.");
+      setMsg(t("title.signInLibrary"));
     }
   }
 
@@ -133,14 +150,15 @@ export default function TitlePage() {
           mediaType,
           rating: myRating,
           body: myBody,
-          spoiler: false,
+          spoiler: mySpoiler,
         }),
       });
       setMyBody("");
+      setMySpoiler(false);
       await loadAll();
-      setMsg("Review posted.");
+      setMsg(t("title.reviewPosted"));
     } catch {
-      setMsg("Unable to post (sign in required).");
+      setMsg(t("title.signInPost"));
     } finally {
       setSaving(false);
     }
@@ -152,9 +170,9 @@ export default function TitlePage() {
         method: "POST",
         body: JSON.stringify({ tmdbId, mediaType }),
       });
-      setMsg("Added to list.");
+      setMsg(t("title.addedToList"));
     } catch {
-      setMsg("Unable to add to list.");
+      setMsg(t("title.addToListFailed"));
     }
   }
 
@@ -162,9 +180,9 @@ export default function TitlePage() {
     try {
       await apiFetch(`/reviews/${reviewId}`, { method: "DELETE" });
       await loadAll();
-      setMsg("Review deleted.");
+      setMsg(t("title.reviewDeleted"));
     } catch {
-      setMsg("Delete failed.");
+      setMsg(t("title.deleteFailed"));
     }
   }
 
@@ -173,7 +191,7 @@ export default function TitlePage() {
       await apiFetch(`/reviews/${reviewId}/like`, { method: "POST" });
       await loadAll();
     } catch {
-      setMsg("Sign in required to like.");
+      setMsg(t("title.signInLike"));
     }
   }
 
@@ -195,14 +213,14 @@ export default function TitlePage() {
       setCommentInputs((prev) => ({ ...prev, [reviewId]: "" }));
       await loadComments(reviewId);
     } catch {
-      setMsg("Sign in required to comment.");
+      setMsg(t("title.signInComment"));
     }
   }
 
   async function reportReview(reviewId: string) {
     const reason = reportInputs[reviewId]?.trim();
     if (!reason) {
-      setMsg("Indiquez une raison avant de signaler une critique.");
+      setMsg(t("title.reportReasonRequired"));
       return;
     }
     try {
@@ -211,9 +229,9 @@ export default function TitlePage() {
         body: JSON.stringify({ reason }),
       });
       setReportInputs((prev) => ({ ...prev, [reviewId]: "" }));
-      setMsg("Signalement transmis à la modération.");
+      setMsg(t("title.reportSent"));
     } catch {
-      setMsg("Connectez-vous pour signaler une critique.");
+      setMsg(t("title.signInReport"));
     }
   }
 
@@ -246,8 +264,8 @@ export default function TitlePage() {
               )}
               <div className="max-w-2xl space-y-3">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-kino-hot">
-                  {params.type === "tv" ? "Série" : "Film"} ·{" "}
-                  {detail.source === "cache" ? "Cache local" : "TMDB"}
+                  {params.type === "tv" ? t("title.tv") : t("title.movie")} ·{" "}
+                  {detail.source === "cache" ? t("title.sourceCache") : t("title.sourceTmdb")}
                 </p>
                 <h1 className="text-display text-4xl font-bold leading-tight text-white md:text-6xl">
                   {title}
@@ -257,7 +275,7 @@ export default function TitlePage() {
                   {runtime && (
                     <>
                       <span className="text-white/30">·</span>
-                      <span>{runtime} min</span>
+                      <span>{t("title.runtimeMin", { minutes: runtime })}</span>
                     </>
                   )}
                   {voteAvg > 0 && (
@@ -297,30 +315,23 @@ export default function TitlePage() {
           )}
           <div className="glass space-y-3 rounded-2xl p-4">
             <h3 className="text-sm font-semibold uppercase tracking-wider text-kino-muted">
-              Actions rapides
+              {t("title.quickActions")}
             </h3>
             <div className="flex flex-wrap gap-2">
-              {[
-                { s: "WATCHLIST", l: "À voir" },
-                { s: "IN_PROGRESS", l: "En cours" },
-                { s: "COMPLETED", l: "Terminé" },
-                { s: "DROPPED", l: "Abandonné" },
-              ].map((b) => (
+              {(["WATCHLIST", "IN_PROGRESS", "COMPLETED", "DROPPED"] as const).map((s) => (
                 <button
-                  key={b.s}
+                  key={s}
                   className="chip"
-                  onClick={() =>
-                    setStatus(b.s as "WATCHLIST" | "IN_PROGRESS" | "COMPLETED" | "DROPPED")
-                  }
+                  onClick={() => setStatus(s)}
                 >
-                  {b.l}
+                  {statusLabel(locale, s)}
                 </button>
               ))}
             </div>
             {lists.length > 0 && (
               <div className="border-t border-white/10 pt-3">
                 <p className="text-xs uppercase tracking-wider text-kino-muted">
-                  Ajouter à une liste
+                  {t("title.addToList")}
                 </p>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {lists.map((l) => (
@@ -341,7 +352,7 @@ export default function TitlePage() {
         <div className="space-y-6">
           {overview && (
             <section className="space-y-3">
-              <h2 className="text-display text-xl font-semibold text-white">Synopsis</h2>
+              <h2 className="text-display text-xl font-semibold text-white">{t("title.synopsis")}</h2>
               <p className="leading-relaxed text-white/80">{overview}</p>
             </section>
           )}
@@ -349,22 +360,9 @@ export default function TitlePage() {
           <section className="md:hidden">
             <div className="glass space-y-3 rounded-2xl p-4">
               <div className="flex flex-wrap gap-2">
-                {[
-                  { s: "WATCHLIST", l: "À voir" },
-                  { s: "IN_PROGRESS", l: "En cours" },
-                  { s: "COMPLETED", l: "Terminé" },
-                  { s: "DROPPED", l: "Abandonné" },
-                ].map((b) => (
-                  <button
-                    key={b.s}
-                    className="chip"
-                    onClick={() =>
-                      setStatus(
-                        b.s as "WATCHLIST" | "IN_PROGRESS" | "COMPLETED" | "DROPPED",
-                      )
-                    }
-                  >
-                    {b.l}
+                {(["WATCHLIST", "IN_PROGRESS", "COMPLETED", "DROPPED"] as const).map((s) => (
+                  <button key={s} className="chip" onClick={() => setStatus(s)}>
+                    {statusLabel(locale, s)}
                   </button>
                 ))}
               </div>
@@ -372,7 +370,7 @@ export default function TitlePage() {
           </section>
 
           <section className="glass space-y-4 rounded-2xl p-5">
-            <h2 className="text-display text-xl font-semibold text-white">Votre critique</h2>
+            <h2 className="text-display text-xl font-semibold text-white">{t("title.yourReview")}</h2>
             <div className="flex flex-wrap items-center gap-3 text-sm text-kino-muted">
               <div className="flex items-center gap-2">
                 {[1, 2, 3, 4, 5].map((n) => (
@@ -395,23 +393,35 @@ export default function TitlePage() {
               </div>
               <span className="text-white">{myRating}/5</span>
             </div>
+            <p className="text-xs text-kino-muted">
+              {t("title.formattingHint")}
+            </p>
             <textarea
               className="w-full rounded-xl border border-white/10 bg-black/30 p-3 text-white placeholder:text-white/40 focus:border-kino/60 focus:outline-none"
               rows={4}
               value={myBody}
               onChange={(e) => setMyBody(e.target.value)}
-              placeholder={
-                myExistingReview
-                  ? `Critique actuelle : ${myExistingReview.body}`
-                  : "Partagez votre avis..."
-              }
+              placeholder={t("title.reviewPlaceholder")}
             />
+            <label className="mt-2 flex items-center gap-2 text-sm text-kino-muted">
+              <input
+                type="checkbox"
+                checked={mySpoiler}
+                onChange={(e) => setMySpoiler(e.target.checked)}
+                className="accent-[#ff2e7e]"
+              />
+              {t("title.spoilerCheckbox")}
+            </label>
             <button
               className="btn-primary disabled:opacity-60"
               onClick={publishReview}
               disabled={saving}
             >
-              {saving ? "Publication..." : myExistingReview ? "Modifier" : "Publier"}
+              {saving
+                ? t("title.publishing")
+                : myExistingReview
+                  ? t("title.editReview")
+                  : t("title.publish")}
             </button>
           </section>
 
@@ -423,11 +433,11 @@ export default function TitlePage() {
 
           <section>
             <h2 className="text-display mb-3 text-xl font-semibold text-white">
-              Critiques Kino
+              {t("title.reviewsSection")}
             </h2>
             <ul className="space-y-3">
               {reviews.length === 0 && (
-                <li className="text-sm text-kino-muted">Aucune critique pour le moment.</li>
+                <li className="text-sm text-kino-muted">{t("title.noReviews")}</li>
               )}
               {reviews.map((r) => (
                 <li key={r.id} className="glass rounded-2xl p-4">
@@ -439,18 +449,30 @@ export default function TitlePage() {
                       <div>
                         <p className="text-sm font-medium text-white">
                           {r.user.displayName}
+                          {r.featured && (
+                            <span className="ml-2 text-[10px] uppercase tracking-widest text-kino-gold">
+                              {t("title.featured")}
+                            </span>
+                          )}
                         </p>
                         <StarRating value={r.rating} size={12} />
                       </div>
                     </div>
                   </div>
-                  <p className="mt-3 text-white/85">{r.body}</p>
+                  <p className="mt-3 text-white/85">
+                    {r.spoiler && (
+                      <span className="mr-2 rounded bg-amber-500/20 px-2 py-0.5 text-[10px] font-semibold uppercase text-amber-200">
+                        {t("title.spoilerBadge")}
+                      </span>
+                    )}
+                    <FormattedBody text={r.body} />
+                  </p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <button className="chip" onClick={() => toggleLike(r.id)}>
-                      J&apos;aime ({r._count?.likes ?? 0})
+                      {t("title.like")} ({r._count?.likes ?? 0})
                     </button>
                     <button className="chip" onClick={() => loadComments(r.id)}>
-                      Commentaires ({r._count?.comments ?? 0})
+                      {t("title.comments")} ({r._count?.comments ?? 0})
                     </button>
                     {meId && r.userId !== meId && (
                       <button
@@ -462,7 +484,7 @@ export default function TitlePage() {
                           }))
                         }
                       >
-                        Signaler
+                        {t("title.report")}
                       </button>
                     )}
                     {meId && r.userId === meId && (
@@ -470,19 +492,19 @@ export default function TitlePage() {
                         className="chip border-red-400/40 bg-red-500/10 text-red-300"
                         onClick={() => removeReview(r.id)}
                       >
-                        Supprimer
+                        {t("title.delete")}
                       </button>
                     )}
                   </div>
                   {Object.prototype.hasOwnProperty.call(reportInputs, r.id) && (
                     <div className="mt-3 rounded-xl border border-amber-400/20 bg-amber-500/10 p-3">
                       <label className="text-xs font-semibold uppercase tracking-wider text-amber-200">
-                        Raison du signalement
+                        {t("title.reportReason")}
                       </label>
                       <div className="mt-2 flex gap-2">
                         <input
                           className="flex-1 rounded-full border border-white/10 bg-black/30 px-3 py-2 text-sm text-white"
-                          placeholder="Spoiler non marqué, insulte..."
+                          placeholder={t("title.reportPlaceholder")}
                           value={reportInputs[r.id] ?? ""}
                           onChange={(e) =>
                             setReportInputs((prev) => ({
@@ -492,7 +514,7 @@ export default function TitlePage() {
                           }
                         />
                         <button className="chip" onClick={() => reportReview(r.id)}>
-                          Envoyer
+                          {t("title.send")}
                         </button>
                       </div>
                     </div>
@@ -509,13 +531,13 @@ export default function TitlePage() {
                           </li>
                         ))}
                         {commentsByReview[r.id].length === 0 && (
-                          <li className="text-sm text-kino-muted">Aucun commentaire.</li>
+                          <li className="text-sm text-kino-muted">{t("title.noComments")}</li>
                         )}
                       </ul>
                       <div className="mt-3 flex gap-2">
                         <input
                           className="flex-1 rounded-full border border-white/10 bg-black/30 px-3 py-2 text-sm text-white"
-                          placeholder="Ajouter un commentaire..."
+                          placeholder={t("title.commentPlaceholder")}
                           value={commentInputs[r.id] ?? ""}
                           onChange={(e) =>
                             setCommentInputs((prev) => ({
@@ -528,7 +550,7 @@ export default function TitlePage() {
                           className="rounded-full bg-gradient-to-r from-kino to-kino-hot px-4 py-2 text-sm font-semibold text-white shadow-kino"
                           onClick={() => postComment(r.id)}
                         >
-                          Envoyer
+                          {t("title.send")}
                         </button>
                       </div>
                     </div>

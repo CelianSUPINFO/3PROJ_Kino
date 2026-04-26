@@ -1,2 +1,8 @@
--- One open report per (reporter, review) pair
+-- Prevent duplicate reports from the same user on the same review.
+DELETE FROM "Report" a
+USING "Report" b
+WHERE a."reporterId" = b."reporterId"
+  AND a."reviewId" = b."reviewId"
+  AND a."createdAt" < b."createdAt";
+
 CREATE UNIQUE INDEX "Report_reporterId_reviewId_key" ON "Report"("reporterId", "reviewId");

@@ -1,12 +1,5 @@
 import { MediaType, WatchStatus } from '@prisma/client';
-import {
-  IsBoolean,
-  IsEnum,
-  IsInt,
-  IsOptional,
-  IsString,
-  Length,
-} from 'class-validator';
+import { IsBoolean, IsEnum, IsInt, IsOptional, IsString, Length } from 'class-validator';
 
 export class SetStatusDto {
   @IsInt()

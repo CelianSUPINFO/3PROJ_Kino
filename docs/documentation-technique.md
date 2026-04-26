@@ -161,26 +161,27 @@ erDiagram
 - Critiques/likes/commentaires/signalements: `/v1/reviews/*`
 - Fil: `/v1/feed`
 - Notifications: `/v1/notifications/*`
-- Messagerie: `/v1/messages/*`
+- Messagerie: `/v1/messages/*` (follow mutuel, notifications, messages lus/non lus)
 - Admin: `/v1/admin/*`
 - Export RGPD: `/v1/users/export` + `/v1/users/export.csv`
+- Suppression compte: `DELETE /v1/users/me`
 - Accueil: `/v1/home`
 - Recommandations: `/v1/reco/tonight`, `/v1/reco/swipe`
 - Engagement: `/v1/engagement/summary`
 
 ## 8.1) Traçabilité cahier des charges
 
-| Exigence | API | Web | Mobile |
-|---|---|---|---|
-| Inscription, connexion, OAuth | `auth` | login/register/oauth | login/register |
-| Recherche TMDB et fiche média | `media`, `search`, `CachedWork` | search, title | Search, Title |
-| Bibliothèque et listes | `library` | library, list | Library, actions fiche |
-| Critiques, likes, commentaires, signalements | `reviews` | title | avis sur fiche |
-| Follow, fil social | `users`, `feed` | profil, feed | Feed |
-| Notifications | `notifications`, Socket.IO | notifications temps réel | notifications par polling |
-| Messagerie mutuelle | `messages` | messages | Messages |
-| Modération admin | `admin` | admin | périmètre web |
-| Paramètres et export RGPD | `users` | settings | Settings |
+| Exigence                                      | API                             | Web                      | Mobile                    |
+| --------------------------------------------- | ------------------------------- | ------------------------ | ------------------------- |
+| Inscription, connexion, OAuth                 | `auth`                          | login/register/oauth     | login/register            |
+| Recherche TMDB et fiche média                 | `media`, `search`, `CachedWork` | search, title            | Search, Title             |
+| Bibliothèque et listes                        | `library`                       | library, list            | Library, actions fiche    |
+| Critiques, likes, commentaires, signalements  | `reviews`                       | title                    | avis sur fiche            |
+| Follow, fil social                            | `users`, `feed`                 | profil, feed             | Feed                      |
+| Notifications                                 | `notifications`, Socket.IO      | notifications temps réel | notifications par polling |
+| Messagerie mutuelle                           | `messages`                      | messages                 | Messages                  |
+| Modération admin                              | `admin`                         | admin                    | périmètre web             |
+| Paramètres, export RGPD et suppression compte | `users`                         | settings                 | Settings                  |
 
 ## 9) Sécurité
 
@@ -190,6 +191,7 @@ erDiagram
 - Guards NestJS (`JwtAuthGuard`, `AdminGuard`)
 - Aucun appel TMDB depuis clients
 - CORS limité via `CORS_ORIGINS`
+- Export RGPD JSON/CSV et suppression de compte utilisateur
 - Signalements uniques par utilisateur et critique
 
 ## 10) Déploiement local docker (option)
@@ -203,4 +205,4 @@ Services:
 - `db` (PostgreSQL)
 - `api`
 - `web`
-- `redis` (prévu pour extension cache/blacklist)
+- `redis` (service optionnel prévu pour cache distribué/rate-limit si l’application est déployée à plus grande échelle)

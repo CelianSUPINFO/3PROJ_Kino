@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useLocale } from "./AppProviders";
 import { StarRating } from "./StarRating";
 
 export type HeroItem = {
@@ -26,6 +27,8 @@ export function Hero({
   type: "movie" | "tv";
   genreMap?: Record<number, string>;
 }) {
+  const { t } = useLocale();
+
   if (!item) {
     return (
       <section className="relative h-[420px] overflow-hidden rounded-3xl border border-white/10 bg-kino-panel">
@@ -35,7 +38,7 @@ export function Hero({
   }
 
   const mediaType = item.media_type === "tv" ? "tv" : type;
-  const title = item.title ?? item.name ?? "Untitled";
+  const title = item.title ?? item.name ?? t("common.untitled");
   const year = (item.release_date ?? item.first_air_date ?? "").slice(0, 4);
   const rating =
     typeof item.vote_average === "number" ? item.vote_average / 2 : undefined;
@@ -75,7 +78,7 @@ export function Hero({
           )}
           <div className="max-w-2xl space-y-4 card-animate">
             <p className="inline-flex items-center gap-2 rounded-full border border-kino/40 bg-kino/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-kino-hot">
-              Featured tonight
+              {t("hero.featured")}
             </p>
             <h1 className="text-display text-4xl font-bold leading-tight text-white md:text-6xl">
               {title}
@@ -101,10 +104,10 @@ export function Hero({
             )}
             <div className="flex flex-wrap gap-3 pt-2">
               <Link href={`/title/${mediaType}/${item.id}`} className="btn-primary">
-                <PlayIcon /> Open details
+                <PlayIcon /> {t("hero.details")}
               </Link>
               <Link href="/ce-soir" className="btn-ghost">
-                <SparkleIcon /> Tonight?
+                <SparkleIcon /> {t("hero.tonight")}
               </Link>
             </div>
           </div>

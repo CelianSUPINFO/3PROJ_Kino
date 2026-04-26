@@ -1,9 +1,13 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationsGateway } from '../notifications/notifications.gateway';
 
 @Injectable()
 export class MessagesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notificationsGateway: NotificationsGateway,
+  ) {}
 
   private async mutualFollow(a: string, b: string) {
     const [ab, ba] = await Promise.all([
@@ -25,6 +29,10 @@ export class MessagesService {
     if (!(await this.mutualFollow(userId, otherId))) {
       throw new ForbiddenException('Abonnement mutuel requis');
     }
+    await this.prisma.message.updateMany({
+      where: { senderId: otherId, recipientId: userId, readAt: null },
+      data: { readAt: new Date() },
+    });
     return this.prisma.message.findMany({
       where: {
         OR: [
@@ -41,9 +49,28 @@ export class MessagesService {
     if (!(await this.mutualFollow(userId, recipientId))) {
       throw new ForbiddenException('Abonnement mutuel requis');
     }
-    return this.prisma.message.create({
+    const message = await this.prisma.message.create({
       data: { senderId: userId, recipientId, body },
     });
+    const notification = await this.prisma.notification.create({
+      data: {
+        userId: recipientId,
+        type: 'NEW_MESSAGE',
+        payload: { messageId: message.id, senderId: userId },
+      },
+    });
+    const prefs = await this.prisma.user.findUnique({
+      where: { id: recipientId },
+      select: { notifyPush: true },
+    });
+    if (prefs?.notifyPush !== false) {
+      this.notificationsGateway.pushToUser(
+        recipientId,
+        'notification:new',
+        notification,
+      );
+    }
+    return message;
   }
 
   async partners(userId: string) {
@@ -61,6 +88,16 @@ export class MessagesService {
       ...sent.map((s) => s.recipientId),
       ...recv.map((r) => r.senderId),
     ]);
-    return [...ids];
+    const partners = await this.prisma.user.findMany({
+      where: { id: { in: [...ids] } },
+      select: { id: true, displayName: true, avatarUrl: true },
+    });
+    const unread = await this.prisma.message.groupBy({
+      by: ['senderId'],
+      where: { recipientId: userId, readAt: null, senderId: { in: [...ids] } },
+      _count: { _all: true },
+    });
+    const counts = new Map(unread.map((r) => [r.senderId, r._count._all]));
+    return partners.map((p) => ({ ...p, unreadCount: counts.get(p.id) ?? 0 }));
   }
 }

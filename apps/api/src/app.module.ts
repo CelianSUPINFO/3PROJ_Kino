@@ -13,6 +13,9 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { MessagesModule } from './messages/messages.module';
 import { SearchModule } from './search/search.module';
 import { AdminModule } from './admin/admin.module';
+import { RecommendationsModule } from './recommendations/recommendations.module';
+import { HomeModule } from './home/home.module';
+import { EngagementModule } from './engagement/engagement.module';
 
 @Module({
   imports: [
@@ -28,6 +31,9 @@ import { AdminModule } from './admin/admin.module';
     MessagesModule,
     SearchModule,
     AdminModule,
+    RecommendationsModule,
+    HomeModule,
+    EngagementModule,
   ],
   controllers: [AppController],
   providers: [AppService],

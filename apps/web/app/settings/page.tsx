@@ -1,7 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
-import { apiFetch, getAccessToken } from "@/lib/api";
+import { apiFetch, clearTokens, getAccessToken } from "@/lib/api";
+import { useApp } from "../components/AppProviders";
 
 type Me = {
   id: string;
@@ -12,9 +14,12 @@ type Me = {
   avatarUrl?: string | null;
   theme: string;
   locale: string;
+  notifyEmail: boolean;
+  notifyPush: boolean;
 };
 
 export default function SettingsPage() {
+  const { setTheme, setLocale, t } = useApp();
   const [me, setMe] = useState<Me | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -39,12 +44,16 @@ export default function SettingsPage() {
           avatarUrl: me.avatarUrl ?? "",
           theme: me.theme,
           locale: me.locale,
+          notifyEmail: me.notifyEmail,
+          notifyPush: me.notifyPush,
         }),
       });
       setMe(updated);
-      setMsg("Profile updated.");
+      setTheme(updated.theme === "light" ? "light" : "dark");
+      setLocale(updated.locale === "en" ? "en" : "fr");
+      setMsg(t("common.save"));
     } catch {
-      setMsg("Unable to save.");
+      setMsg(t("settings.saveFailed"));
     } finally {
       setLoading(false);
     }
@@ -63,13 +72,14 @@ export default function SettingsPage() {
       a.click();
       URL.revokeObjectURL(url);
     } catch {
-      setMsg("Export failed.");
+      setMsg(t("settings.exportFailed"));
     }
   }
 
   async function exportCsv() {
     try {
-      const base = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/v1";
+      const base =
+        process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/v1";
       const token = getAccessToken();
       const res = await fetch(`${base}/users/export.csv`, {
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
@@ -84,7 +94,24 @@ export default function SettingsPage() {
       a.click();
       URL.revokeObjectURL(url);
     } catch {
-      setMsg("CSV export failed.");
+      setMsg(t("settings.exportFailed"));
+    }
+  }
+
+  async function deleteAccount() {
+    if (!confirm(t("settings.deleteConfirm"))) return;
+    setLoading(true);
+    setMsg(null);
+    try {
+      await apiFetch("/users/me", { method: "DELETE" });
+      clearTokens();
+      setMe(null);
+      setMsg(t("settings.accountDeleted"));
+      window.location.href = "/";
+    } catch {
+      setMsg(t("settings.deleteFailed"));
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -92,87 +119,107 @@ export default function SettingsPage() {
     <div className="mx-auto max-w-3xl space-y-6">
       <header className="space-y-2">
         <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-kino-hot">
-          Your account
+          {t("common.yourAccount")}
         </p>
         <h1 className="text-display text-4xl font-bold text-white">
-          {me ? `Hello, ${me.displayName}` : "Settings"}
+          {me ? t("common.hello", { name: me.displayName }) : t("settings.title")}
         </h1>
       </header>
 
       {!me && (
         <div className="glass rounded-2xl p-6 text-center text-kino-muted">
-          Sign in to edit your profile.
+          {t("settings.signIn")}
         </div>
       )}
 
       {me && (
         <>
+          <section className="glass space-y-3 rounded-2xl p-5">
+            <h2 className="text-display text-lg font-semibold text-white">
+              {t("settings.title")}
+            </h2>
+            <p className="text-sm text-kino-muted">
+              {me.displayName} · {me.email}
+            </p>
+            <Link href={`/u/${me.id}`} className="btn-primary inline-block !py-2 text-center text-sm">
+              {t("profile.edit")}
+            </Link>
+          </section>
+
           <section className="glass space-y-4 rounded-2xl p-5">
-            <h2 className="text-display text-lg font-semibold text-white">Profile</h2>
-            <Field
-              label="Display name"
-              value={me.displayName}
-              onChange={(v) => setMe({ ...me, displayName: v })}
-            />
-            <Field
-              label="Bio"
-              textarea
-              value={me.bio ?? ""}
-              onChange={(v) => setMe({ ...me, bio: v })}
-            />
+            <h2 className="text-display text-lg font-semibold text-white">
+              {t("settings.theme")} / {t("settings.language")}
+            </h2>
             <div className="grid gap-3 md:grid-cols-2">
-              <Field
-                label="Website"
-                value={me.website ?? ""}
-                onChange={(v) => setMe({ ...me, website: v })}
+              <SelectField
+                label={t("settings.theme")}
+                value={me.theme}
+                onChange={(v) => {
+                  setMe({ ...me, theme: v });
+                  setTheme(v === "light" ? "light" : "dark");
+                }}
+                options={[
+                  { id: "dark", label: t("settings.themeDark") },
+                  { id: "light", label: t("settings.themeLight") },
+                ]}
               />
-              <Field
-                label="Avatar URL"
-                value={me.avatarUrl ?? ""}
-                onChange={(v) => setMe({ ...me, avatarUrl: v })}
+              <SelectField
+                label={t("settings.language")}
+                value={me.locale}
+                onChange={(v) => {
+                  setMe({ ...me, locale: v });
+                  setLocale(v === "en" ? "en" : "fr");
+                }}
+                options={[
+                  { id: "fr", label: t("settings.langFr") },
+                  { id: "en", label: t("settings.langEn") },
+                ]}
               />
             </div>
           </section>
 
           <section className="glass space-y-4 rounded-2xl p-5">
             <h2 className="text-display text-lg font-semibold text-white">
-              Preferences
+              {t("settings.notifications")}
             </h2>
-            <div className="grid gap-3 md:grid-cols-2">
-              <SelectField
-                label="Theme"
-                value={me.theme}
-                onChange={(v) => setMe({ ...me, theme: v })}
-                options={[
-                  { id: "dark", label: "Dark" },
-                  { id: "light", label: "Light" },
-                ]}
+            <label className="flex items-center gap-2 text-sm text-kino-muted">
+              <input
+                type="checkbox"
+                checked={me.notifyEmail}
+                onChange={(e) => setMe({ ...me, notifyEmail: e.target.checked })}
+                className="accent-[#ff2e7e]"
               />
-              <SelectField
-                label="Language"
-                value={me.locale}
-                onChange={(v) => setMe({ ...me, locale: v })}
-                options={[
-                  { id: "en", label: "English" },
-                  { id: "fr", label: "Français" },
-                ]}
+              {t("settings.notifyEmail")}
+            </label>
+            <label className="flex items-center gap-2 text-sm text-kino-muted">
+              <input
+                type="checkbox"
+                checked={me.notifyPush}
+                onChange={(e) => setMe({ ...me, notifyPush: e.target.checked })}
+                className="accent-[#ff2e7e]"
               />
-            </div>
+              {t("settings.notifyPush")}
+            </label>
           </section>
 
           <section className="glass space-y-3 rounded-2xl p-5">
             <h2 className="text-display text-lg font-semibold text-white">
-              Data & privacy
+              {t("settings.privacy")}
             </h2>
-            <p className="text-sm text-kino-muted">
-              Export your Kino data any time (GDPR-friendly).
-            </p>
+            <p className="text-sm text-kino-muted">{t("settings.privacyHint")}</p>
             <div className="flex flex-wrap gap-2">
               <button className="chip" onClick={exportJson}>
-                Export JSON
+                {t("settings.exportJson")}
               </button>
               <button className="chip" onClick={exportCsv}>
-                Export CSV
+                {t("settings.exportCsv")}
+              </button>
+              <button
+                className="chip border-red-400/40 text-red-200"
+                onClick={deleteAccount}
+                disabled={loading}
+              >
+                {t("settings.deleteAccount")}
               </button>
             </div>
           </section>
@@ -180,54 +227,20 @@ export default function SettingsPage() {
           <div className="sticky bottom-6 z-20">
             <div className="glass-strong flex items-center justify-between gap-3 rounded-full px-4 py-3">
               <p className="truncate text-sm text-kino-muted">
-                {msg ?? "Changes are local until saved."}
+                {msg ?? t("common.changesHint")}
               </p>
               <button
                 className="btn-primary !py-2 !px-5 text-sm disabled:opacity-60"
                 onClick={save}
                 disabled={loading}
               >
-                {loading ? "Saving..." : "Save changes"}
+                {loading ? t("common.saving") : t("common.saveChanges")}
               </button>
             </div>
           </div>
         </>
       )}
     </div>
-  );
-}
-
-function Field({
-  label,
-  value,
-  onChange,
-  textarea = false,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  textarea?: boolean;
-}) {
-  return (
-    <label className="block">
-      <span className="text-xs font-semibold uppercase tracking-widest text-kino-muted">
-        {label}
-      </span>
-      {textarea ? (
-        <textarea
-          className="mt-1.5 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-white placeholder:text-white/40 focus:border-kino/60 focus:outline-none"
-          rows={3}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-        />
-      ) : (
-        <input
-          className="mt-1.5 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-white placeholder:text-white/40 focus:border-kino/60 focus:outline-none"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-        />
-      )}
-    </label>
   );
 }
 
