@@ -46,6 +46,7 @@ export default function UserPage() {
   const [actionMsg, setActionMsg] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<Profile | null>(null);
+  const [uploading, setUploading] = useState<"avatar" | "banner" | null>(null);
   const [pickQ, setPickQ] = useState("");
   const [pickResults, setPickResults] = useState<
     { id: number; title?: string; name?: string; poster_path?: string; media_type?: string }[]
@@ -130,6 +131,31 @@ export default function UserPage() {
     setDraft(updated);
     setEditing(false);
     setActionMsg(t("common.save"));
+  }
+
+  async function uploadProfileImage(kind: "avatar" | "banner", file?: File | null) {
+    if (!draft || !file) return;
+    setUploading(kind);
+    setActionMsg(null);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const result = await apiFetch<{ url: string; user: Profile }>(
+        `/users/me/images/${kind}`,
+        {
+          method: "POST",
+          body: form,
+        },
+      );
+      const next = { ...draft, ...result.user };
+      setDraft(next);
+      setP(next);
+      setActionMsg(t("common.save"));
+    } catch {
+      setActionMsg(t("common.retry"));
+    } finally {
+      setUploading(null);
+    }
   }
 
   function addFavorite(item: (typeof pickResults)[0]) {
@@ -240,8 +266,18 @@ export default function UserPage() {
           {editing && draft ? (
             <div className="mt-4 space-y-3">
               <Field label={t("profile.bio")} textarea value={draft.bio ?? ""} onChange={(v) => setDraft({ ...draft, bio: v })} />
-              <Field label={t("profile.avatar")} value={draft.avatarUrl ?? ""} onChange={(v) => setDraft({ ...draft, avatarUrl: v })} />
-              <Field label={t("profile.banner")} value={draft.bannerUrl ?? ""} onChange={(v) => setDraft({ ...draft, bannerUrl: v })} />
+              <ImageUploadField
+                label={t("profile.avatar")}
+                busy={uploading === "avatar"}
+                previewUrl={draft.avatarUrl}
+                onPick={(file) => uploadProfileImage("avatar", file)}
+              />
+              <ImageUploadField
+                label={t("profile.banner")}
+                busy={uploading === "banner"}
+                previewUrl={draft.bannerUrl}
+                onPick={(file) => uploadProfileImage("banner", file)}
+              />
               <Field label={t("profile.website")} value={draft.website ?? ""} onChange={(v) => setDraft({ ...draft, website: v })} />
               <div>
                 <p className="text-sm font-semibold text-white">{t("profile.favorites")}</p>
@@ -346,6 +382,46 @@ export default function UserPage() {
         <SocialList title={t("profile.followers")} users={followers} />
         <SocialList title={t("profile.following")} users={following} />
       </section>
+    </div>
+  );
+}
+
+function ImageUploadField({
+  label,
+  busy,
+  previewUrl,
+  onPick,
+}: {
+  label: string;
+  busy: boolean;
+  previewUrl?: string | null;
+  onPick: (file?: File | null) => void;
+}) {
+  return (
+    <div>
+      <span className="text-xs font-semibold uppercase tracking-widest text-kino-muted">
+        {label}
+      </span>
+      <div className="mt-1 flex flex-wrap items-center gap-3">
+        {previewUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={previewUrl}
+            alt=""
+            className="h-16 w-16 rounded-xl border border-white/10 object-cover"
+          />
+        )}
+        <label className="chip cursor-pointer">
+          {busy ? "Upload..." : label}
+          <input
+            type="file"
+            accept="image/*"
+            className="sr-only"
+            disabled={busy}
+            onChange={(e) => onPick(e.target.files?.[0] ?? null)}
+          />
+        </label>
+      </div>
     </div>
   );
 }

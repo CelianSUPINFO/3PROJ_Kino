@@ -13,7 +13,7 @@ Dépôt Git : `https://github.com/CelianSUPINFO/3PROJ_Kino.git`
 
 ## Configuration
 
-1. Copier [`.env.example`](.env.example) vers `apps/api/.env` et renseigner au minimum `DATABASE_URL`, `JWT_ACCESS_SECRET`, et **un des deux**: `TMDB_API_KEY` **ou** `TMDB_READ_ACCESS_TOKEN`.
+1. Copier [`.env.example`](.env.example) vers `apps/api/.env` et renseigner au minimum `DATABASE_URL`, `JWT_ACCESS_SECRET`, et **un des deux**: `TMDB_API_KEY` **ou** `TMDB_READ_ACCESS_TOKEN`. Pour l'upload avatar/bannière, renseigner aussi `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY` et `CLOUDINARY_API_SECRET`.
 2. Pour le web : `apps/web/.env.local` avec `NEXT_PUBLIC_API_URL=http://localhost:4000/v1`.
 3. OAuth Google (barème) : créer des identifiants OAuth dans Google Cloud Console ; autoriser la redirect URI `http://localhost:4000/v1/auth/google/callback` (adapter en prod).
 
@@ -101,4 +101,4 @@ Ne jamais committer `.env`, clés TMDB, secrets JWT ou mots de passe base.
 
 - Web : recherche, fiches média, bibliothèque/listes, critiques, likes, commentaires, signalement, profils, follow, fil, notifications temps réel, messagerie avec état non lu, paramètres, export RGPD JSON/CSV, suppression de compte et admin.
 - Mobile : consultation rapide, recherche, fiches média, statuts, publication d’avis, avis communautaires, recommandations “Ce soir”, fil, notifications par polling, messages avec compteur non lu, paramètres, export JSON et suppression de compte.
-- Serveur : toute la logique métier et tous les appels TMDB passent par l’API NestJS.
+- Serveur : toute la logique métier, tous les appels TMDB et les uploads Cloudinary passent par l’API NestJS.

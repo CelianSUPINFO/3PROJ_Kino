@@ -20,6 +20,7 @@ Configurer au minimum dans `apps/api/.env`:
 - `DATABASE_URL`
 - `JWT_ACCESS_SECRET`
 - `TMDB_API_KEY` ou `TMDB_READ_ACCESS_TOKEN`
+- `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` pour les avatars et bannières
 
 Puis:
 
@@ -51,6 +52,7 @@ npx expo start
 - **Web**: Next.js (rendu performant, structure claire par routes).
 - **Mobile**: Expo React Native (même langage TypeScript, itération rapide).
 - **API tierce**: TMDB, utilisée uniquement côté serveur via module `media`.
+- **Stockage images**: Cloudinary pour les avatars et bannières utilisateur ; la base conserve uniquement les URLs publiques.
 
 ## 4) Architecture globale
 
@@ -165,6 +167,7 @@ erDiagram
 - Admin: `/v1/admin/*`
 - Export RGPD: `/v1/users/export` + `/v1/users/export.csv`
 - Suppression compte: `DELETE /v1/users/me`
+- Upload profil: `POST /v1/users/me/images/avatar`, `POST /v1/users/me/images/banner`
 - Accueil: `/v1/home`
 - Recommandations: `/v1/reco/tonight`, `/v1/reco/swipe`
 - Engagement: `/v1/engagement/summary`

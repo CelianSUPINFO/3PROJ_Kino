@@ -8,8 +8,11 @@ import {
   Patch,
   Post,
   Res,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { Response } from 'express';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import {
@@ -33,6 +36,21 @@ export class UsersController {
   @UseGuards(JwtAuthGuard)
   updateMe(@CurrentUser() user: JwtUser, @Body() body: UpdateProfileDto) {
     return this.users.updateMe(user.sub, body);
+  }
+
+  @Post('me/images/:kind')
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: 5 * 1024 * 1024 },
+    }),
+  )
+  uploadProfileImage(
+    @CurrentUser() user: JwtUser,
+    @Param('kind') kind: 'avatar' | 'banner',
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
+    return this.users.uploadProfileImage(user.sub, kind, file);
   }
 
   @Get('export')

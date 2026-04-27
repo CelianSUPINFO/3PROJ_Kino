@@ -1,4 +1,5 @@
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import * as ImagePicker from "expo-image-picker";
 import { useCallback, useEffect, useState } from "react";
 import {
   FlatList,
@@ -60,6 +61,7 @@ export function ProfileScreen({ route, navigation }: Props) {
   const [msg, setMsg] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<Profile | null>(null);
+  const [uploading, setUploading] = useState<"avatar" | "banner" | null>(null);
   const [pickQ, setPickQ] = useState("");
   const [pickResults, setPickResults] = useState<
     { id: number; title?: string; name?: string; poster_path?: string; media_type?: string }[]
@@ -145,6 +147,51 @@ export function ProfileScreen({ route, navigation }: Props) {
       setMsg(t("common.save"));
     } catch {
       setMsg(t("common.retry"));
+    }
+  }
+
+  async function pickProfileImage(kind: "avatar" | "banner") {
+    if (!draft) return;
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      setMsg(t("common.retry"));
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: kind === "avatar" ? [1, 1] : [16, 6],
+      quality: 0.85,
+    });
+    if (result.canceled || !result.assets[0]?.uri) return;
+
+    setUploading(kind);
+    setMsg(null);
+    try {
+      const asset = result.assets[0];
+      const ext = asset.uri.split(".").pop()?.toLowerCase() ?? "jpg";
+      const mime = ext === "png" ? "image/png" : "image/jpeg";
+      const form = new FormData();
+      form.append("file", {
+        uri: asset.uri,
+        name: `${kind}.${ext}`,
+        type: mime,
+      } as unknown as Blob);
+      const uploaded = await apiFetch<{ url: string; user: Profile }>(
+        `/users/me/images/${kind}`,
+        {
+          method: "POST",
+          body: form,
+        },
+      );
+      const next = { ...draft, ...uploaded.user };
+      setDraft(next);
+      setProfile(next);
+      setMsg(t("common.save"));
+    } catch {
+      setMsg(t("common.retry"));
+    } finally {
+      setUploading(null);
     }
   }
 
@@ -248,17 +295,19 @@ export function ProfileScreen({ route, navigation }: Props) {
                 colors={colors}
                 multiline
               />
-              <Field
+              <ImageUploadRow
                 label={t("profile.avatar")}
-                value={draft.avatarUrl ?? ""}
-                onChange={(v) => setDraft({ ...draft, avatarUrl: v })}
+                uri={draft.avatarUrl}
+                busy={uploading === "avatar"}
                 colors={colors}
+                onPress={() => pickProfileImage("avatar")}
               />
-              <Field
+              <ImageUploadRow
                 label={t("profile.banner")}
-                value={draft.bannerUrl ?? ""}
-                onChange={(v) => setDraft({ ...draft, bannerUrl: v })}
+                uri={draft.bannerUrl}
+                busy={uploading === "banner"}
                 colors={colors}
+                onPress={() => pickProfileImage("banner")}
               />
               <Field
                 label={t("profile.website")}
@@ -375,6 +424,40 @@ export function ProfileScreen({ route, navigation }: Props) {
   );
 }
 
+function ImageUploadRow({
+  label,
+  uri,
+  busy,
+  colors,
+  onPress,
+}: {
+  label: string;
+  uri?: string | null;
+  busy: boolean;
+  colors: { text: string; muted: string; border: string; panel: string; kino: string };
+  onPress: () => void;
+}) {
+  return (
+    <View style={{ marginTop: spacing.sm }}>
+      <Text style={{ color: colors.muted, fontSize: 12, marginBottom: 6 }}>{label}</Text>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
+        {uri ? (
+          <Image source={{ uri }} style={s.uploadPreview} />
+        ) : (
+          <View style={[s.uploadPreview, { backgroundColor: colors.panel, borderColor: colors.border }]} />
+        )}
+        <Pressable
+          onPress={onPress}
+          disabled={busy}
+          style={[s.uploadButton, { borderColor: colors.border, backgroundColor: colors.kino }]}
+        >
+          <Text style={s.btnText}>{busy ? "Upload..." : label}</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
 function Field({
   label,
   value,
@@ -447,4 +530,11 @@ const s = StyleSheet.create({
   pickRow: { paddingVertical: 8 },
   favCard: { marginRight: 10, width: 72 },
   favPoster: { width: 72, height: 108, borderRadius: 8, marginBottom: 4 },
+  uploadPreview: { width: 64, height: 64, borderRadius: radius.md, borderWidth: 1 },
+  uploadButton: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+  },
 });

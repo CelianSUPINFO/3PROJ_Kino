@@ -38,7 +38,13 @@
       }
     },
     "plugins": [
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Kino utilise votre galerie pour choisir une photo de profil ou une bannière."
+        }
+      ]
     ],
     "runtimeVersion": {
       "policy": "appVersion"

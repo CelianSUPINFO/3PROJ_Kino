@@ -30,7 +30,9 @@ export async function apiFetch<T>(
   init: RequestInit & { auth?: boolean } = {},
 ): Promise<T> {
   const headers = new Headers(init.headers);
-  headers.set("Content-Type", "application/json");
+  const isFormData =
+    typeof FormData !== "undefined" && init.body instanceof FormData;
+  if (!isFormData) headers.set("Content-Type", "application/json");
   if (init.auth !== false) {
     const access = await AsyncStorage.getItem(ACCESS);
     if (access) headers.set("Authorization", `Bearer ${access}`);

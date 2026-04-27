@@ -3,7 +3,9 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
+import { v2 as cloudinary } from 'cloudinary';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsGateway } from '../notifications/notifications.gateway';
 import { UpdateProfileDto } from './dto/user.dto';
@@ -13,6 +15,7 @@ export class UsersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notificationsGateway: NotificationsGateway,
+    private readonly config: ConfigService,
   ) {}
 
   async me(userId: string) {
@@ -62,6 +65,71 @@ export class UsersService {
         notifyPush: true,
       },
     });
+  }
+
+  async uploadProfileImage(
+    userId: string,
+    kind: 'avatar' | 'banner',
+    file?: Express.Multer.File,
+  ) {
+    if (kind !== 'avatar' && kind !== 'banner') {
+      throw new BadRequestException('Type d’image invalide');
+    }
+    if (!file) {
+      throw new BadRequestException('Fichier manquant');
+    }
+    if (!file.mimetype.startsWith('image/')) {
+      throw new BadRequestException('Le fichier doit être une image');
+    }
+
+    const cloudName = this.config.get<string>('CLOUDINARY_CLOUD_NAME');
+    const apiKey = this.config.get<string>('CLOUDINARY_API_KEY');
+    const apiSecret = this.config.get<string>('CLOUDINARY_API_SECRET');
+    if (!cloudName || !apiKey || !apiSecret) {
+      throw new BadRequestException('Cloudinary n’est pas configuré');
+    }
+
+    cloudinary.config({ cloud_name: cloudName, api_key: apiKey, api_secret: apiSecret });
+    const folder = `kino/profiles/${userId}`;
+    const publicId = `${kind}-${Date.now()}`;
+    const result = await new Promise<{ secure_url: string }>((resolve, reject) => {
+      const upload = cloudinary.uploader.upload_stream(
+        {
+          folder,
+          public_id: publicId,
+          resource_type: 'image',
+          overwrite: true,
+          transformation:
+            kind === 'avatar'
+              ? [{ width: 512, height: 512, crop: 'fill', gravity: 'face' }]
+              : [{ width: 1600, height: 600, crop: 'fill' }],
+        },
+        (error, uploadResult) => {
+          if (error || !uploadResult?.secure_url) {
+            reject(error ?? new Error('Upload Cloudinary impossible'));
+            return;
+          }
+          resolve({ secure_url: uploadResult.secure_url });
+        },
+      );
+      upload.end(file.buffer);
+    });
+
+    const field = kind === 'avatar' ? 'avatarUrl' : 'bannerUrl';
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: { [field]: result.secure_url },
+      select: {
+        id: true,
+        displayName: true,
+        bio: true,
+        website: true,
+        avatarUrl: true,
+        bannerUrl: true,
+        favoriteFilms: true,
+      },
+    });
+    return { url: result.secure_url, user: updated };
   }
 
   async publicProfile(id: string) {

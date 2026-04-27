@@ -12,6 +12,7 @@ npm run start:dev
 ```
 
 La clé TMDB reste uniquement côté serveur via `TMDB_API_KEY` ou `TMDB_READ_ACCESS_TOKEN`.
+Les uploads avatar/bannière passent aussi par le serveur et nécessitent `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY` et `CLOUDINARY_API_SECRET`.
 
 ## Commandes utiles
 

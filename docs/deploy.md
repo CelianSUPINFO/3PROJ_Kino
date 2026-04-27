@@ -39,6 +39,7 @@ Minimum values to set:
 - `JWT_ACCESS_SECRET` — any long random string (`node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"`)
 - `TMDB_API_KEY` **or** `TMDB_READ_ACCESS_TOKEN` — create an account at <https://www.themoviedb.org/settings/api>
 - `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` — only if you want Google OAuth; otherwise leave empty, the API still boots
+- `CLOUDINARY_CLOUD_NAME` / `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET` — required for profile avatar and banner uploads
 - `CORS_ORIGINS` — comma-separated allowed web origins, for example `http://localhost:3000,http://localhost:3001`
 
 `NEXT_PUBLIC_API_URL` (web) and `EXPO_PUBLIC_API_URL` (mobile) default to `http://localhost:4000/v1`.
@@ -202,6 +203,7 @@ eas update --branch production --message "Release 1.0.1"
 | ------------------------------------------------ | ----------------------------------------------------------------------------------------- |
 | `P1001: Can't reach database server`             | `docker compose up -d db` and wait for the healthcheck                                    |
 | Web shows empty carousels                        | `TMDB_API_KEY` / `TMDB_READ_ACCESS_TOKEN` missing — check `.env` and restart the API      |
+| Profile image upload fails                       | Cloudinary env vars missing or invalid — check API environment and restart the API        |
 | `EADDRINUSE: :::4000`                            | Another Node process is running the API — `taskkill /F /IM node.exe` on Windows           |
 | `OAuth2Strategy requires a clientID option`      | Leave `GOOGLE_CLIENT_*` unset **or** set both; do not leave one empty                     |
 | Mobile cannot reach the API on a physical device | Replace `localhost` with your machine's LAN IP in `EXPO_PUBLIC_API_URL`                   |
