@@ -9,11 +9,17 @@ export class OptionalJwtAuthGuard extends AuthGuard('jwt') {
     if (!auth || !auth.startsWith('Bearer ')) {
       return true;
     }
-    return (await super.canActivate(context)) as boolean;
+
+    try {
+      await super.canActivate(context);
+    } catch {
+      return true;
+    }
+    return true;
   }
 
   handleRequest<TUser>(err: unknown, user: TUser): TUser {
-    if (err) return undefined as TUser;
+    if (err || !user) return undefined as TUser;
     return user;
   }
 }
