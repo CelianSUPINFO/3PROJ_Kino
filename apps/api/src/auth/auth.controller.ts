@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Logger,
   Next,
   Post,
   Req,
@@ -18,6 +19,8 @@ import { User } from '@prisma/client';
 
 @Controller('auth')
 export class AuthController {
+  private readonly logger = new Logger(AuthController.name);
+
   constructor(
     private readonly auth: AuthService,
     private readonly config: ConfigService,
@@ -82,6 +85,9 @@ export class AuthController {
           'http://localhost:3001',
         );
         if (err || !user) {
+          this.logger.warn(
+            `Google OAuth callback failed: ${err?.message ?? 'missing user'}`,
+          );
           return res.redirect(302, `${webBase}/login?error=oauth`);
         }
         const tokens = await this.auth.issueTokens(user.id, user.email, user.role);
