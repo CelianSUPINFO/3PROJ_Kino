@@ -54,7 +54,12 @@ export class AuthController {
     @Res() res: Response,
     @Next() next: NextFunction,
   ) {
-    const state = req.query.mobile === '1' ? 'mobile' : 'web';
+    const target = req.query.mobile === '1' ? 'mobile' : 'web';
+    const returnTo =
+      target === 'web' && typeof req.query.returnTo === 'string'
+        ? this.sanitizeReturnTo(req.query.returnTo)
+        : undefined;
+    const state = this.encodeState({ target, returnTo });
     passport.authenticate('google', {
       scope: ['email', 'profile'],
       state,
@@ -80,15 +85,60 @@ export class AuthController {
           return res.redirect(302, `${webBase}/login?error=oauth`);
         }
         const tokens = await this.auth.issueTokens(user.id, user.email, user.role);
-        const state = typeof req.query.state === 'string' ? req.query.state : 'web';
-        if (state === 'mobile') {
+        const state = this.decodeState(
+          typeof req.query.state === 'string' ? req.query.state : undefined,
+        );
+        if (state.target === 'mobile') {
           const scheme = this.config.get<string>('MOBILE_OAUTH_SCHEME', 'kino');
           const url = `${scheme}://oauth?access=${encodeURIComponent(tokens.accessToken)}&refresh=${encodeURIComponent(tokens.refreshToken)}`;
           return res.redirect(302, url);
         }
-        const url = `${webBase}/oauth?access=${encodeURIComponent(tokens.accessToken)}&refresh=${encodeURIComponent(tokens.refreshToken)}`;
+        const returnBase = state.returnTo
+          ? this.sanitizeReturnTo(state.returnTo) ?? webBase
+          : webBase;
+        const url = `${returnBase}/oauth?access=${encodeURIComponent(tokens.accessToken)}&refresh=${encodeURIComponent(tokens.refreshToken)}`;
         return res.redirect(302, url);
       },
     )(req, res, next);
+  }
+
+  private encodeState(state: { target: 'web' | 'mobile'; returnTo?: string }) {
+    return Buffer.from(JSON.stringify(state), 'utf8').toString('base64url');
+  }
+
+  private decodeState(raw?: string): { target: 'web' | 'mobile'; returnTo?: string } {
+    if (!raw) return { target: 'web' };
+    if (raw === 'mobile' || raw === 'web') return { target: raw };
+    try {
+      const parsed = JSON.parse(Buffer.from(raw, 'base64url').toString('utf8')) as {
+        target?: string;
+        returnTo?: string;
+      };
+      return {
+        target: parsed.target === 'mobile' ? 'mobile' : 'web',
+        returnTo: typeof parsed.returnTo === 'string' ? parsed.returnTo : undefined,
+      };
+    } catch {
+      return { target: 'web' };
+    }
+  }
+
+  private sanitizeReturnTo(raw: string) {
+    try {
+      const origin = new URL(raw).origin;
+      return this.allowedWebOrigins().includes(origin) ? origin : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
+  private allowedWebOrigins() {
+    const values = [
+      this.config.get<string>('FRONTEND_URL'),
+      ...(this.config.get<string>('CORS_ORIGINS') ?? '').split(','),
+    ];
+    return values
+      .map((origin) => origin?.trim())
+      .filter((origin): origin is string => Boolean(origin));
   }
 }

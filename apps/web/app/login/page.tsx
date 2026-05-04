@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { apiFetch, setTokens } from "@/lib/api";
@@ -14,6 +14,16 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [googleHref, setGoogleHref] = useState(
+    `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/v1"}/auth/google`,
+  );
+
+  useEffect(() => {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/v1";
+    setGoogleHref(
+      `${apiUrl}/auth/google?returnTo=${encodeURIComponent(window.location.origin)}`,
+    );
+  }, []);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -85,7 +95,7 @@ export default function LoginPage() {
       </div>
       <a
         className="flex w-full items-center justify-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-3 text-sm font-medium text-white hover:bg-white/10"
-        href={`${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/v1"}/auth/google`}
+        href={googleHref}
       >
         <GoogleIcon /> {t("auth.google")}
       </a>
