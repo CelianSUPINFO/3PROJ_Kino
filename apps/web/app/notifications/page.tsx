@@ -1,5 +1,6 @@
-"use client";
+﻿"use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { io, Socket } from "socket.io-client";
 import { apiFetch, getAccessToken } from "@/lib/api";
@@ -25,13 +26,15 @@ const ICONS: Record<string, string> = {
 export default function NotificationsPage() {
   const { locale, t } = useLocale();
   const [items, setItems] = useState<N[]>([]);
+  const [signedIn, setSignedIn] = useState<boolean | null>(null);
 
   useEffect(() => {
+    const token = getAccessToken();
+    setSignedIn(Boolean(token));
+    if (!token) return;
     apiFetch<N[]>("/notifications")
       .then(setItems)
       .catch(() => setItems([]));
-    const token = getAccessToken();
-    if (!token) return;
     const apiBase =
       process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/v1";
     const origin = apiBase.replace(/\/v1$/, "");
@@ -80,10 +83,20 @@ export default function NotificationsPage() {
         <button
           className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm text-white hover:bg-white/10"
           onClick={markAllRead}
+          disabled={items.length === 0}
         >
           {t("notifications.markAll")}
         </button>
       </header>
+      {signedIn === false && (
+        <section className="glass rounded-2xl p-6 text-center">
+          <h2 className="text-display text-2xl font-semibold text-white">{t("nav.login")}</h2>
+          <p className="mx-auto mt-2 max-w-md text-kino-muted">{t("common.signInRequired")}</p>
+          <Link href="/login" className="btn-primary mt-5 !py-2 text-sm">
+            {t("nav.login")}
+          </Link>
+        </section>
+      )}
       <ul className="space-y-2">
         {items.map((n, idx) => (
           <li
@@ -113,12 +126,16 @@ export default function NotificationsPage() {
             )}
           </li>
         ))}
-        {items.length === 0 && (
-          <li className="glass rounded-2xl p-6 text-center text-kino-muted">
-            {t("notifications.empty")}
+        {items.length === 0 && signedIn !== false && (
+          <li className="glass rounded-2xl p-6 text-center">
+            <h2 className="text-display text-2xl font-semibold text-white">
+              {t("notifications.caughtUp")}
+            </h2>
+            <p className="mt-2 text-kino-muted">{t("notifications.empty")}</p>
           </li>
         )}
       </ul>
     </div>
   );
 }
+

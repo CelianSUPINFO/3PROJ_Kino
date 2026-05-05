@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -104,7 +104,18 @@ export default function LibraryPage() {
 
   if (err) {
     return (
-      <div className="glass rounded-2xl p-6 text-center text-kino-muted">{err}</div>
+      <section className="glass rounded-2xl p-6 text-center">
+        <h1 className="text-display text-2xl font-semibold text-white">{t("nav.login")}</h1>
+        <p className="mt-2 text-kino-muted">{err}</p>
+        <div className="mt-5 flex flex-col justify-center gap-2 sm:flex-row">
+          <Link href="/login" className="btn-primary !py-2 text-sm">
+            {t("nav.login")}
+          </Link>
+          <Link href="/register" className="btn-ghost !py-2 text-sm">
+            {t("nav.register")}
+          </Link>
+        </div>
+      </section>
     );
   }
 
@@ -138,6 +149,20 @@ export default function LibraryPage() {
         );
       })}
 
+      {rows.length === 0 && (
+        <section className="glass rounded-2xl p-6 text-center">
+          <h2 className="text-display text-2xl font-semibold text-white">
+            {t("library.emptyTitle")}
+          </h2>
+          <p className="mx-auto mt-2 max-w-md text-kino-muted">
+            {t("library.emptyBody")}
+          </p>
+          <Link href="/search" className="btn-primary mt-5 !py-2 text-sm">
+            {t("nav.search")}
+          </Link>
+        </section>
+      )}
+
       <section className="glass space-y-4 rounded-2xl p-5">
         <h2 className="text-display text-xl font-semibold text-white">
           {t("library.lists")}
@@ -146,7 +171,7 @@ export default function LibraryPage() {
           <input
             value={newListName}
             onChange={(e) => setNewListName(e.target.value)}
-            placeholder="…"
+            placeholder={t("library.listNamePlaceholder")}
             className="min-w-[200px] flex-1 rounded-full border border-white/10 bg-black/30 px-4 py-2 text-sm text-white placeholder:text-white/40 focus:border-kino/60 focus:outline-none"
           />
           <label className="flex items-center gap-2 text-sm text-kino-muted">
@@ -179,3 +204,4 @@ export default function LibraryPage() {
     </div>
   );
 }
+

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { useLocale } from "../components/AppProviders";
@@ -69,14 +70,18 @@ export default function MessagesPage() {
 
   if (err) {
     return (
-      <div className="glass rounded-2xl p-6 text-center text-kino-muted">
-        {err}
-      </div>
+      <section className="glass rounded-2xl p-6 text-center">
+        <h1 className="text-display text-2xl font-semibold text-white">{t("nav.login")}</h1>
+        <p className="mt-2 text-kino-muted">{err}</p>
+        <Link href="/login" className="btn-primary mt-5 !py-2 text-sm">
+          {t("nav.login")}
+        </Link>
+      </section>
     );
   }
 
   return (
-    <div className="grid gap-4 md:grid-cols-[280px_1fr]">
+    <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
       <aside className="glass h-fit rounded-2xl p-3 md:sticky md:top-24">
         <h1 className="text-display px-2 pb-2 text-lg font-semibold text-white">
           {t("messages.title")}
@@ -107,11 +112,13 @@ export default function MessagesPage() {
             </li>
           ))}
           {partners.length === 0 && (
-            <li className="px-2 text-sm text-kino-muted">{t("messages.noPartners")}</li>
+            <li className="rounded-xl border border-white/10 bg-white/[0.03] p-4 text-sm text-kino-muted">
+              {t("messages.noPartners")}
+            </li>
           )}
         </ul>
       </aside>
-      <section className="glass flex h-[70vh] flex-col rounded-2xl">
+      <section className="glass flex min-h-[520px] flex-col rounded-2xl lg:h-[70vh]">
         <header className="flex items-center gap-3 border-b border-white/10 p-4">
           {selected ? (
             <>
@@ -157,7 +164,9 @@ export default function MessagesPage() {
             );
           })}
           {selected && messages.length === 0 && (
-            <p className="text-center text-sm text-kino-muted">{t("messages.empty")}</p>
+            <div className="flex h-full items-center justify-center text-center">
+              <p className="max-w-xs text-sm text-kino-muted">{t("messages.empty")}</p>
+            </div>
           )}
           <div ref={endRef} />
         </div>

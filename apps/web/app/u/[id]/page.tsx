@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -116,21 +116,26 @@ export default function UserPage() {
 
   async function saveProfile() {
     if (!draft) return;
-    const updated = await apiFetch<Profile>("/users/me", {
-      method: "PATCH",
-      body: JSON.stringify({
-        displayName: draft.displayName,
-        bio: draft.bio,
-        website: draft.website ?? "",
-        avatarUrl: draft.avatarUrl ?? "",
-        bannerUrl: draft.bannerUrl ?? "",
-        favoriteFilms: draft.favoriteFilms ?? [],
-      }),
-    });
-    setP(updated);
-    setDraft(updated);
-    setEditing(false);
-    setActionMsg(t("common.save"));
+    setActionMsg(null);
+    try {
+      const updated = await apiFetch<Profile>("/users/me", {
+        method: "PATCH",
+        body: JSON.stringify({
+          displayName: draft.displayName,
+          bio: draft.bio,
+          website: draft.website ?? "",
+          avatarUrl: draft.avatarUrl ?? "",
+          bannerUrl: draft.bannerUrl ?? "",
+          favoriteFilms: draft.favoriteFilms ?? [],
+        }),
+      });
+      setP(updated);
+      setDraft(updated);
+      setEditing(false);
+      setActionMsg(t("common.saved"));
+    } catch {
+      setActionMsg(t("profile.saveFailed"));
+    }
   }
 
   async function uploadProfileImage(kind: "avatar" | "banner", file?: File | null) {
@@ -150,9 +155,9 @@ export default function UserPage() {
       const next = { ...draft, ...result.user };
       setDraft(next);
       setP(next);
-      setActionMsg(t("common.save"));
+      setActionMsg(t("common.saved"));
     } catch {
-      setActionMsg(t("common.retry"));
+      setActionMsg(t("profile.uploadFailed"));
     } finally {
       setUploading(null);
     }
@@ -210,7 +215,7 @@ export default function UserPage() {
           <div className="absolute inset-0 bg-gradient-to-t from-kino-ink/90 to-transparent" />
         </div>
         <div className="relative px-5 pb-6 md:px-8">
-          <div className="-mt-12 flex flex-wrap items-end gap-4">
+          <div className="-mt-12 flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end">
             {p.avatarUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
@@ -239,11 +244,19 @@ export default function UserPage() {
                 </h1>
               )}
             </div>
-            <div className="flex gap-2 pb-1">
+            <div className="flex w-full flex-wrap gap-2 pb-1 sm:w-auto">
               {isOwnProfile ? (
                 editing ? (
                   <>
-                    <button type="button" className="chip" onClick={() => setEditing(false)}>
+                    <button
+                      type="button"
+                      className="chip"
+                      onClick={() => {
+                        setDraft(p);
+                        setEditing(false);
+                        setActionMsg(null);
+                      }}
+                    >
                       {t("common.cancel")}
                     </button>
                     <button type="button" className="btn-primary !py-2 !px-4 text-sm" onClick={saveProfile}>
@@ -332,7 +345,9 @@ export default function UserPage() {
             </div>
           ) : (
             <>
-              {p.bio && <p className="mt-4 max-w-2xl text-kino-muted">{p.bio}</p>}
+              <p className="mt-4 max-w-2xl text-kino-muted">
+                {p.bio || t("profile.noBio")}
+              </p>
               {p.website && (
                 <a href={p.website} target="_blank" rel="noreferrer" className="mt-2 inline-block text-sm text-kino hover:text-kino-hot">
                   {p.website.replace(/^https?:\/\//, "")}
@@ -349,38 +364,42 @@ export default function UserPage() {
         </div>
       </section>
 
-      {!editing && favorites.length > 0 && (
+      {!editing && (
         <section className="glass rounded-2xl p-5">
           <h2 className="text-display text-lg font-semibold text-white">{t("profile.favorites")}</h2>
-          <div className="mt-4 flex flex-wrap gap-3">
-            {favorites.map((f) => (
-              <Link
-                key={f.tmdbId}
-                href={`/title/${f.mediaType === "TV" ? "tv" : "movie"}/${f.tmdbId}`}
-                className="group w-24 shrink-0"
-              >
-                {f.posterPath ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={`https://image.tmdb.org/t/p/w185${f.posterPath}`}
-                    alt=""
-                    className="aspect-[2/3] w-full rounded-xl object-cover transition group-hover:ring-2 group-hover:ring-kino"
-                  />
-                ) : (
-                  <div className="flex aspect-[2/3] items-center justify-center rounded-xl bg-white/10 text-xs text-white">
-                    #{f.tmdbId}
-                  </div>
-                )}
-                <p className="mt-1 truncate text-xs text-kino-muted">{f.title}</p>
-              </Link>
-            ))}
-          </div>
+          {favorites.length > 0 ? (
+            <div className="mt-4 grid grid-cols-3 gap-3 min-[420px]:grid-cols-4 sm:flex sm:flex-wrap">
+              {favorites.map((f) => (
+                <Link
+                  key={f.tmdbId}
+                  href={`/title/${f.mediaType === "TV" ? "tv" : "movie"}/${f.tmdbId}`}
+                  className="group min-w-0 sm:w-24 sm:shrink-0"
+                >
+                  {f.posterPath ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={`https://image.tmdb.org/t/p/w185${f.posterPath}`}
+                      alt=""
+                      className="aspect-[2/3] w-full rounded-xl object-cover transition group-hover:ring-2 group-hover:ring-kino"
+                    />
+                  ) : (
+                    <div className="flex aspect-[2/3] items-center justify-center rounded-xl bg-white/10 text-xs text-white">
+                      #{f.tmdbId}
+                    </div>
+                  )}
+                  <p className="mt-1 truncate text-xs text-kino-muted">{f.title}</p>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-3 text-sm text-kino-muted">{t("profile.noFavorites")}</p>
+          )}
         </section>
       )}
 
       <section className="grid gap-4 md:grid-cols-2">
-        <SocialList title={t("profile.followers")} users={followers} />
-        <SocialList title={t("profile.following")} users={following} />
+        <SocialList title={t("profile.followers")} users={followers} empty={t("profile.noFollowers")} />
+        <SocialList title={t("profile.following")} users={following} empty={t("profile.noFollowing")} />
       </section>
     </div>
   );
@@ -397,6 +416,8 @@ function ImageUploadField({
   previewUrl?: string | null;
   onPick: (file?: File | null) => void;
 }) {
+  const { t } = useLocale();
+
   return (
     <div>
       <span className="text-xs font-semibold uppercase tracking-widest text-kino-muted">
@@ -412,7 +433,7 @@ function ImageUploadField({
           />
         )}
         <label className="chip cursor-pointer">
-          {busy ? "Upload..." : label}
+          {busy ? t("common.uploading") : t("common.chooseImage")}
           <input
             type="file"
             accept="image/*"
@@ -458,29 +479,34 @@ function Field({
   );
 }
 
-function SocialList({ title, users }: { title: string; users: PublicUser[] }) {
+function SocialList({ title, users, empty }: { title: string; users: PublicUser[]; empty: string }) {
   return (
     <div className="glass rounded-2xl p-5">
       <h2 className="text-display text-lg font-semibold text-white">
         {title} <span className="text-kino-muted">({users.length})</span>
       </h2>
-      <ul className="mt-4 space-y-2">
-        {users.slice(0, 8).map((u) => (
-          <li key={u.id}>
-            <Link href={`/u/${u.id}`} className="flex items-center gap-3 text-sm text-white hover:text-kino-hot">
-              {u.avatarUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={u.avatarUrl} alt="" className="h-8 w-8 rounded-full object-cover" />
-              ) : (
-                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-xs font-bold">
-                  {initials(u.displayName)}
-                </span>
-              )}
-              {u.displayName}
-            </Link>
-          </li>
-        ))}
-      </ul>
+      {users.length > 0 ? (
+        <ul className="mt-4 space-y-2">
+          {users.slice(0, 8).map((u) => (
+            <li key={u.id}>
+              <Link href={`/u/${u.id}`} className="flex items-center gap-3 text-sm text-white hover:text-kino-hot">
+                {u.avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={u.avatarUrl} alt="" className="h-8 w-8 rounded-full object-cover" />
+                ) : (
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-xs font-bold">
+                    {initials(u.displayName)}
+                  </span>
+                )}
+                {u.displayName}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-3 text-sm text-kino-muted">{empty}</p>
+      )}
     </div>
   );
 }
+

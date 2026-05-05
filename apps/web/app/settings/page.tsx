@@ -115,6 +115,12 @@ export default function SettingsPage() {
     }
   }
 
+  function logout() {
+    clearTokens();
+    setMe(null);
+    window.location.href = "/";
+  }
+
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <header className="space-y-2">
@@ -136,19 +142,24 @@ export default function SettingsPage() {
         <>
           <section className="glass space-y-3 rounded-2xl p-5">
             <h2 className="text-display text-lg font-semibold text-white">
-              {t("settings.title")}
+              {t("settings.account")}
             </h2>
             <p className="text-sm text-kino-muted">
-              {me.displayName} · {me.email}
+              <span className="font-medium text-white">{me.displayName}</span> · {me.email}
             </p>
-            <Link href={`/u/${me.id}`} className="btn-primary inline-block !py-2 text-center text-sm">
-              {t("profile.edit")}
-            </Link>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Link href={`/u/${me.id}`} className="btn-primary inline-block !py-2 text-center text-sm">
+                {t("profile.edit")}
+              </Link>
+              <button type="button" className="btn-ghost !py-2 text-sm" onClick={logout}>
+                {t("nav.logout")}
+              </button>
+            </div>
           </section>
 
           <section className="glass space-y-4 rounded-2xl p-5">
             <h2 className="text-display text-lg font-semibold text-white">
-              {t("settings.theme")} / {t("settings.language")}
+              {t("settings.appearance")}
             </h2>
             <div className="grid gap-3 md:grid-cols-2">
               <SelectField
@@ -215,7 +226,27 @@ export default function SettingsPage() {
                 {t("settings.exportCsv")}
               </button>
               <button
-                className="chip border-red-400/40 text-red-200"
+                className="chip"
+                onClick={logout}
+                type="button"
+              >
+                {t("nav.logout")}
+              </button>
+            </div>
+          </section>
+
+          <section className="glass space-y-3 rounded-2xl border-red-300/20 p-5">
+            <h2 className="text-display text-lg font-semibold text-red-100">
+              {t("settings.danger")}
+            </h2>
+            <p className="text-sm text-kino-muted">{t("settings.logoutHint")}</p>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <button type="button" className="btn-ghost !py-2 text-sm" onClick={logout}>
+                {t("nav.logout")}
+              </button>
+              <button
+                type="button"
+                className="btn-danger !py-2 text-sm"
                 onClick={deleteAccount}
                 disabled={loading}
               >

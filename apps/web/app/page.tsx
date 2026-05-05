@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
@@ -83,9 +83,14 @@ export default function Home() {
         <section className="glass rounded-3xl p-6 text-center">
           <h1 className="text-display text-2xl font-bold text-white">{t("home.unavailable")}</h1>
           <p className="mt-2 text-sm text-kino-muted">{error}</p>
-          <button className="btn-primary mt-5" onClick={loadHome}>
-            {t("common.retry")}
-          </button>
+          <div className="mt-5 flex flex-col justify-center gap-2 sm:flex-row">
+            <button className="btn-primary" onClick={loadHome}>
+              {t("common.retry")}
+            </button>
+            <Link href="/search" className="btn-ghost">
+              {t("home.ctaExplore")}
+            </Link>
+          </div>
         </section>
       )}
 
@@ -112,7 +117,6 @@ export default function Home() {
                 </Link>
               </div>
             </div>
-            <div className="pointer-events-none absolute -right-10 -top-10 h-64 w-64 rounded-full bg-kino/30 blur-3xl" />
           </section>
 
           {data.categories.map((row) => (
@@ -203,3 +207,4 @@ function Avatar({ name }: { name: string }) {
     </span>
   );
 }
+

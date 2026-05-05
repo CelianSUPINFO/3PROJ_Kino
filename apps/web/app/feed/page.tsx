@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -81,7 +81,20 @@ export default function FeedPage() {
         <p className="text-kino-muted">{t("feed.subtitle")}</p>
       </header>
 
-      {err && <p className="rounded-xl border border-white/10 bg-white/5 p-4 text-kino-muted">{err}</p>}
+      {err && (
+        <section className="glass rounded-2xl p-6 text-center">
+          <h2 className="text-display text-2xl font-semibold text-white">{t("nav.login")}</h2>
+          <p className="mt-2 text-kino-muted">{err}</p>
+          <div className="mt-5 flex flex-col justify-center gap-2 sm:flex-row">
+            <Link href="/login" className="btn-primary !py-2 text-sm">
+              {t("nav.login")}
+            </Link>
+            <Link href="/register" className="btn-ghost !py-2 text-sm">
+              {t("nav.register")}
+            </Link>
+          </div>
+        </section>
+      )}
 
       <ul className="space-y-3">
         {items.map((a, idx) => {
@@ -124,11 +137,16 @@ export default function FeedPage() {
           );
         })}
         {items.length === 0 && !err && (
-          <li className="glass rounded-2xl p-6 text-center text-kino-muted">
-            {t("feed.emptyFollow")}
+          <li className="glass rounded-2xl p-6 text-center">
+            <h2 className="text-display text-2xl font-semibold text-white">{t("feed.empty")}</h2>
+            <p className="mx-auto mt-2 max-w-md text-kino-muted">{t("feed.emptyFollow")}</p>
+            <Link href="/search" className="btn-primary mt-5 !py-2 text-sm">
+              {t("nav.search")}
+            </Link>
           </li>
         )}
       </ul>
     </div>
   );
 }
+

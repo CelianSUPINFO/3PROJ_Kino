@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -55,7 +55,11 @@ export function Nav() {
     }
     apiFetch<MeNav>("/users/me")
       .then(setMe)
-      .catch(() => setMe(null));
+      .catch(() => {
+        clearTokens();
+        setIsAuthed(false);
+        setMe(null);
+      });
   }, [pathname]);
 
   useEffect(() => {
@@ -113,6 +117,14 @@ export function Nav() {
     window.location.href = `/search?q=${encodeURIComponent(q)}`;
   }
 
+  function logout() {
+    clearTokens();
+    setIsAuthed(false);
+    setMe(null);
+    setMobileOpen(false);
+    window.location.href = "/";
+  }
+
   return (
     <header className="sticky top-2 z-40 px-2 sm:top-3 sm:px-4 md:top-4 md:px-6">
       <div className="mx-auto max-w-7xl overflow-visible rounded-2xl border border-white/10 bg-kino-panel/75 shadow-card backdrop-blur-xl">
@@ -123,7 +135,7 @@ export function Nav() {
                 <path d="M12 2l2.6 6.3L21 9l-4.8 4.2L17.8 20 12 16.4 6.2 20l1.6-6.8L3 9l6.4-.7L12 2z" />
               </svg>
             </span>
-            <span className="text-display hidden text-lg font-bold tracking-tight text-white xs:inline sm:text-xl">
+            <span className="text-display hidden text-lg font-bold tracking-tight text-white min-[420px]:inline sm:text-xl">
               kino
             </span>
           </Link>
@@ -266,12 +278,7 @@ export function Nav() {
                 <button
                   type="button"
                   className="hidden rounded-full border border-white/15 px-3 py-1.5 text-sm text-white hover:bg-white/10 lg:inline"
-                  onClick={() => {
-                    clearTokens();
-                    setIsAuthed(false);
-                    setMe(null);
-                    window.location.href = "/";
-                  }}
+                  onClick={logout}
                 >
                   {t("nav.logout")}
                 </button>
@@ -282,6 +289,7 @@ export function Nav() {
           <button
             type="button"
             aria-label="Menu"
+            aria-expanded={mobileOpen}
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white lg:hidden"
             onClick={() => setMobileOpen((v) => !v)}
           >
@@ -310,14 +318,23 @@ export function Nav() {
                 }}
               />
             </div>
-            <div className="space-y-3 text-sm">
-              <MobileSection title={t("nav.home")} href="/" />
-              <MobileSection title={t("nav.tonight")} href="/ce-soir" />
-              <MobileGroup title={t("nav.movies")} items={movieItems} />
-              <MobileGroup title={t("nav.series")} items={tvItems} />
-              {isAuthed && <MobileGroup title={t("nav.me")} items={meItems} />}
+            <div className="grid gap-3 text-sm sm:grid-cols-2">
+              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-2">
+                <MobileSection title={t("nav.home")} href="/" />
+                <MobileSection title={t("nav.tonight")} href="/ce-soir" />
+                {isAuthed && (
+                  <>
+                    <MobileSection title={t("nav.feed")} href="/feed" />
+                    <MobileSection title={t("nav.library")} href="/library" />
+                  </>
+                )}
+              </div>
+              <div className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.03] p-3">
+                <MobileGroup title={t("nav.movies")} items={movieItems.slice(0, 8)} />
+                <MobileGroup title={t("nav.series")} items={tvItems.slice(0, 8)} />
+              </div>
             </div>
-            <div className="mt-4 flex gap-2 border-t border-white/10 pt-4">
+            <div className="mt-4 flex flex-col gap-2 border-t border-white/10 pt-4 sm:flex-row">
               {!isAuthed ? (
                 <>
                   <Link href="/login" className="flex-1 rounded-full border border-white/15 py-2 text-center text-sm text-white">
@@ -348,6 +365,13 @@ export function Nav() {
                   <Link href="/settings" className="rounded-full border border-white/15 px-4 py-2 text-sm text-white">
                     {t("nav.settings")}
                   </Link>
+                  <button
+                    type="button"
+                    className="rounded-full border border-red-300/30 px-4 py-2 text-sm text-red-100 hover:bg-red-500/10"
+                    onClick={logout}
+                  >
+                    {t("nav.logout")}
+                  </button>
                 </>
               )}
             </div>
@@ -406,3 +430,4 @@ function SearchIcon({ className = "" }: { className?: string }) {
     </svg>
   );
 }
+
