@@ -11,20 +11,133 @@ html.light {
 }
 
 html.light body {
-  color: #1a1020;
-  background-color: #f8f5fa;
+  color: #251827;
+  background-color: #f7f2f8;
   background-image:
-    radial-gradient(1200px 600px at 85% 95%, rgba(255, 46, 126, 0.08) 0%, transparent 60%),
-    radial-gradient(900px 500px at 10% 0%, rgba(120, 60, 200, 0.06) 0%, transparent 55%),
-    linear-gradient(180deg, #f8f5fa 0%, #f0ebf4 100%);
+    radial-gradient(1000px 520px at 88% 96%, rgba(255, 46, 126, 0.1) 0%, transparent 58%),
+    radial-gradient(820px 460px at 10% 0%, rgba(114, 78, 145, 0.08) 0%, transparent 55%),
+    linear-gradient(180deg, #faf7fb 0%, #f1eaf3 100%);
+}
+
+html.light body::before {
+  opacity: 0.08;
+  mix-blend-mode: multiply;
 }
 
 html.light .glass {
-  @apply border-black/10 bg-white/70 text-gray-900;
+  border-color: rgba(66, 48, 76, 0.14);
+  background: rgba(255, 255, 255, 0.82);
+  color: #251827;
+  box-shadow: 0 24px 70px -42px rgba(48, 31, 54, 0.45);
+}
+
+html.light .glass-strong {
+  border-color: rgba(66, 48, 76, 0.16);
+  background: rgba(255, 255, 255, 0.94);
+  color: #251827;
+  box-shadow: 0 24px 70px -42px rgba(48, 31, 54, 0.45);
 }
 
 html.light .chip {
-  @apply border-black/10 bg-black/[0.04] text-gray-800 hover:text-gray-950;
+  border-color: rgba(66, 48, 76, 0.16);
+  background: rgba(44, 31, 50, 0.05);
+  color: #302139;
+}
+
+html.light .chip:hover {
+  border-color: rgba(255, 46, 126, 0.55);
+  color: #160d1a;
+}
+
+html.light main .text-white,
+html.light main .text-white\/90,
+html.light main .text-white\/85,
+html.light main .text-white\/80,
+html.light main .text-white\/75,
+html.light main .text-white\/70,
+html.light main .text-white\/60 {
+  color: #251827;
+}
+
+html.light main .text-kino-muted,
+html.light main .text-white\/50,
+html.light main .text-white\/40,
+html.light main .text-white\/30 {
+  color: #7a6b83;
+}
+
+html.light main .text-red-100,
+html.light main .text-red-200,
+html.light main .text-red-300 {
+  color: #9f1d3f;
+}
+
+html.light main .bg-kino-panel,
+html.light main .bg-kino-panel\/40,
+html.light main .bg-kino-panel\/75,
+html.light main .bg-kino-panel\/80,
+html.light main .bg-kino-panel\/90,
+html.light main .bg-kino-panel\/95 {
+  background-color: rgba(255, 255, 255, 0.86);
+}
+
+html.light main .bg-black\/20,
+html.light main .bg-black\/30,
+html.light main .bg-black\/40 {
+  background-color: rgba(255, 255, 255, 0.72);
+}
+
+html.light main .border-white\/5,
+html.light main .border-white\/10,
+html.light main .border-white\/15,
+html.light main .border-white\/20 {
+  border-color: rgba(66, 48, 76, 0.14);
+}
+
+html.light main .placeholder\:text-white\/40::placeholder {
+  color: #8f8198;
+}
+
+html.light input,
+html.light textarea,
+html.light select {
+  color: #251827;
+  background-color: rgba(255, 255, 255, 0.78);
+  border-color: rgba(66, 48, 76, 0.18);
+}
+
+html.light select option {
+  color: #251827;
+  background-color: #ffffff;
+}
+
+html.light .btn-primary,
+html.light .btn-primary *,
+html.light [class*="from-kino"][class*="to-kino-hot"],
+html.light [class*="from-kino"][class*="to-kino-hot"] * {
+  color: #ffffff;
+}
+
+html.light .btn-ghost {
+  border-color: rgba(66, 48, 76, 0.18);
+  background: rgba(255, 255, 255, 0.62);
+  color: #251827;
+}
+
+html.light .btn-danger {
+  border-color: rgba(194, 18, 99, 0.24);
+  background: rgba(255, 46, 126, 0.08);
+  color: #9f1d3f;
+}
+
+html.light header > div {
+  border-color: rgba(66, 48, 76, 0.16);
+  background-color: rgba(255, 255, 255, 0.82);
+}
+
+html.light header .text-white,
+html.light header .text-kino-muted {
+  color: #251827;
 }
 
 html,
