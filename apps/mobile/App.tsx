@@ -175,7 +175,7 @@ function Section({
         <Text style={s.sectionTitle}>{title}</Text>
         {action && (
           <TouchableOpacity onPress={action.onPress}>
-            <Text style={s.sectionAction}>{action.label} â†’</Text>
+            <Text style={s.sectionAction}>{action.label} →</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -352,18 +352,18 @@ function HomeScreen({
               >
                 <View style={s.heroOverlay} />
                 <View style={s.heroContent}>
-                  <Eyebrow>Ã€ L'AFFICHE</Eyebrow>
+                  <Eyebrow>À L'AFFICHE</Eyebrow>
                   <Text numberOfLines={2} style={s.heroTitle}>
                     {featured.title ?? featured.name}
                   </Text>
                   {typeof featured.vote_average === "number" && (
                     <Text style={s.heroScore}>
-                      â˜… {featured.vote_average.toFixed(1)}
+                      ★ {featured.vote_average.toFixed(1)}
                     </Text>
                   )}
                   <View style={{ flexDirection: "row", gap: 8, marginTop: 10 }}>
                     <PrimaryButton
-                      label="DÃ©tails"
+                      label="Détails"
                       onPress={() =>
                         openTitle(
                           featured,
@@ -616,8 +616,8 @@ function TonightScreen({
       setIndex(0);
       setStatus(
         res.personalized
-          ? "Suggestions personnalisÃ©es."
-          : "Mode dÃ©couverte : notez plus d'Å“uvres pour personnaliser.",
+          ? "Suggestions personnalisées."
+          : "Mode découverte : notez plus d'œuvres pour personnaliser.",
       );
     } catch {
       setStatus("Connectez-vous pour enregistrer vos choix.");
@@ -653,12 +653,12 @@ function TonightScreen({
       choice === "SMASH"
         ? {
             msg: saved
-              ? "AjoutÃ© Ã  votre profil"
-              : "Connectez-vous pour mÃ©moriser ce choix",
+              ? "Ajouté à votre profil"
+              : "Connectez-vous pour mémoriser ce choix",
             tone: saved ? "success" : "danger",
           }
         : {
-            msg: saved ? "PassÃ©, choix enregistrÃ©" : "PassÃ© en mode invitÃ©",
+            msg: saved ? "Passé, choix enregistré" : "Passé en mode invité",
             tone: "danger",
           },
     );
@@ -810,7 +810,7 @@ function TonightScreen({
             <Text
               style={{ color: colors.danger, fontSize: 24, fontWeight: "700" }}
             >
-              âœ•
+              ✕
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -824,7 +824,7 @@ function TonightScreen({
             }
           >
             <Text style={{ color: colors.text, fontWeight: "600" }}>
-              Details â†’
+              Details →
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -834,7 +834,7 @@ function TonightScreen({
             ]}
             onPress={() => resolveSwipe("right")}
           >
-            <Text style={{ color: "#fff", fontSize: 22 }}>â˜…</Text>
+            <Text style={{ color: "#fff", fontSize: 22 }}>★</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -905,7 +905,7 @@ function TonightCard({
             <Text
               style={{ color: colors.gold, fontWeight: "700", marginTop: 4 }}
             >
-              â˜… {item.score.toFixed(1)} / 10
+              ★ {item.score.toFixed(1)} / 10
             </Text>
             {item.overview ? (
               <Text numberOfLines={3} style={[s.sub, { marginTop: 8 }]}>
@@ -919,7 +919,7 @@ function TonightCard({
           style={{ flex: 1, justifyContent: "flex-end", padding: spacing.lg }}
         >
           <Text style={[s.h1, { fontSize: 28 }]}>{item.title}</Text>
-          <Text style={{ color: colors.gold }}>â˜… {item.score.toFixed(1)}</Text>
+          <Text style={{ color: colors.gold }}>★ {item.score.toFixed(1)}</Text>
         </View>
       )}
     </View>
@@ -927,6 +927,33 @@ function TonightCard({
 }
 
 // ------------ Auth ------------
+
+async function runGoogleOAuth(
+  navigation: { navigate: (name: "Home") => void },
+) {
+  const redirect = Linking.createURL("oauth");
+  const result = await WebBrowser.openAuthSessionAsync(
+    `${getApiRoot()}/v1/auth/google?mobile=1`,
+    redirect,
+  );
+  if (result.type !== "success" || !result.url) {
+    throw new Error("google oauth cancelled");
+  }
+  const parsed = Linking.parse(result.url);
+  const access =
+    typeof parsed.queryParams?.access === "string"
+      ? parsed.queryParams.access
+      : null;
+  const refresh =
+    typeof parsed.queryParams?.refresh === "string"
+      ? parsed.queryParams.refresh
+      : null;
+  if (!access || !refresh) {
+    throw new Error("google oauth missing tokens");
+  }
+  await setTokens(access, refresh);
+  navigation.navigate("Home");
+}
 
 function LoginScreen({
   navigation,
@@ -962,30 +989,9 @@ function LoginScreen({
     setLoading(true);
     setErr(null);
     try {
-      const redirect = Linking.createURL("oauth");
-      const result = await WebBrowser.openAuthSessionAsync(
-        `${getApiRoot()}/v1/auth/google?mobile=1`,
-        redirect,
-      );
-      if (result.type === "success" && result.url) {
-        const parsed = Linking.parse(result.url);
-        const access =
-          typeof parsed.queryParams?.access === "string"
-            ? parsed.queryParams.access
-            : null;
-        const refresh =
-          typeof parsed.queryParams?.refresh === "string"
-            ? parsed.queryParams.refresh
-            : null;
-        if (access && refresh) {
-          await setTokens(access, refresh);
-          navigation.navigate("Home");
-          return;
-        }
-      }
-      setErr("Connexion Google annulÃ©e ou Ã©chouÃ©e.");
+      await runGoogleOAuth(navigation);
     } catch {
-      setErr("Connexion Google impossible.");
+      setErr("Connexion Google annulee ou echouee.");
     } finally {
       setLoading(false);
     }
@@ -1032,7 +1038,7 @@ function LoginScreen({
         />
         <Label>Password</Label>
         <TextInput
-          placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
+          placeholder="••••••••"
           placeholderTextColor={colors.muted}
           style={s.input}
           secureTextEntry
@@ -1065,8 +1071,10 @@ function RegisterScreen({
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [err, setErr] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   async function submit() {
+    setLoading(true);
     setErr(null);
     try {
       const res = await apiFetch<{ accessToken: string; refreshToken: string }>(
@@ -1081,6 +1089,20 @@ function RegisterScreen({
       navigation.navigate("Home");
     } catch {
       setErr("Sign-up failed");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function googleSignup() {
+    setLoading(true);
+    setErr(null);
+    try {
+      await runGoogleOAuth(navigation);
+    } catch {
+      setErr("Connexion Google annulee ou echouee.");
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -1112,7 +1134,7 @@ function RegisterScreen({
         />
         <Label>Password</Label>
         <TextInput
-          placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
+          placeholder="••••••••"
           placeholderTextColor={colors.muted}
           style={s.input}
           value={password}
@@ -1121,7 +1143,15 @@ function RegisterScreen({
         />
         {err && <Text style={s.err}>{err}</Text>}
         <View style={{ marginTop: 8 }}>
-          <PrimaryButton label="Create account" onPress={submit} />
+          {loading ? (
+            <ActivityIndicator color={colors.kino} />
+          ) : (
+            <>
+              <PrimaryButton label="Create account" onPress={submit} />
+              <View style={{ height: 10 }} />
+              <PrimaryButton label="Continuer avec Google" onPress={googleSignup} />
+            </>
+          )}
         </View>
       </View>
     </SafeAreaView>
@@ -1384,7 +1414,7 @@ function SettingsScreen({
               await apiFetch("/users/me", { method: "DELETE" });
               await clearTokens();
               setMe(null);
-              setStatus("Compte supprimÃ©.");
+              setStatus("Compte supprimé.");
               navigation.navigate("Home");
             } catch {
               setStatus("Suppression impossible");

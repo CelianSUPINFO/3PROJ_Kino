@@ -19,7 +19,7 @@
       "distribution": "internal",
       "channel": "preview",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://api.kino.example.com/v1"
+        "EXPO_PUBLIC_API_URL": "https://kino-api-9ipb.onrender.com/v1"
       },
       "android": {
         "buildType": "apk"
@@ -32,7 +32,7 @@
       "autoIncrement": true,
       "channel": "production",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://api.kino.example.com/v1"
+        "EXPO_PUBLIC_API_URL": "https://kino-api-9ipb.onrender.com/v1"
       }
     }
   },

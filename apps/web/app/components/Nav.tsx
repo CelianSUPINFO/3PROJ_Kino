@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -225,13 +225,31 @@ export function Nav() {
 
           <Link
             href="/search"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white xl:hidden"
+            className="ml-auto flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white xl:hidden"
             aria-label={t("nav.search")}
           >
             <SearchIcon />
           </Link>
 
-          <div className="hidden shrink-0 items-center gap-2 md:flex">
+          {isAuthed && me && (
+            <Link
+              href={`/u/${me.id}`}
+              className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/15 bg-white/10 ring-2 ring-transparent transition hover:ring-kino/50 lg:hidden"
+              title={me.displayName}
+              aria-label={me.displayName}
+            >
+              {me.avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={me.avatarUrl} alt="" className="h-full w-full object-cover" />
+              ) : (
+                <span className="text-xs font-bold text-white">
+                  {initials(me.displayName)}
+                </span>
+              )}
+            </Link>
+          )}
+
+          <div className="hidden shrink-0 items-center gap-2 lg:flex">
             {!isAuthed ? (
               <>
                 <Link
@@ -430,4 +448,3 @@ function SearchIcon({ className = "" }: { className?: string }) {
     </svg>
   );
 }
-
