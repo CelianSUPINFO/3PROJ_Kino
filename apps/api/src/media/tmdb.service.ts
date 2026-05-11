@@ -5,6 +5,15 @@ import { MediaType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 const CACHE_MS = 48 * 60 * 60 * 1000;
+const SEARCH_MULTI_CACHE_MS = 15 * 60 * 1000;
+const SEARCH_MULTI_CACHE_MAX = 200;
+
+type SearchMultiPayload = {
+  page: number;
+  total_pages: number;
+  total_results: number;
+  results: Record<string, unknown>[];
+};
 
 @Injectable()
 export class TmdbService {
@@ -14,6 +23,10 @@ export class TmdbService {
   private readonly genreMap = new Map<
     MediaType,
     { cachedAt: number; values: Record<number, string> }
+  >();
+  private readonly searchMultiCache = new Map<
+    string,
+    { cachedAt: number; payload: SearchMultiPayload }
   >();
 
   constructor(
@@ -45,6 +58,24 @@ export class TmdbService {
     });
   }
 
+  private searchMultiCacheKey(
+    query: string,
+    page: number,
+    year?: number,
+    genreId?: number,
+    minVote?: number,
+    mediaType?: 'movie' | 'tv',
+  ) {
+    return [
+      query.trim().toLowerCase(),
+      page,
+      year ?? '',
+      genreId ?? '',
+      minVote ?? '',
+      mediaType ?? '',
+    ].join('\0');
+  }
+
   async search(
     query: string,
     page: number,
@@ -53,6 +84,25 @@ export class TmdbService {
     minVote?: number,
     mediaType?: 'movie' | 'tv',
   ) {
+    const cacheKey = this.searchMultiCacheKey(
+      query,
+      page,
+      year,
+      genreId,
+      minVote,
+      mediaType,
+    );
+    const cached = this.searchMultiCache.get(cacheKey);
+    if (
+      cached &&
+      Date.now() - cached.cachedAt < SEARCH_MULTI_CACHE_MS
+    ) {
+      return {
+        ...cached.payload,
+        results: [...cached.payload.results],
+      };
+    }
+
     const c = this.client();
     const { data } = await c.get('/search/multi', {
       params: {
@@ -78,11 +128,27 @@ export class TmdbService {
         return vote >= minVote;
       });
     }
-    return {
+    const payload: SearchMultiPayload = {
       page: data.page,
       total_pages: data.total_pages,
       total_results: data.total_results,
       results,
+    };
+    if (this.searchMultiCache.size >= SEARCH_MULTI_CACHE_MAX) {
+      const oldest = this.searchMultiCache.keys().next().value as
+        | string
+        | undefined;
+      if (oldest !== undefined) {
+        this.searchMultiCache.delete(oldest);
+      }
+    }
+    this.searchMultiCache.set(cacheKey, {
+      cachedAt: Date.now(),
+      payload,
+    });
+    return {
+      ...payload,
+      results: [...results],
     };
   }
 
