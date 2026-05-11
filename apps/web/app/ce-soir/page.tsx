@@ -244,7 +244,7 @@ function SwipeCard({
       className={`absolute inset-0 transform transition-all duration-300 ease-out ${transformClass}`}
       style={{ zIndex: stacked ? 1 : 2 }}
     >
-      <div className="relative h-full w-full overflow-hidden rounded-3xl border border-white/10 bg-kino-panel shadow-card">
+      <div className="image-text-surface relative h-full w-full overflow-hidden rounded-3xl border border-white/10 bg-kino-panel shadow-card">
         {backdrop && (
           // eslint-disable-next-line @next/next/no-img-element
           <img

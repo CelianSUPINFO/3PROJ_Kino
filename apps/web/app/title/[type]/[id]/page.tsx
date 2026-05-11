@@ -240,7 +240,7 @@ export default function TitlePage() {
   return (
     <div className="space-y-8">
       <section className="relative -mx-4 -mt-6 overflow-hidden md:-mx-6">
-        <div className="relative h-[360px] md:h-[480px]">
+        <div className="image-text-surface relative h-[360px] md:h-[480px]">
           {backdrop && (
             // eslint-disable-next-line @next/next/no-img-element
             <img

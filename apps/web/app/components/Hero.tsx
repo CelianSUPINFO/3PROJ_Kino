@@ -55,7 +55,7 @@ export function Hero({
 
   return (
     <section className="relative overflow-hidden rounded-3xl border border-white/10 bg-kino-panel shadow-card">
-      <div className="relative h-[360px] w-full md:h-[480px]">
+      <div className="image-text-surface relative h-[360px] w-full md:h-[480px]">
         {backdrop && (
           // eslint-disable-next-line @next/next/no-img-element
           <img

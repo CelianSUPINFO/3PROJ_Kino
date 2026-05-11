@@ -66,6 +66,20 @@ html.light main .text-white\/30 {
   color: #7a6b83;
 }
 
+html.light main .image-text-surface,
+html.light main .image-text-surface .text-white,
+html.light main .image-text-surface .text-white\/90,
+html.light main .image-text-surface .text-white\/85,
+html.light main .image-text-surface .text-white\/80,
+html.light main .image-text-surface .text-white\/75,
+html.light main .image-text-surface .text-white\/70,
+html.light main .image-text-surface .text-white\/60,
+html.light main .image-text-surface .text-white\/50,
+html.light main .image-text-surface .text-white\/40,
+html.light main .image-text-surface .text-white\/30 {
+  color: #ffffff;
+}
+
 html.light main .text-red-100,
 html.light main .text-red-200,
 html.light main .text-red-300 {
