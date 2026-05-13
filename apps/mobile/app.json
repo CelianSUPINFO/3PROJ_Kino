@@ -19,6 +19,9 @@
       "buildNumber": "1"
     },
     "android": {
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO"
+      ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#05060B"
@@ -42,7 +45,8 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Kino utilise votre galerie pour choisir une photo de profil ou une bannière."
+          "photosPermission": "Kino utilise votre galerie pour choisir une photo de profil ou une bannière.",
+          "microphonePermission": false
         }
       ]
     ],
