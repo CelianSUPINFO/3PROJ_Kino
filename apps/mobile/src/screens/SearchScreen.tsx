@@ -1,5 +1,5 @@
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   FlatList,
   Pressable,
@@ -32,6 +32,12 @@ export function SearchScreen({ navigation }: Props) {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [meId, setMeId] = useState<string | null>(null);
+  const [followed, setFollowed] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    apiFetch<{ id: string }>("/users/me").then((me) => setMeId(me.id)).catch(() => setMeId(null));
+  }, []);
 
   const search = useCallback(
     async (targetPage = 1, append = false) => {
@@ -44,17 +50,17 @@ export function SearchScreen({ navigation }: Props) {
       setLoading(true);
       try {
         if (q.trim()) {
-          const data = await apiFetch<Unified>(
-            `/search?q=${encodeURIComponent(q)}&page=${targetPage}`,
-            { auth: false },
-          );
+          const [data, media] = await Promise.all([
+            apiFetch<Unified>(`/search?q=${encodeURIComponent(q)}&page=${targetPage}`, { auth: false }),
+            apiFetch<{ results: PosterItem[]; total_pages: number }>(`/media/search?q=${encodeURIComponent(q)}&page=${targetPage}${year ? `&year=${year}` : ""}${type !== "all" ? `&type=${type}` : ""}`, { auth: false }),
+          ]);
           setUsers(data.users ?? []);
           setLists(data.lists ?? []);
-          const works = data.works?.results ?? [];
+          const works = media.results ?? [];
           setResults((prev) => (append ? [...prev, ...works] : works));
-          setTotalPages(data.works?.total_pages ?? 1);
+          setTotalPages(media.total_pages ?? 1);
         } else {
-          const path = `/media/discover/${type}?page=${targetPage}`;
+          const path = `/media/discover/${type}?page=${targetPage}${year ? `&year=${year}` : ""}`;
           const media = await apiFetch<{ results: PosterItem[]; total_pages: number }>(
             path,
             { auth: false },
@@ -71,8 +77,13 @@ export function SearchScreen({ navigation }: Props) {
         setLoading(false);
       }
     },
-    [q, type],
+    [q, type, year],
   );
+
+  async function follow(userId: string) {
+    await apiFetch(`/users/${userId}/follow`, { method: "POST" });
+    setFollowed((current) => ({ ...current, [userId]: true }));
+  }
 
   return (
     <SafeAreaView style={s.screen}>
@@ -117,12 +128,16 @@ export function SearchScreen({ navigation }: Props) {
         <View style={{ paddingHorizontal: spacing.lg }}>
           <Text style={s.section}>Utilisateurs</Text>
           {users.map((u) => (
-            <Pressable
-              key={u.id}
-              onPress={() => navigation.navigate("Profile", { userId: u.id })}
-            >
-              <Text style={s.link}>{u.displayName}</Text>
-            </Pressable>
+            <View key={u.id} style={s.userRow}>
+              <Pressable style={{ flex: 1 }} onPress={() => navigation.navigate("Profile", { userId: u.id })}>
+                <Text style={s.link}>{u.displayName}</Text>
+              </Pressable>
+              {meId && meId !== u.id && (
+                <Pressable style={s.followBtn} disabled={followed[u.id]} onPress={() => follow(u.id)}>
+                  <Text style={s.btnText}>{followed[u.id] ? "Suivi" : "Suivre"}</Text>
+                </Pressable>
+              )}
+            </View>
           ))}
         </View>
       )}
@@ -219,4 +234,6 @@ const s = StyleSheet.create({
   btnText: { color: "#fff", fontWeight: "700" },
   section: { color: colors.text, fontWeight: "700", marginBottom: 6 },
   link: { color: colors.kinoHot, paddingVertical: 6, fontWeight: "600" },
+  userRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  followBtn: { backgroundColor: colors.kino, borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 7 },
 });

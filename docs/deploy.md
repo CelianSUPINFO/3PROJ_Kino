@@ -146,10 +146,13 @@ The images are self-contained. A typical deployment:
 | Profile       | Distribution | Channel       | `EXPO_PUBLIC_API_URL` default     |
 | ------------- | ------------ | ------------- | --------------------------------- |
 | `development` | internal     | `development` | `http://localhost:4000/v1`        |
-| `preview`     | internal     | `preview`     | `https://api.kino.example.com/v1` |
-| `production`  | store        | `production`  | `https://api.kino.example.com/v1` |
+| `preview`     | internal     | `preview`     | `https://kino-api-9ipb.onrender.com/v1` |
+| `preview-device` | internal | `preview`     | `https://kino-api-9ipb.onrender.com/v1` |
+| `production`  | store        | `production`  | `https://kino-api-9ipb.onrender.com/v1` |
 
-Replace `https://api.kino.example.com/v1` with your deployed API URL before building `preview`/`production`.
+The production API URL is already configured. Render's free instance sleeps after inactivity, so the first mobile or web request can take roughly 30 to 60 seconds. Upgrade the Render instance when continuous availability is required.
+
+For Render, configure the health check path as `/healthz`. This route is intentionally exposed without the `/v1` prefix.
 
 ### First-time setup
 
@@ -168,6 +171,9 @@ eas build -p android --profile preview
 
 # iOS simulator build (no Apple Developer account required)
 eas build -p ios --profile preview
+
+# Android APK for a physical device
+eas build -p android --profile preview-device
 
 # Store-ready builds
 eas build -p android --profile production

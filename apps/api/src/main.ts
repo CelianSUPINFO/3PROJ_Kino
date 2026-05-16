@@ -1,4 +1,4 @@
-import { ValidationPipe } from '@nestjs/common';
+import { RequestMethod, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
@@ -14,7 +14,9 @@ async function bootstrap() {
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean);
-  app.setGlobalPrefix('v1');
+  app.setGlobalPrefix('v1', {
+    exclude: [{ path: 'healthz', method: RequestMethod.GET }],
+  });
   app.enableCors({
     origin(origin, callback) {
       if (!origin || configuredOrigins.includes(origin)) {

@@ -124,8 +124,71 @@ export default function TitlePage() {
   const year = releaseDate.slice(0, 4);
   const runtime = d.runtime as number | undefined;
   const genres = ((d.genres as { name: string }[] | undefined) ?? []).map((g) => g.name);
+  const credits = d.credits as
+    | {
+        cast?: { id: number; name: string; character?: string; profile_path?: string | null }[];
+        crew?: { id: number; name: string; job?: string; department?: string }[];
+      }
+    | undefined;
+  const cast = (credits?.cast ?? []).slice(0, 10);
+  const directors = (credits?.crew ?? []).filter((person) => person.job === "Director");
+  const writers = (credits?.crew ?? [])
+    .filter((person) => ["Screenplay", "Writer", "Story"].includes(person.job ?? ""))
+    .filter((person, index, rows) => rows.findIndex((row) => row.id === person.id) === index)
+    .slice(0, 4);
+  const creators = ((d.created_by as { id: number; name: string }[] | undefined) ?? []).slice(0, 4);
+  const countries = ((d.production_countries as { name: string }[] | undefined) ?? []).map((country) => country.name);
+  const originalLanguage = (d.original_language as string | undefined)?.toUpperCase();
+  const status = d.status as string | undefined;
+  const tagline = d.tagline as string | undefined;
+  const voteCount = d.vote_count as number | undefined;
+  const seasons = d.number_of_seasons as number | undefined;
+  const episodes = d.number_of_episodes as number | undefined;
+  const budget = d.budget as number | undefined;
+  const revenue = d.revenue as number | undefined;
+  const trailer = ((d.videos as { results?: { key: string; site: string; type: string; official?: boolean }[] } | undefined)?.results ?? [])
+    .find((video) => video.site === "YouTube" && video.type === "Trailer" && video.official)
+    ?? ((d.videos as { results?: { key: string; site: string; type: string }[] } | undefined)?.results ?? [])
+      .find((video) => video.site === "YouTube" && video.type === "Trailer");
   const tmdbId = Number(params.id);
   const mediaType = params.type === "tv" ? "TV" : "MOVIE";
+  const labels = locale === "fr"
+    ? {
+        details: "Informations",
+        director: "Réalisation",
+        creators: "Création",
+        writers: "Scénario",
+        release: "Sortie",
+        country: "Pays",
+        language: "Langue originale",
+        status: "Statut",
+        seasons: "Saisons",
+        episodes: "Épisodes",
+        votes: "Votes TMDB",
+        budget: "Budget",
+        revenue: "Recettes",
+        cast: "Distribution",
+        trailer: "Voir la bande-annonce",
+      }
+    : {
+        details: "Details",
+        director: "Director",
+        creators: "Created by",
+        writers: "Writing",
+        release: "Release",
+        country: "Country",
+        language: "Original language",
+        status: "Status",
+        seasons: "Seasons",
+        episodes: "Episodes",
+        votes: "TMDB votes",
+        budget: "Budget",
+        revenue: "Revenue",
+        cast: "Cast",
+        trailer: "Watch trailer",
+      };
+  const money = (value?: number) =>
+    value ? new Intl.NumberFormat(locale === "fr" ? "fr-FR" : "en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(value) : null;
 
   async function setStatus(status: "WATCHLIST" | "IN_PROGRESS" | "COMPLETED" | "DROPPED") {
     try {
@@ -353,7 +416,54 @@ export default function TitlePage() {
           {overview && (
             <section className="space-y-3">
               <h2 className="text-display text-xl font-semibold text-white">{t("title.synopsis")}</h2>
+              {tagline && <p className="text-lg italic text-kino-hot">&ldquo;{tagline}&rdquo;</p>}
               <p className="leading-relaxed text-white/80">{overview}</p>
+            </section>
+          )}
+
+          <section className="space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 className="text-display text-xl font-semibold text-white">{labels.details}</h2>
+              {trailer && (
+                <a className="btn-ghost !py-2 text-sm" href={`https://www.youtube.com/watch?v=${trailer.key}`} target="_blank" rel="noreferrer">
+                  {labels.trailer} ↗
+                </a>
+              )}
+            </div>
+            <dl className="grid gap-px overflow-hidden rounded-2xl border border-white/10 bg-white/10 sm:grid-cols-2">
+              {(params.type === "tv" ? creators : directors).length > 0 && (
+                <DetailFact label={params.type === "tv" ? labels.creators : labels.director} value={(params.type === "tv" ? creators : directors).map((person) => person.name).join(", ")} />
+              )}
+              {writers.length > 0 && <DetailFact label={labels.writers} value={writers.map((person) => person.name).join(", ")} />}
+              {releaseDate && <DetailFact label={labels.release} value={new Intl.DateTimeFormat(locale === "fr" ? "fr-FR" : "en-US", { dateStyle: "long" }).format(new Date(releaseDate))} />}
+              {countries.length > 0 && <DetailFact label={labels.country} value={countries.join(", ")} />}
+              {originalLanguage && <DetailFact label={labels.language} value={originalLanguage} />}
+              {status && <DetailFact label={labels.status} value={status} />}
+              {seasons && <DetailFact label={labels.seasons} value={String(seasons)} />}
+              {episodes && <DetailFact label={labels.episodes} value={String(episodes)} />}
+              {voteCount && <DetailFact label={labels.votes} value={new Intl.NumberFormat(locale === "fr" ? "fr-FR" : "en-US").format(voteCount)} />}
+              {budget ? <DetailFact label={labels.budget} value={money(budget) ?? ""} /> : null}
+              {revenue ? <DetailFact label={labels.revenue} value={money(revenue) ?? ""} /> : null}
+            </dl>
+          </section>
+
+          {cast.length > 0 && (
+            <section className="space-y-3">
+              <h2 className="text-display text-xl font-semibold text-white">{labels.cast}</h2>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+                {cast.map((person) => (
+                  <article key={person.id} className="min-w-0 overflow-hidden rounded-xl border border-white/10 bg-white/[0.03]">
+                    {person.profile_path ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={`https://image.tmdb.org/t/p/w185${person.profile_path}`} alt="" className="aspect-[2/3] w-full object-cover" />
+                    ) : <div className="aspect-[2/3] bg-white/5" />}
+                    <div className="p-2">
+                      <p className="truncate text-sm font-semibold text-white">{person.name}</p>
+                      {person.character && <p className="line-clamp-2 text-xs text-kino-muted">{person.character}</p>}
+                    </div>
+                  </article>
+                ))}
+              </div>
             </section>
           )}
 
@@ -561,6 +671,15 @@ export default function TitlePage() {
           </section>
         </div>
       </div>
+    </div>
+  );
+}
+
+function DetailFact({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0 bg-kino-panel p-4">
+      <dt className="text-[11px] font-semibold uppercase tracking-wider text-kino-muted">{label}</dt>
+      <dd className="mt-1 break-words text-sm font-medium text-white">{value}</dd>
     </div>
   );
 }

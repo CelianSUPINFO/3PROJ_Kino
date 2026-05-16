@@ -25,6 +25,21 @@ export async function clearTokens() {
   await AsyncStorage.multiRemove([ACCESS, REFRESH]);
 }
 
+export async function logoutSession() {
+  const refreshToken = await AsyncStorage.getItem(REFRESH);
+  try {
+    if (refreshToken) {
+      await fetch(`${base}/auth/logout`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refreshToken }),
+      });
+    }
+  } finally {
+    await clearTokens();
+  }
+}
+
 export async function apiFetch<T>(
   path: string,
   init: RequestInit & { auth?: boolean } = {},
@@ -54,6 +69,8 @@ export async function apiFetch<T>(
         await setTokens(data.accessToken, data.refreshToken);
         headers.set("Authorization", `Bearer ${data.accessToken}`);
         res = await fetch(`${base}${path}`, { ...init, headers });
+      } else {
+        await clearTokens();
       }
     }
   }

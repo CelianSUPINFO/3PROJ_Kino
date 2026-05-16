@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { apiFetch, clearTokens } from "@/lib/api";
+import { apiFetch, clearTokens, logoutSession } from "@/lib/api";
 import { browseHref, MOVIE_GENRES, TV_GENRES } from "@/lib/genres";
 import { genreLabel } from "@/lib/i18n";
 import { useApp } from "./AppProviders";
@@ -117,8 +117,8 @@ export function Nav() {
     window.location.href = `/search?q=${encodeURIComponent(q)}`;
   }
 
-  function logout() {
-    clearTokens();
+  async function logout() {
+    await logoutSession();
     setIsAuthed(false);
     setMe(null);
     setMobileOpen(false);
@@ -296,7 +296,7 @@ export function Nav() {
                 <button
                   type="button"
                   className="hidden rounded-full border border-white/15 px-3 py-1.5 text-sm text-white hover:bg-white/10 lg:inline"
-                  onClick={logout}
+                  onClick={() => void logout()}
                 >
                   {t("nav.logout")}
                 </button>
@@ -386,7 +386,7 @@ export function Nav() {
                   <button
                     type="button"
                     className="rounded-full border border-red-300/30 px-4 py-2 text-sm text-red-100 hover:bg-red-500/10"
-                    onClick={logout}
+                    onClick={() => void logout()}
                   >
                     {t("nav.logout")}
                   </button>

@@ -189,6 +189,21 @@ export function TitleScreen({ route, navigation }: Props) {
   const backdrop = detail?.backdrop_path as string | undefined;
   const poster = detail?.poster_path as string | undefined;
   const overview = (detail?.overview as string) ?? "";
+  const releaseDate = ((detail?.release_date ?? detail?.first_air_date) as string | undefined) ?? "";
+  const runtime = (detail?.runtime as number | undefined) ?? ((detail?.episode_run_time as number[] | undefined)?.[0]);
+  const genres = ((detail?.genres as { name: string }[] | undefined) ?? []).map((genre) => genre.name);
+  const cast = (((detail?.credits as { cast?: { name: string }[] } | undefined)?.cast) ?? []).slice(0, 8);
+  const crew = ((detail?.credits as { crew?: { id: number; name: string; job?: string }[] } | undefined)?.crew) ?? [];
+  const directors = crew.filter((person) => person.job === "Director");
+  const writers = crew.filter((person) => ["Screenplay", "Writer", "Story"].includes(person.job ?? "")).filter((person, index, rows) => rows.findIndex((row) => row.id === person.id) === index).slice(0, 4);
+  const creators = ((detail?.created_by as { name: string }[] | undefined) ?? []).slice(0, 4);
+  const countries = ((detail?.production_countries as { name: string }[] | undefined) ?? []).map((country) => country.name);
+  const tagline = detail?.tagline as string | undefined;
+  const status = detail?.status as string | undefined;
+  const seasons = detail?.number_of_seasons as number | undefined;
+  const episodes = detail?.number_of_episodes as number | undefined;
+  const voteAverage = detail?.vote_average as number | undefined;
+  const voteCount = detail?.vote_count as number | undefined;
 
   return (
     <SafeAreaView style={s.screen}>
@@ -206,7 +221,30 @@ export function TitleScreen({ route, navigation }: Props) {
         <View style={{ padding: spacing.lg }}>
           <Text style={s.eyebrow}>{type === "tv" ? "SÉRIE" : "FILM"}</Text>
           <Text style={s.h1}>{title}</Text>
+          <View style={s.meta}>
+            {releaseDate ? <Text style={s.metaText}>{releaseDate.slice(0, 4)}</Text> : null}
+            {runtime ? <Text style={s.metaText}>{runtime} min</Text> : null}
+            {genres.map((genre) => <Text key={genre} style={s.metaText}>{genre}</Text>)}
+          </View>
+          {tagline ? <Text style={s.tagline}>"{tagline}"</Text> : null}
           {overview ? <Text style={s.sub}>{overview}</Text> : null}
+          <Text style={s.section}>Informations</Text>
+          <View style={s.facts}>
+            {(type === "tv" ? creators : directors).length > 0 && <Fact label={type === "tv" ? "Création" : "Réalisation"} value={(type === "tv" ? creators : directors).map((person) => person.name).join(", ")} />}
+            {writers.length > 0 && <Fact label="Scénario" value={writers.map((person) => person.name).join(", ")} />}
+            {releaseDate ? <Fact label="Sortie" value={releaseDate} /> : null}
+            {countries.length > 0 && <Fact label="Pays" value={countries.join(", ")} />}
+            {status ? <Fact label="Statut" value={status} /> : null}
+            {seasons ? <Fact label="Saisons" value={String(seasons)} /> : null}
+            {episodes ? <Fact label="Épisodes" value={String(episodes)} /> : null}
+            {voteAverage ? <Fact label="Note TMDB" value={`${voteAverage.toFixed(1)}/10 · ${voteCount ?? 0} votes`} /> : null}
+          </View>
+          {cast.length > 0 && (
+            <>
+              <Text style={s.section}>Distribution</Text>
+              <Text style={s.sub}>{cast.map((person) => person.name).join(" · ")}</Text>
+            </>
+          )}
           <View style={s.actions}>
             {(
               [
@@ -359,6 +397,13 @@ const s = StyleSheet.create({
     color: colors.kinoHot,
   },
   h1: { fontSize: 26, fontWeight: "800", color: colors.text },
+  tagline: { color: colors.kinoHot, fontStyle: "italic", fontSize: 16, lineHeight: 22, marginTop: 12 },
+  meta: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 8 },
+  metaText: { color: colors.text, backgroundColor: colors.panel, borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 5, fontSize: 12 },
+  facts: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  fact: { width: "48%", minWidth: 140, backgroundColor: colors.panel, borderRadius: radius.md, padding: 10 },
+  factLabel: { color: colors.muted, fontSize: 10, fontWeight: "700", textTransform: "uppercase" },
+  factValue: { color: colors.text, fontSize: 13, fontWeight: "600", marginTop: 4 },
   sub: { color: colors.muted, lineHeight: 20, marginTop: 8 },
   hint: { color: colors.muted, fontSize: 11, marginTop: 4 },
   section: {
@@ -408,3 +453,12 @@ const s = StyleSheet.create({
   author: { color: colors.text, fontWeight: "700" },
   body: { color: colors.muted, marginTop: 6, lineHeight: 20 },
 });
+
+function Fact({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={s.fact}>
+      <Text style={s.factLabel}>{label}</Text>
+      <Text style={s.factValue}>{value}</Text>
+    </View>
+  );
+}

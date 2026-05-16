@@ -54,6 +54,8 @@ export default function SearchPage() {
   const [year, setYear] = useState("");
   const [minVote, setMinVote] = useState(0);
   const [sort, setSort] = useState<SortKey>("relevance");
+  const [meId, setMeId] = useState<string | null>(null);
+  const [followed, setFollowed] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -63,6 +65,15 @@ export default function SearchPage() {
     if (presetType === "movie" || presetType === "tv") setType(presetType);
     if (presetQ) setQ(presetQ);
   }, []);
+
+  useEffect(() => {
+    apiFetch<{ id: string }>("/users/me").then((me) => setMeId(me.id)).catch(() => setMeId(null));
+  }, []);
+
+  async function follow(userId: string) {
+    await apiFetch(`/users/${userId}/follow`, { method: "POST" });
+    setFollowed((current) => ({ ...current, [userId]: true }));
+  }
 
   useEffect(() => {
     if (!q.trim()) {
@@ -288,13 +299,18 @@ export default function SearchPage() {
               <h2 className="text-display mb-3 text-xl font-semibold text-white">{t("search.users")}</h2>
               <ul className="space-y-2">
                 {data.users.map((u) => (
-                  <li key={u.id}>
+                  <li key={u.id} className="flex items-center gap-2 rounded-xl border border-white/5 bg-white/[0.02] p-1">
                     <Link
                       href={`/u/${u.id}`}
-                      className="block rounded-xl border border-white/5 bg-white/[0.02] px-3 py-2 text-white transition hover:border-kino/40 hover:bg-white/5"
+                      className="min-w-0 flex-1 truncate rounded-lg px-3 py-2 text-white transition hover:bg-white/5"
                     >
                       {u.displayName}
                     </Link>
+                    {meId && meId !== u.id && (
+                      <button type="button" className="chip shrink-0" disabled={followed[u.id]} onClick={() => void follow(u.id)}>
+                        {followed[u.id] ? "Suivi" : "Suivre"}
+                      </button>
+                    )}
                   </li>
                 ))}
               </ul>

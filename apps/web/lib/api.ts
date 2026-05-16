@@ -12,6 +12,10 @@ export function getAccessToken() {
   return getTokens().access;
 }
 
+export function getRefreshToken() {
+  return getTokens().refresh;
+}
+
 export function setTokens(access: string, refresh: string) {
   localStorage.setItem("kino_access", access);
   localStorage.setItem("kino_refresh", refresh);
@@ -51,6 +55,8 @@ export async function apiFetch<T>(
         setTokens(data.accessToken, data.refreshToken);
         headers.set("Authorization", `Bearer ${data.accessToken}`);
         res = await fetch(`${base}${path}`, { ...init, headers });
+      } else {
+        clearTokens();
       }
     }
   }
@@ -60,4 +66,19 @@ export async function apiFetch<T>(
   }
   if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;
+}
+
+export async function logoutSession() {
+  const refreshToken = getRefreshToken();
+  try {
+    if (refreshToken) {
+      await fetch(`${base}/auth/logout`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refreshToken }),
+      });
+    }
+  } finally {
+    clearTokens();
+  }
 }

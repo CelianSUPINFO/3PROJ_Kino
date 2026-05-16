@@ -64,6 +64,8 @@ export default function LibraryPage() {
   const [err, setErr] = useState<string | null>(null);
   const [newListName, setNewListName] = useState("");
   const [newListPublic, setNewListPublic] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
 
   async function loadData() {
     apiFetch<StatusRow[]>("/library/me")
@@ -100,6 +102,18 @@ export default function LibraryPage() {
     setNewListName("");
     setNewListPublic(false);
     loadData();
+  }
+
+  async function updateList(list: ListRow, patch: { name?: string; isPublic?: boolean }) {
+    await apiFetch(`/library/lists/${list.id}`, { method: "PATCH", body: JSON.stringify(patch) });
+    setEditingId(null);
+    await loadData();
+  }
+
+  async function deleteList(list: ListRow) {
+    if (!confirm(`Supprimer la liste "${list.name}" ?`)) return;
+    await apiFetch(`/library/lists/${list.id}`, { method: "DELETE" });
+    await loadData();
   }
 
   if (err) {
@@ -193,10 +207,22 @@ export default function LibraryPage() {
               key={l.id}
               className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/[0.03] p-3 text-sm"
             >
-              <Link href={`/list/${l.id}`} className="font-medium text-white hover:text-kino-hot">
-                {l.name} · {l._count?.items ?? 0}
-              </Link>
-              <span className="text-kino-muted">{l.isPublic ? t("common.public") : t("common.private")}</span>
+              {editingId === l.id ? (
+                <input autoFocus value={editName} onChange={(e) => setEditName(e.target.value)} className="min-w-[180px] flex-1 rounded-full border border-kino/50 bg-black/30 px-3 py-2 text-white focus:outline-none" />
+              ) : (
+                <Link href={`/list/${l.id}`} className="min-w-0 flex-1 truncate font-medium text-white hover:text-kino-hot">
+                  {l.name} · {l._count?.items ?? 0}
+                </Link>
+              )}
+              <div className="flex flex-wrap items-center gap-2">
+                <button className="chip" type="button" onClick={() => void updateList(l, { isPublic: !l.isPublic })}>{l.isPublic ? t("common.public") : t("common.private")}</button>
+                {editingId === l.id ? (
+                  <button className="chip" type="button" onClick={() => void updateList(l, { name: editName.trim() })}>{t("common.save")}</button>
+                ) : (
+                  <button className="chip" type="button" onClick={() => { setEditingId(l.id); setEditName(l.name); }}>Modifier</button>
+                )}
+                <button className="chip !border-red-300/30 !text-red-200" type="button" onClick={() => void deleteList(l)}>Supprimer</button>
+              </div>
             </li>
           ))}
         </ul>

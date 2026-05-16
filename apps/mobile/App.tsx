@@ -24,7 +24,7 @@ import {
 import * as Linking from "expo-linking";
 import * as WebBrowser from "expo-web-browser";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { apiFetch, clearTokens, getApiRoot, setTokens } from "./src/api";
+import { apiFetch, clearTokens, getApiRoot, logoutSession, setTokens } from "./src/api";
 import { PosterCard, type PosterItem } from "./src/components/PosterCard";
 import type { RootStackParamList } from "./src/navigation/types";
 import { AdminScreen } from "./src/screens/AdminScreen";
@@ -1384,7 +1384,7 @@ function SettingsScreen({
   }
 
   async function logout() {
-    await clearTokens();
+    await logoutSession();
     setMe(null);
     setStatus("Deconnexion effectuee.");
     navigation.navigate("Home");

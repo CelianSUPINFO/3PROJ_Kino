@@ -172,6 +172,11 @@ describe('Targeted API e2e', () => {
       .expect('Hello World!');
   });
 
+  it('GET /v1/healthz returns a monitoring payload', async () => {
+    const res = await request(app.getHttpServer()).get('/v1/healthz').expect(200);
+    expect(res.body.status).toBe('ok');
+  });
+
   it('POST /v1/auth/register rejects weak password', () => {
     const body: RegisterDto = {
       email: 'u@x.com',
@@ -196,6 +201,14 @@ describe('Targeted API e2e', () => {
       .expect(201);
     expect(res.body.accessToken).toBeDefined();
     expect(res.body.refreshToken).toBeDefined();
+  });
+
+  it('POST /v1/auth/logout revokes a refresh token', async () => {
+    const res = await request(app.getHttpServer())
+      .post('/v1/auth/logout')
+      .send({ refreshToken: 'refresh-token-valid' })
+      .expect(201);
+    expect(res.body).toBeDefined();
   });
 
   it('GET /v1/users/export.csv returns downloadable csv', async () => {

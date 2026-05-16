@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { apiFetch, clearTokens, getAccessToken } from "@/lib/api";
+import { apiFetch, clearTokens, getAccessToken, logoutSession } from "@/lib/api";
 import { useApp } from "../components/AppProviders";
 
 type Me = {
@@ -115,8 +115,8 @@ export default function SettingsPage() {
     }
   }
 
-  function logout() {
-    clearTokens();
+  async function logout() {
+    await logoutSession();
     setMe(null);
     window.location.href = "/";
   }
@@ -151,7 +151,7 @@ export default function SettingsPage() {
               <Link href={`/u/${me.id}`} className="btn-primary inline-block !py-2 text-center text-sm">
                 {t("profile.edit")}
               </Link>
-              <button type="button" className="btn-ghost !py-2 text-sm" onClick={logout}>
+              <button type="button" className="btn-ghost !py-2 text-sm" onClick={() => void logout()}>
                 {t("nav.logout")}
               </button>
             </div>
@@ -227,7 +227,7 @@ export default function SettingsPage() {
               </button>
               <button
                 className="chip"
-                onClick={logout}
+                onClick={() => void logout()}
                 type="button"
               >
                 {t("nav.logout")}
@@ -241,7 +241,7 @@ export default function SettingsPage() {
             </h2>
             <p className="text-sm text-kino-muted">{t("settings.logoutHint")}</p>
             <div className="flex flex-col gap-2 sm:flex-row">
-              <button type="button" className="btn-ghost !py-2 text-sm" onClick={logout}>
+              <button type="button" className="btn-ghost !py-2 text-sm" onClick={() => void logout()}>
                 {t("nav.logout")}
               </button>
               <button
