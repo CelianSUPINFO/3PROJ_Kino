@@ -232,4 +232,6 @@ model Report {
   createdAt  DateTime     @default(now())
   reporter   User   @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
   review     Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  @@unique([reporterId, reviewId])
 }

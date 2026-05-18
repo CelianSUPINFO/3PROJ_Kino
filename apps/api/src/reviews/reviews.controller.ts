@@ -5,6 +5,7 @@ import {
   Get,
   Param,
   ParseIntPipe,
+  ParseUUIDPipe,
   Post,
   UseGuards,
 } from '@nestjs/common';
@@ -38,6 +39,15 @@ export class ReviewsController {
     return this.reviews.listForWork(tmdbId, mediaType);
   }
 
+  @Post('admin/:id/featured')
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  featured(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: FeaturedReviewDto,
+  ) {
+    return this.reviews.setFeatured(id, body.featured);
+  }
+
   @Post()
   @UseGuards(JwtAuthGuard)
   create(
@@ -56,18 +66,18 @@ export class ReviewsController {
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard)
-  remove(@CurrentUser() user: JwtUser, @Param('id') id: string) {
+  remove(@CurrentUser() user: JwtUser, @Param('id', ParseUUIDPipe) id: string) {
     return this.reviews.deleteReview(user.sub, id);
   }
 
   @Post(':id/like')
   @UseGuards(JwtAuthGuard)
-  like(@CurrentUser() user: JwtUser, @Param('id') id: string) {
+  like(@CurrentUser() user: JwtUser, @Param('id', ParseUUIDPipe) id: string) {
     return this.reviews.toggleLike(user.sub, id);
   }
 
   @Get(':id/comments')
-  comments(@Param('id') id: string) {
+  comments(@Param('id', ParseUUIDPipe) id: string) {
     return this.reviews.listComments(id);
   }
 
@@ -75,7 +85,7 @@ export class ReviewsController {
   @UseGuards(JwtAuthGuard)
   addComment(
     @CurrentUser() user: JwtUser,
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() body: CreateCommentDto,
   ) {
     return this.reviews.addComment(user.sub, id, body.body, body.parentId);
@@ -85,15 +95,9 @@ export class ReviewsController {
   @UseGuards(JwtAuthGuard)
   report(
     @CurrentUser() user: JwtUser,
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() body: ReportReviewDto,
   ) {
     return this.reviews.reportReview(user.sub, id, body.reason);
-  }
-
-  @Post('admin/:id/featured')
-  @UseGuards(JwtAuthGuard, AdminGuard)
-  featured(@Param('id') id: string, @Body() body: FeaturedReviewDto) {
-    return this.reviews.setFeatured(id, body.featured);
   }
 }
