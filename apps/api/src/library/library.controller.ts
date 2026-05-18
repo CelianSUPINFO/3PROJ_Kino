@@ -116,6 +116,13 @@ export class LibraryController {
     return this.library.myLists(user.sub);
   }
 
+  /** Avant `lists/:id` pour que le segment `public` ne soit pas capturé comme identifiant */
+  @Get('lists/public')
+  listPublic(@Query('q') q?: string, @Query('limit') limit?: string) {
+    const take = limit ? parseInt(limit, 10) || 20 : 20;
+    return this.library.listPublicLists(q, take);
+  }
+
   /** Après routes statiques `lists/mine` pour éviter que `mine` soit pris pour un :id */
   @Get('lists/:id')
   @UseGuards(OptionalJwtAuthGuard)
