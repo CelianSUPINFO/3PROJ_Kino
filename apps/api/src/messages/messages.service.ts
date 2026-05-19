@@ -1,12 +1,12 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { NotificationsGateway } from '../notifications/notifications.gateway';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class MessagesService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly notificationsGateway: NotificationsGateway,
+    private readonly notifications: NotificationsService,
   ) {}
 
   private async mutualFollow(a: string, b: string) {
@@ -52,24 +52,10 @@ export class MessagesService {
     const message = await this.prisma.message.create({
       data: { senderId: userId, recipientId, body },
     });
-    const notification = await this.prisma.notification.create({
-      data: {
-        userId: recipientId,
-        type: 'NEW_MESSAGE',
-        payload: { messageId: message.id, senderId: userId },
-      },
+    await this.notifications.createAndDeliver(recipientId, 'NEW_MESSAGE', {
+      messageId: message.id,
+      senderId: userId,
     });
-    const prefs = await this.prisma.user.findUnique({
-      where: { id: recipientId },
-      select: { notifyPush: true },
-    });
-    if (prefs?.notifyPush !== false) {
-      this.notificationsGateway.pushToUser(
-        recipientId,
-        'notification:new',
-        notification,
-      );
-    }
     return message;
   }
 

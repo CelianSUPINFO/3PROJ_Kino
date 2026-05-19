@@ -5,13 +5,13 @@ import {
 } from '@nestjs/common';
 import { MediaType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { NotificationsGateway } from '../notifications/notifications.gateway';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class ReviewsService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly notificationsGateway: NotificationsGateway,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async listForWork(tmdbId: number, mediaType: MediaType) {
@@ -92,14 +92,10 @@ export class ReviewsService {
       where: { id: reviewId },
     });
     if (review && review.userId !== userId) {
-      const notification = await this.prisma.notification.create({
-        data: {
-          userId: review.userId,
-          type: 'REVIEW_LIKED',
-          payload: { reviewId, by: userId },
-        },
+      await this.notifications.createAndDeliver(review.userId, 'REVIEW_LIKED', {
+        reviewId,
+        by: userId,
       });
-      await this.pushIfEnabled(review.userId, notification);
     }
     return { liked: true };
   }
@@ -118,32 +114,13 @@ export class ReviewsService {
       data: { reviewId, userId, body, parentId },
     });
     if (review.userId !== userId) {
-      const notification = await this.prisma.notification.create({
-        data: {
-          userId: review.userId,
-          type: 'REVIEW_COMMENT',
-          payload: { reviewId, commentId: c.id, by: userId },
-        },
+      await this.notifications.createAndDeliver(review.userId, 'REVIEW_COMMENT', {
+        reviewId,
+        commentId: c.id,
+        by: userId,
       });
-      await this.pushIfEnabled(review.userId, notification);
     }
     return c;
-  }
-
-  private async pushIfEnabled(
-    userId: string,
-    notification: { id: string; type: string; payload: unknown; read: boolean },
-  ) {
-    const prefs = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { notifyPush: true },
-    });
-    if (prefs?.notifyPush === false) return;
-    this.notificationsGateway.pushToUser(
-      userId,
-      'notification:new',
-      notification,
-    );
   }
 
   async listComments(reviewId: string) {

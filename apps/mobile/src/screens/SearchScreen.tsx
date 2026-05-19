@@ -26,6 +26,7 @@ export function SearchScreen({ navigation }: Props) {
   const [q, setQ] = useState("");
   const [type, setType] = useState<"all" | "movie" | "tv">("all");
   const [year, setYear] = useState("");
+  const [creator, setCreator] = useState("");
   const [results, setResults] = useState<PosterItem[]>([]);
   const [users, setUsers] = useState<Unified["users"]>([]);
   const [lists, setLists] = useState<Unified["lists"]>([]);
@@ -41,7 +42,7 @@ export function SearchScreen({ navigation }: Props) {
 
   const search = useCallback(
     async (targetPage = 1, append = false) => {
-      if (!q.trim() && type === "all") {
+      if (!q.trim() && !creator.trim() && type === "all") {
         setResults([]);
         setUsers([]);
         setLists([]);
@@ -49,10 +50,10 @@ export function SearchScreen({ navigation }: Props) {
       }
       setLoading(true);
       try {
-        if (q.trim()) {
+        if (q.trim() || creator.trim()) {
           const [data, media] = await Promise.all([
             apiFetch<Unified>(`/search?q=${encodeURIComponent(q)}&page=${targetPage}`, { auth: false }),
-            apiFetch<{ results: PosterItem[]; total_pages: number }>(`/media/search?q=${encodeURIComponent(q)}&page=${targetPage}${year ? `&year=${year}` : ""}${type !== "all" ? `&type=${type}` : ""}`, { auth: false }),
+            apiFetch<{ results: PosterItem[]; total_pages: number }>(`/media/search?q=${encodeURIComponent(q)}&page=${targetPage}${year ? `&year=${year}` : ""}${type !== "all" ? `&type=${type}` : ""}${creator.trim() ? `&creator=${encodeURIComponent(creator.trim())}` : ""}`, { auth: false }),
           ]);
           setUsers(data.users ?? []);
           setLists(data.lists ?? []);
@@ -77,7 +78,7 @@ export function SearchScreen({ navigation }: Props) {
         setLoading(false);
       }
     },
-    [q, type, year],
+    [creator, q, type, year],
   );
 
   async function follow(userId: string) {
@@ -119,6 +120,13 @@ export function SearchScreen({ navigation }: Props) {
           keyboardType="number-pad"
           value={year}
           onChangeText={setYear}
+        />
+        <TextInput
+          style={[s.input, { marginTop: 8 }]}
+          placeholder="Réalisateur / auteur (optionnel)"
+          placeholderTextColor={colors.muted}
+          value={creator}
+          onChangeText={setCreator}
         />
         <Pressable style={s.btn} onPress={() => search(1, false)}>
           <Text style={s.btnText}>{loading ? "..." : "Rechercher"}</Text>

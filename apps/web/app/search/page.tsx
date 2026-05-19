@@ -52,6 +52,7 @@ export default function SearchPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [type, setType] = useState<"all" | "movie" | "tv">("all");
   const [year, setYear] = useState("");
+  const [creator, setCreator] = useState("");
   const [minVote, setMinVote] = useState(0);
   const [sort, setSort] = useState<SortKey>("relevance");
   const [meId, setMeId] = useState<string | null>(null);
@@ -76,7 +77,7 @@ export default function SearchPage() {
   }
 
   useEffect(() => {
-    if (!q.trim()) {
+    if (!q.trim() && !creator.trim()) {
       if (type === "all") {
         setData(null);
         setWorks([]);
@@ -110,9 +111,10 @@ export default function SearchPage() {
         ...(type !== "all" ? { type } : {}),
         ...(year ? { year } : {}),
         ...(minVote > 0 ? { minVote: String(minVote) } : {}),
+        ...(creator.trim() ? { creator: creator.trim() } : {}),
       });
       const mediaPath =
-        sort === "relevance"
+        sort === "relevance" || creator.trim()
           ? `/media/search?${qs}`
           : `/media/discover/${type === "all" ? "movie" : type}?page=1&sort=${encodeURIComponent(
               sort,
@@ -133,7 +135,7 @@ export default function SearchPage() {
         .finally(() => setLoading(false));
     }, 300);
     return () => clearTimeout(timer);
-  }, [q, type, year, minVote, sort, t]);
+  }, [q, type, year, minVote, sort, creator, t]);
 
   const loadMore = useCallback(async () => {
     if (page >= totalPages) return;
@@ -144,13 +146,14 @@ export default function SearchPage() {
       ...(type !== "all" ? { type } : {}),
       ...(year ? { year } : {}),
       ...(minVote > 0 ? { minVote: String(minVote) } : {}),
+      ...(creator.trim() ? { creator: creator.trim() } : {}),
     });
     const mediaPath =
       !q.trim() && type !== "all"
         ? `/media/discover/${type}?page=${next}&sort=${encodeURIComponent(
             sort === "relevance" ? "popularity.desc" : sort,
           )}${year ? `&year=${year}` : ""}${minVote > 0 ? `&minVote=${minVote}` : ""}`
-        : sort === "relevance"
+        : sort === "relevance" || creator.trim()
           ? `/media/search?${qs}`
           : `/media/discover/${type === "all" ? "movie" : type}?page=${next}&sort=${encodeURIComponent(
               sort,
@@ -158,7 +161,7 @@ export default function SearchPage() {
     const media = await apiFetch<{ results: PosterCardData[] }>(mediaPath, { auth: false });
     setWorks((prev) => [...prev, ...(media.results ?? [])]);
     setPage(next);
-  }, [minVote, page, q, sort, totalPages, type, year]);
+  }, [creator, minVote, page, q, sort, totalPages, type, year]);
 
   useEffect(() => {
     const onScroll = () => {
@@ -224,7 +227,7 @@ export default function SearchPage() {
           ))}
         </div>
 
-        <div className="mt-3 grid gap-2 sm:grid-cols-2 md:max-w-xl">
+        <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           <label className="flex items-center gap-2 rounded-full border border-white/10 bg-black/30 px-3 py-1.5 text-sm text-white/80">
             <span className="text-xs uppercase tracking-wider text-kino-muted">{t("search.year")}</span>
             <input
@@ -233,6 +236,10 @@ export default function SearchPage() {
               value={year}
               onChange={(e) => setYear(e.target.value.replace(/[^0-9]/g, "").slice(0, 4))}
             />
+          </label>
+          <label className="flex items-center gap-2 rounded-full border border-white/10 bg-black/30 px-3 py-1.5 text-sm text-white/80">
+            <span className="shrink-0 text-xs uppercase tracking-wider text-kino-muted">Réalisateur / auteur</span>
+            <input className="min-w-0 w-full bg-transparent text-white focus:outline-none" placeholder="Greta Gerwig" value={creator} onChange={(e) => setCreator(e.target.value)} />
           </label>
           <label className="flex items-center gap-3 rounded-full border border-white/10 bg-black/30 px-4 py-1.5 text-sm text-white/80">
             <span className="text-xs uppercase tracking-wider text-kino-muted">

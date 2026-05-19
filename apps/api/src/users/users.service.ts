@@ -7,14 +7,14 @@ import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
 import { v2 as cloudinary } from 'cloudinary';
 import { PrismaService } from '../prisma/prisma.service';
-import { NotificationsGateway } from '../notifications/notifications.gateway';
+import { NotificationsService } from '../notifications/notifications.service';
 import { UpdateProfileDto } from './dto/user.dto';
 
 @Injectable()
 export class UsersService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly notificationsGateway: NotificationsGateway,
+    private readonly notifications: NotificationsService,
     private readonly config: ConfigService,
   ) {}
 
@@ -198,20 +198,9 @@ export class UsersService {
       select: { id: true, notifyPush: true },
     });
     if (target) {
-      const notification = await this.prisma.notification.create({
-        data: {
-          userId: targetId,
-          type: 'NEW_FOLLOWER',
-          payload: { followerId: actorId },
-        },
+      await this.notifications.createAndDeliver(targetId, 'NEW_FOLLOWER', {
+        followerId: actorId,
       });
-      if (target.notifyPush !== false) {
-        this.notificationsGateway.pushToUser(
-          targetId,
-          'notification:new',
-          notification,
-        );
-      }
       await this.prisma.activity.create({
         data: {
           userId: actorId,

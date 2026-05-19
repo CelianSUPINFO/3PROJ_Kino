@@ -52,7 +52,11 @@ export class TmdbService {
     genreId?: number,
     minVote?: number,
     mediaType?: 'movie' | 'tv',
+    creator?: string,
   ) {
+    if (creator) {
+      return this.searchByCreator(creator, query, page, year, minVote, mediaType);
+    }
     const c = this.client();
     const { data } = await c.get('/search/multi', {
       params: {
@@ -82,6 +86,50 @@ export class TmdbService {
       page: data.page,
       total_pages: data.total_pages,
       total_results: data.total_results,
+      results,
+    };
+  }
+
+  private async searchByCreator(
+    creator: string,
+    query: string,
+    page: number,
+    year?: number,
+    minVote?: number,
+    mediaType?: 'movie' | 'tv',
+  ) {
+    const c = this.client();
+    const people = await c.get('/search/person', {
+      params: { query: creator, page: 1, include_adult: false },
+    });
+    const personId = people.data.results?.[0]?.id as number | undefined;
+    if (!personId) return { page, total_pages: 1, total_results: 0, results: [] };
+    const credits = await c.get(`/person/${personId}/combined_credits`);
+    const normalizedQuery = query.trim().toLocaleLowerCase();
+    const unique = new Map<string, Record<string, unknown>>();
+    for (const result of [...(credits.data.crew ?? []), ...(credits.data.cast ?? [])] as Record<string, unknown>[]) {
+      const key = `${result.media_type}-${result.id}`;
+      if (!unique.has(key)) unique.set(key, result);
+    }
+    const matching = [...unique.values()]
+      .filter((result) => {
+        if (mediaType && result.media_type !== mediaType) return false;
+        if (typeof minVote === 'number' && Number(result.vote_average ?? 0) < minVote) return false;
+        if (year) {
+          const releaseYear = String(result.release_date ?? result.first_air_date ?? '').slice(0, 4);
+          if (releaseYear !== String(year)) return false;
+        }
+        if (!normalizedQuery) return true;
+        const title = String(result.title ?? result.name ?? '').toLocaleLowerCase();
+        return title.includes(normalizedQuery);
+      })
+      .sort((a, b) => Number(b.popularity ?? 0) - Number(a.popularity ?? 0));
+    const pageSize = 20;
+    const results = matching.slice((page - 1) * pageSize, page * pageSize);
+    return {
+      page,
+      total_pages: Math.max(1, Math.ceil(matching.length / pageSize)),
+      total_results: matching.length,
       results,
     };
   }

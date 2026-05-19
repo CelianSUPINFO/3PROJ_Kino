@@ -1,6 +1,6 @@
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useEffect, useState } from "react";
-import { FlatList, Image, Pressable, SafeAreaView, StyleSheet, Text, View } from "react-native";
+import { FlatList, Image, Pressable, SafeAreaView, StyleSheet, Text, TextInput, View } from "react-native";
 import { apiFetch } from "../api";
 import type { RootStackParamList } from "../navigation/types";
 import { useThemeColors } from "../context/ThemeContext";
@@ -22,10 +22,12 @@ export function ListDetailScreen({ route, navigation }: Props) {
   const [list, setList] = useState<ListDetail | null>(null);
   const [titles, setTitles] = useState<Title[]>([]);
   const [meId, setMeId] = useState<string | null>(null);
+  const [editName, setEditName] = useState(listName);
 
   async function load() {
     const data = await apiFetch<ListDetail>(`/library/lists/${listId}`, { auth: false });
     setList(data);
+    setEditName(data.name);
     const enriched = await Promise.all(data.items.map(async (item) => {
       const type = item.mediaType === "TV" ? "tv" : "movie";
       try {
@@ -56,6 +58,15 @@ export function ListDetailScreen({ route, navigation }: Props) {
     await load();
   }
 
+  async function renameList() {
+    if (!list || editName.trim().length < 2) return;
+    await apiFetch(`/library/lists/${list.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ name: editName.trim() }),
+    });
+    await load();
+  }
+
   async function deleteList() {
     if (!list) return;
     await apiFetch(`/library/lists/${list.id}`, { method: "DELETE" });
@@ -70,9 +81,15 @@ export function ListDetailScreen({ route, navigation }: Props) {
         <Text style={[s.h1, { color: colors.text }]}>{list?.name ?? listName}</Text>
         {list && <Text style={{ color: colors.muted, marginTop: 4 }}>{list.isPublic ? "Publique" : "Privée"} · {list.items.length} œuvre(s)</Text>}
         {owner && (
-          <View style={s.actions}>
+          <View>
+            <View style={s.renameRow}>
+              <TextInput value={editName} onChangeText={setEditName} style={[s.renameInput, { borderColor: colors.border, color: colors.text }]} />
+              <Pressable style={[s.button, { borderColor: colors.kino }]} onPress={renameList}><Text style={{ color: colors.text }}>Renommer</Text></Pressable>
+            </View>
+            <View style={s.actions}>
             <Pressable style={[s.button, { borderColor: colors.border }]} onPress={toggleVisibility}><Text style={{ color: colors.text }}>{list?.isPublic ? "Rendre privée" : "Rendre publique"}</Text></Pressable>
             <Pressable style={[s.button, { borderColor: "#fca5a5" }]} onPress={deleteList}><Text style={{ color: "#fca5a5" }}>Supprimer la liste</Text></Pressable>
+            </View>
           </View>
         )}
       </View>
@@ -100,6 +117,8 @@ const s = StyleSheet.create({
   eyebrow: { fontSize: 11, fontWeight: "700", letterSpacing: 2 },
   h1: { fontSize: 24, fontWeight: "800" },
   actions: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 12 },
+  renameRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 12 },
+  renameInput: { flex: 1, borderWidth: 1, borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 8 },
   button: { borderWidth: 1, borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 7 },
   row: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 10, borderBottomWidth: 1 },
   titleLink: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 12 },

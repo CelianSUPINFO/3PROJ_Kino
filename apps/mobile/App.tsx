@@ -39,6 +39,7 @@ import { TitleScreen } from "./src/screens/TitleScreen";
 import { LocaleProvider } from "./src/context/LocaleContext";
 import { ThemeContextProvider, useThemeColors } from "./src/context/ThemeContext";
 import { colors, radius, spacing, typography } from "./src/theme";
+import { registerPushNotifications, unregisterPushNotifications } from "./src/pushNotifications";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -1384,6 +1385,7 @@ function SettingsScreen({
   }
 
   async function logout() {
+    await unregisterPushNotifications();
     await logoutSession();
     setMe(null);
     setStatus("Deconnexion effectuee.");
@@ -1626,6 +1628,11 @@ function NotificationsScreen() {
 function AppNavigator() {
   const navTheme = useNavTheme();
   const { theme } = useThemeColors();
+  useEffect(() => {
+    apiFetch("/users/me")
+      .then(() => registerPushNotifications())
+      .catch(() => undefined);
+  }, []);
   return (
     <NavigationContainer theme={navTheme}>
       <StatusBar style={theme === "light" ? "dark" : "light"} />

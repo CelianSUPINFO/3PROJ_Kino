@@ -23,6 +23,7 @@ export class MediaController {
     @Query('genre') genre?: string,
     @Query('minVote') minVote?: string,
     @Query('type') type?: string,
+    @Query('creator') creator?: string,
   ) {
     return this.tmdb.search(
       q ?? '',
@@ -31,6 +32,7 @@ export class MediaController {
       genre ? parseInt(genre, 10) : undefined,
       minVote ? parseFloat(minVote) : undefined,
       type === 'movie' || type === 'tv' ? type : undefined,
+      creator?.trim() || undefined,
     );
   }
 

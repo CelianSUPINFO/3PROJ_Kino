@@ -22,6 +22,8 @@ import { HomeService } from '../src/home/home.service';
 import { OptionalJwtAuthGuard } from '../src/common/guards/optional-jwt.guard';
 import { EngagementController } from '../src/engagement/engagement.controller';
 import { EngagementService } from '../src/engagement/engagement.service';
+import { NotificationsController } from '../src/notifications/notifications.controller';
+import { NotificationsService } from '../src/notifications/notifications.service';
 
 class TestJwtGuard implements CanActivate {
   canActivate(ctx: ExecutionContext): boolean {
@@ -51,6 +53,7 @@ describe('Targeted API e2e', () => {
         RecommendationsController,
         HomeController,
         EngagementController,
+        NotificationsController,
       ],
       providers: [
         AppService,
@@ -139,6 +142,16 @@ describe('Targeted API e2e', () => {
               streakDays: 4,
               recommendationRefreshAt: new Date().toISOString(),
             })),
+          },
+        },
+        {
+          provide: NotificationsService,
+          useValue: {
+            list: jest.fn(async () => []),
+            registerPushToken: jest.fn(async (_userId, token, platform) => ({ token, platform })),
+            removePushToken: jest.fn(async () => ({ ok: true })),
+            markRead: jest.fn(async () => ({ ok: true })),
+            markAllRead: jest.fn(async () => ({ ok: true })),
           },
         },
       ],
@@ -256,5 +269,14 @@ describe('Targeted API e2e', () => {
       .expect(200);
     expect(res.body).toHaveProperty('streakDays');
     expect(res.body).toHaveProperty('weekly');
+  });
+
+  it('POST /v1/notifications/push-token registers a native device', async () => {
+    const res = await request(app.getHttpServer())
+      .post('/v1/notifications/push-token')
+      .set('Authorization', 'Bearer any')
+      .send({ token: 'ExponentPushToken[test-device-token]', platform: 'android' })
+      .expect(201);
+    expect(res.body.platform).toBe('android');
   });
 });
