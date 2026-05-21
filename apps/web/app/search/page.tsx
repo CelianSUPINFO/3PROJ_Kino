@@ -40,6 +40,8 @@ export default function SearchPage() {
       { id: "all" as const, label: t("nav.all") },
       { id: "movie" as const, label: t("nav.movies") },
       { id: "tv" as const, label: t("nav.series") },
+      { id: "users" as const, label: t("search.users") },
+      { id: "lists" as const, label: t("search.publicLists") },
     ],
     [t],
   );
@@ -50,7 +52,7 @@ export default function SearchPage() {
   const [works, setWorks] = useState<PosterCardData[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [type, setType] = useState<"all" | "movie" | "tv">("all");
+  const [type, setType] = useState<"all" | "movie" | "tv" | "users" | "lists">("all");
   const [year, setYear] = useState("");
   const [creator, setCreator] = useState("");
   const [minVote, setMinVote] = useState(0);
@@ -63,7 +65,7 @@ export default function SearchPage() {
     const params = new URLSearchParams(window.location.search);
     const presetType = params.get("type");
     const presetQ = params.get("q");
-    if (presetType === "movie" || presetType === "tv") setType(presetType);
+    if (presetType === "movie" || presetType === "tv" || presetType === "users" || presetType === "lists") setType(presetType);
     if (presetQ) setQ(presetQ);
   }, []);
 
@@ -77,6 +79,21 @@ export default function SearchPage() {
   }
 
   useEffect(() => {
+    if (!q.trim() && !creator.trim() && (type === "users" || type === "lists")) {
+      setLoading(true);
+      apiFetch<Unified>("/search?q=", { auth: false })
+        .then((result) => {
+          setData({
+            ...result,
+            users: type === "lists" ? [] : result.users,
+            lists: type === "users" ? [] : result.lists,
+          });
+          setWorks([]);
+        })
+        .catch(() => setErr(t("common.networkError")))
+        .finally(() => setLoading(false));
+      return;
+    }
     if (!q.trim() && !creator.trim()) {
       if (type === "all") {
         setData(null);
@@ -108,7 +125,7 @@ export default function SearchPage() {
       const qs = new URLSearchParams({
         q: q.trim(),
         page: "1",
-        ...(type !== "all" ? { type } : {}),
+        ...(type === "movie" || type === "tv" ? { type } : {}),
         ...(year ? { year } : {}),
         ...(minVote > 0 ? { minVote: String(minVote) } : {}),
         ...(creator.trim() ? { creator: creator.trim() } : {}),
@@ -116,17 +133,17 @@ export default function SearchPage() {
       const mediaPath =
         sort === "relevance" || creator.trim()
           ? `/media/search?${qs}`
-          : `/media/discover/${type === "all" ? "movie" : type}?page=1&sort=${encodeURIComponent(
+          : `/media/discover/${type === "tv" ? "tv" : "movie"}?page=1&sort=${encodeURIComponent(
               sort,
             )}${year ? `&year=${year}` : ""}${minVote > 0 ? `&minVote=${minVote}` : ""}`;
       Promise.all([
         apiFetch<Unified>(`/search?q=${encodeURIComponent(q)}`, { auth: false }),
-        apiFetch<{ results: PosterCardData[]; total_pages: number }>(mediaPath, {
-          auth: false,
-        }),
+        type === "users" || type === "lists"
+          ? Promise.resolve({ results: [], total_pages: 1 })
+          : apiFetch<{ results: PosterCardData[]; total_pages: number }>(mediaPath, { auth: false }),
       ])
         .then(([u, media]) => {
-          setData(u);
+          setData({ ...u, users: type === "lists" ? [] : u.users, lists: type === "users" ? [] : u.lists });
           setWorks(media.results ?? []);
           setPage(1);
           setTotalPages(Math.max(1, media.total_pages ?? 1));
@@ -143,19 +160,19 @@ export default function SearchPage() {
     const qs = new URLSearchParams({
       q: q.trim(),
       page: String(next),
-      ...(type !== "all" ? { type } : {}),
+      ...(type === "movie" || type === "tv" ? { type } : {}),
       ...(year ? { year } : {}),
       ...(minVote > 0 ? { minVote: String(minVote) } : {}),
       ...(creator.trim() ? { creator: creator.trim() } : {}),
     });
     const mediaPath =
-      !q.trim() && type !== "all"
+      !q.trim() && (type === "movie" || type === "tv")
         ? `/media/discover/${type}?page=${next}&sort=${encodeURIComponent(
             sort === "relevance" ? "popularity.desc" : sort,
           )}${year ? `&year=${year}` : ""}${minVote > 0 ? `&minVote=${minVote}` : ""}`
         : sort === "relevance" || creator.trim()
           ? `/media/search?${qs}`
-          : `/media/discover/${type === "all" ? "movie" : type}?page=${next}&sort=${encodeURIComponent(
+          : `/media/discover/${type === "tv" ? "tv" : "movie"}?page=${next}&sort=${encodeURIComponent(
               sort,
             )}${year ? `&year=${year}` : ""}${minVote > 0 ? `&minVote=${minVote}` : ""}`;
     const media = await apiFetch<{ results: PosterCardData[] }>(mediaPath, { auth: false });
@@ -219,15 +236,17 @@ export default function SearchPage() {
               {t.label}
             </Chip>
           ))}
-          <span className="mx-1 h-6 w-px self-center bg-white/10" />
-          {SORTS.map((s) => (
-            <Chip key={s.id} active={sort === s.id} onClick={() => setSort(s.id)}>
-              {s.label}
-            </Chip>
-          ))}
+          {type !== "users" && type !== "lists" && (
+            <>
+              <span className="mx-1 h-6 w-px self-center bg-white/10" />
+              {SORTS.map((s) => (
+                <Chip key={s.id} active={sort === s.id} onClick={() => setSort(s.id)}>{s.label}</Chip>
+              ))}
+            </>
+          )}
         </div>
 
-        <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        {type !== "users" && type !== "lists" && <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           <label className="flex items-center gap-2 rounded-full border border-white/10 bg-black/30 px-3 py-1.5 text-sm text-white/80">
             <span className="text-xs uppercase tracking-wider text-kino-muted">{t("search.year")}</span>
             <input
@@ -258,7 +277,7 @@ export default function SearchPage() {
               {minVote.toFixed(1)}
             </span>
           </label>
-        </div>
+        </div>}
       </div>
 
       {err && <p className="text-red-400">{err}</p>}
@@ -286,7 +305,7 @@ export default function SearchPage() {
               <PosterCard
                 key={`${w.media_type ?? type}-${w.id}-${idx}`}
                 item={w}
-                type={type === "all" ? "movie" : type}
+                type={type === "tv" ? "tv" : "movie"}
                 width={0}
                 index={idx}
                 className="w-full"

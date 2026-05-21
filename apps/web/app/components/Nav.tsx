@@ -113,8 +113,7 @@ export function Nav() {
     href === "/" ? pathname === "/" : pathname?.startsWith(href);
 
   function goSearch() {
-    if (!q.trim()) return;
-    window.location.href = `/search?q=${encodeURIComponent(q)}`;
+    window.location.href = q.trim() ? `/search?q=${encodeURIComponent(q)}` : "/search";
   }
 
   async function logout() {
@@ -168,7 +167,9 @@ export function Nav() {
             ref={searchRef}
             className="relative ml-auto hidden min-w-0 max-w-xs flex-1 xl:block xl:max-w-sm"
           >
-            <SearchIcon className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
+            <button type="button" onClick={goSearch} className="absolute left-1 top-1/2 z-10 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-white/50 hover:bg-white/10 hover:text-white" aria-label={t("nav.search")}>
+              <SearchIcon />
+            </button>
             <input
               className="w-full rounded-full border border-white/10 bg-black/30 py-2 pl-9 pr-4 text-sm text-white placeholder:text-white/40 focus:border-kino/60 focus:outline-none"
               placeholder={t("nav.searchPlaceholder")}

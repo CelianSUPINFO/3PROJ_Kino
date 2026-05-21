@@ -24,7 +24,7 @@ type Unified = {
 
 export function SearchScreen({ navigation }: Props) {
   const [q, setQ] = useState("");
-  const [type, setType] = useState<"all" | "movie" | "tv">("all");
+  const [type, setType] = useState<"all" | "movie" | "tv" | "users" | "lists">("all");
   const [year, setYear] = useState("");
   const [creator, setCreator] = useState("");
   const [results, setResults] = useState<PosterItem[]>([]);
@@ -50,13 +50,15 @@ export function SearchScreen({ navigation }: Props) {
       }
       setLoading(true);
       try {
-        if (q.trim() || creator.trim()) {
+        if (q.trim() || creator.trim() || type === "users" || type === "lists") {
           const [data, media] = await Promise.all([
             apiFetch<Unified>(`/search?q=${encodeURIComponent(q)}&page=${targetPage}`, { auth: false }),
-            apiFetch<{ results: PosterItem[]; total_pages: number }>(`/media/search?q=${encodeURIComponent(q)}&page=${targetPage}${year ? `&year=${year}` : ""}${type !== "all" ? `&type=${type}` : ""}${creator.trim() ? `&creator=${encodeURIComponent(creator.trim())}` : ""}`, { auth: false }),
+            type === "users" || type === "lists"
+              ? Promise.resolve({ results: [], total_pages: 1 })
+              : apiFetch<{ results: PosterItem[]; total_pages: number }>(`/media/search?q=${encodeURIComponent(q)}&page=${targetPage}${year ? `&year=${year}` : ""}${type === "movie" || type === "tv" ? `&type=${type}` : ""}${creator.trim() ? `&creator=${encodeURIComponent(creator.trim())}` : ""}`, { auth: false }),
           ]);
-          setUsers(data.users ?? []);
-          setLists(data.lists ?? []);
+          setUsers(type === "lists" ? [] : data.users ?? []);
+          setLists(type === "users" ? [] : data.lists ?? []);
           const works = media.results ?? [];
           setResults((prev) => (append ? [...prev, ...works] : works));
           setTotalPages(media.total_pages ?? 1);
@@ -101,33 +103,33 @@ export function SearchScreen({ navigation }: Props) {
           returnKeyType="search"
         />
         <View style={s.row}>
-          {(["all", "movie", "tv"] as const).map((t) => (
+          {(["all", "movie", "tv", "users", "lists"] as const).map((t) => (
             <Pressable
               key={t}
               style={[s.chip, type === t && s.chipOn]}
               onPress={() => setType(t)}
             >
               <Text style={s.chipText}>
-                {t === "all" ? "Tout" : t === "movie" ? "Films" : "Séries"}
+                {t === "all" ? "Tout" : t === "movie" ? "Films" : t === "tv" ? "Séries" : t === "users" ? "Utilisateurs" : "Listes"}
               </Text>
             </Pressable>
           ))}
         </View>
-        <TextInput
+        {type !== "users" && type !== "lists" && <TextInput
           style={[s.input, { marginTop: 8 }]}
           placeholder="Année (optionnel)"
           placeholderTextColor={colors.muted}
           keyboardType="number-pad"
           value={year}
           onChangeText={setYear}
-        />
-        <TextInput
+        />}
+        {type !== "users" && type !== "lists" && <TextInput
           style={[s.input, { marginTop: 8 }]}
           placeholder="Réalisateur / auteur (optionnel)"
           placeholderTextColor={colors.muted}
           value={creator}
           onChangeText={setCreator}
-        />
+        />}
         <Pressable style={s.btn} onPress={() => search(1, false)}>
           <Text style={s.btnText}>{loading ? "..." : "Rechercher"}</Text>
         </Pressable>
