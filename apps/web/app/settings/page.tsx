@@ -14,7 +14,6 @@ type Me = {
   avatarUrl?: string | null;
   theme: string;
   locale: string;
-  notifyEmail: boolean;
   notifyPush: boolean;
 };
 
@@ -44,7 +43,6 @@ export default function SettingsPage() {
           avatarUrl: me.avatarUrl ?? "",
           theme: me.theme,
           locale: me.locale,
-          notifyEmail: me.notifyEmail,
           notifyPush: me.notifyPush,
         }),
       });
@@ -193,15 +191,6 @@ export default function SettingsPage() {
             <h2 className="text-display text-lg font-semibold text-white">
               {t("settings.notifications")}
             </h2>
-            <label className="flex items-center gap-2 text-sm text-kino-muted">
-              <input
-                type="checkbox"
-                checked={me.notifyEmail}
-                onChange={(e) => setMe({ ...me, notifyEmail: e.target.checked })}
-                className="accent-[#ff2e7e]"
-              />
-              {t("settings.notifyEmail")}
-            </label>
             <label className="flex items-center gap-2 text-sm text-kino-muted">
               <input
                 type="checkbox"

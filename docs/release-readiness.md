@@ -16,7 +16,7 @@ Le web conserve les jetons dans le stockage local du navigateur et le mobile dan
 
 ## Notifications
 
-Les notifications fonctionnent en temps reel sur le web, par rafraichissement sur mobile, par push natif Expo et par e-mail SMTP. Les push natifs deviennent actifs apres `eas init` et installation d'un build natif. Les e-mails deviennent actifs lorsque les variables `SMTP_*` sont configurees sur l'API.
+Les notifications restent consultables dans le web et l'application mobile. Elles arrivent en temps reel sur le web, sont rafraichies sur mobile et peuvent aussi etre envoyees par push natif Expo. Les push natifs deviennent actifs apres `eas init` et installation d'un build natif. L'envoi par e-mail n'est volontairement pas active.
 
 ## Dernieres actions externes
 

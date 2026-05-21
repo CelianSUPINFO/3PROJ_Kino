@@ -154,13 +154,7 @@ The production API URL is already configured. Render's free instance sleeps afte
 
 For Render, configure the health check path as `/healthz`. This route is intentionally exposed without the `/v1` prefix.
 
-### Email and native push notifications
-
-Configure these API environment variables to send real notification emails:
-
-- `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`
-- `SMTP_USER`, `SMTP_PASS`
-- `SMTP_FROM`
+### Native push notifications
 
 Native Android/iOS notifications use Expo Push. After `eas init` has generated the real Expo `projectId`, a native build requests notification permission and registers its Expo push token with the API automatically.
 

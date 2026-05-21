@@ -32,7 +32,6 @@ export class UsersService {
         favoriteFilms: true,
         theme: true,
         locale: true,
-        notifyEmail: true,
         notifyPush: true,
         role: true,
         createdAt: true,
@@ -61,7 +60,6 @@ export class UsersService {
         favoriteFilms: true,
         theme: true,
         locale: true,
-        notifyEmail: true,
         notifyPush: true,
       },
     });

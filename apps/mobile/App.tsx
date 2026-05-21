@@ -1342,7 +1342,6 @@ type Me = {
   website?: string | null;
   theme: string;
   locale: string;
-  notifyEmail: boolean;
   notifyPush: boolean;
   role?: string;
 };
@@ -1372,7 +1371,6 @@ function SettingsScreen({
         website: me.website ?? "",
         theme: me.theme,
         locale: me.locale,
-        notifyEmail: me.notifyEmail,
         notifyPush: me.notifyPush,
       }),
     });
@@ -1487,15 +1485,6 @@ function SettingsScreen({
                 active={me.locale === "en"}
                 onPress={() => setMe({ ...me, locale: "en" })}
               />
-            </View>
-            <Label>Notifications e-mail</Label>
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 }}>
-              <Switch
-                value={me.notifyEmail}
-                onValueChange={(v) => setMe({ ...me, notifyEmail: v })}
-                trackColor={{ true: colors.kino }}
-              />
-              <Text style={s.sub}>Recevoir les alertes par e-mail</Text>
             </View>
             <Label>Notifications push (temps reel)</Label>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 }}>

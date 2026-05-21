@@ -232,6 +232,17 @@ export function Nav() {
             <SearchIcon />
           </Link>
 
+          {isAuthed && (
+            <Link
+              href="/notifications"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white transition hover:bg-white/10"
+              aria-label={t("nav.notifications")}
+              title={t("nav.notifications")}
+            >
+              <BellIcon />
+            </Link>
+          )}
+
           {isAuthed && me && (
             <Link
               href={`/u/${me.id}`}
@@ -345,6 +356,8 @@ export function Nav() {
                   <>
                     <MobileSection title={t("nav.feed")} href="/feed" />
                     <MobileSection title={t("nav.library")} href="/library" />
+                    <MobileSection title={t("nav.notifications")} href="/notifications" />
+                    <MobileSection title={t("nav.messages")} href="/messages" />
                   </>
                 )}
               </div>
@@ -446,6 +459,25 @@ function SearchIcon({ className = "" }: { className?: string }) {
     >
       <circle cx="11" cy="11" r="7" />
       <path d="M21 21l-4.3-4.3" />
+    </svg>
+  );
+}
+
+function BellIcon() {
+  return (
+    <svg
+      width="17"
+      height="17"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" />
+      <path d="M13.7 21a2 2 0 0 1-3.4 0" />
     </svg>
   );
 }

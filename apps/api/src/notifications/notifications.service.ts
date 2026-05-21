@@ -1,7 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
-import nodemailer from 'nodemailer';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsGateway } from './notifications.gateway';
@@ -23,7 +21,6 @@ export class NotificationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly gateway: NotificationsGateway,
-    private readonly config: ConfigService,
   ) {}
 
   async list(userId: string) {
@@ -40,15 +37,12 @@ export class NotificationsService {
     });
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { email: true, displayName: true, notifyEmail: true, notifyPush: true },
+      select: { notifyPush: true },
     });
     if (!user) return notification;
+    this.gateway.pushToUser(userId, 'notification:new', notification);
     if (user.notifyPush) {
-      this.gateway.pushToUser(userId, 'notification:new', notification);
       void this.sendExpoPush(userId, type, payload);
-    }
-    if (user.notifyEmail) {
-      void this.sendEmail(user.email, user.displayName, type);
     }
     return notification;
   }
@@ -96,28 +90,4 @@ export class NotificationsService {
     }
   }
 
-  private async sendEmail(email: string, displayName: string, type: string) {
-    const host = this.config.get<string>('SMTP_HOST');
-    const user = this.config.get<string>('SMTP_USER');
-    const pass = this.config.get<string>('SMTP_PASS');
-    if (!host || !user || !pass) return;
-    try {
-      const transporter = nodemailer.createTransport({
-        host,
-        port: Number(this.config.get<string>('SMTP_PORT') ?? 587),
-        secure: this.config.get<string>('SMTP_SECURE') === 'true',
-        auth: { user, pass },
-      });
-      const body = labels[type] ?? 'Vous avez une nouvelle notification.';
-      await transporter.sendMail({
-        from: this.config.get<string>('SMTP_FROM') ?? user,
-        to: email,
-        subject: `Kino - ${body}`,
-        text: `Bonjour ${displayName},\n\n${body}\n\nOuvrez Kino pour en savoir plus.`,
-        html: `<p>Bonjour ${displayName},</p><p>${body}</p><p>Ouvrez Kino pour en savoir plus.</p>`,
-      });
-    } catch (error) {
-      this.logger.warn(`Email notification failed: ${error instanceof Error ? error.message : 'unknown error'}`);
-    }
-  }
 }

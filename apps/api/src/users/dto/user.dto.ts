@@ -74,9 +74,5 @@ export class UpdateProfileDto {
 
   @IsOptional()
   @IsBoolean()
-  notifyEmail?: boolean;
-
-  @IsOptional()
-  @IsBoolean()
   notifyPush?: boolean;
 }
