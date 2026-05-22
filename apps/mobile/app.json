@@ -16,7 +16,10 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.cultureconnect.kino",
-      "buildNumber": "1"
+      "buildNumber": "1",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "blockedPermissions": [
@@ -37,7 +40,7 @@
     "extra": {
       "apiUrl": "https://kino-api-9ipb.onrender.com/v1",
       "eas": {
-        "projectId": "00000000-0000-0000-0000-000000000000"
+        "projectId": "8411e29d-9f87-49a6-8abc-01c838252115"
       }
     },
     "plugins": [
@@ -55,7 +58,9 @@
       "policy": "appVersion"
     },
     "updates": {
-      "fallbackToCacheTimeout": 0
-    }
+      "fallbackToCacheTimeout": 0,
+      "url": "https://u.expo.dev/8411e29d-9f87-49a6-8abc-01c838252115"
+    },
+    "owner": "astartare"
   }
 }
