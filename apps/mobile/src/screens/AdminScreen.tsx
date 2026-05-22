@@ -31,22 +31,47 @@ type ReviewRow = {
   rating: number;
 };
 
+type AdminStats = {
+  totals: {
+    users: number;
+    activeUsers: number;
+    reviews: number;
+    reportsOpen: number;
+    averageReviewsPerUser: number;
+  };
+};
+
+type AdminUser = {
+  id: string;
+  email: string;
+  displayName: string;
+  role: "USER" | "ADMIN";
+  bannedUntil?: string | null;
+  _count: { reviewsWritten: number; followers: number };
+};
+
 export function AdminScreen({}: Props) {
   const [role, setRole] = useState<string | null>(null);
   const [reports, setReports] = useState<ReportRow[]>([]);
   const [reviews, setReviews] = useState<ReviewRow[]>([]);
   const [msg, setMsg] = useState<string | null>(null);
+  const [stats, setStats] = useState<AdminStats | null>(null);
+  const [users, setUsers] = useState<AdminUser[]>([]);
 
   async function load() {
     const me = await apiFetch<{ role: string }>("/users/me");
     setRole(me.role);
     if (me.role === "ADMIN") {
-      const [rep, rev] = await Promise.all([
+      const [rep, rev, nextStats, nextUsers] = await Promise.all([
         apiFetch<ReportRow[]>("/admin/reports"),
         apiFetch<ReviewRow[]>("/admin/reviews"),
+        apiFetch<AdminStats>("/admin/stats"),
+        apiFetch<AdminUser[]>("/admin/users"),
       ]);
       setReports(rep);
       setReviews(rev);
+      setStats(nextStats);
+      setUsers(nextUsers);
     }
   }
 
@@ -68,6 +93,14 @@ export function AdminScreen({}: Props) {
         <Text style={s.eyebrow}>MODÉRATION</Text>
         <Text style={s.h1}>Administration</Text>
         {msg && <Text style={s.msg}>{msg}</Text>}
+        {stats && (
+          <View style={s.metrics}>
+            <Metric label="Utilisateurs" value={stats.totals.users} />
+            <Metric label="Actifs (5 min)" value={stats.totals.activeUsers} />
+            <Metric label="Critiques" value={stats.totals.reviews} />
+            <Metric label="Signalements" value={stats.totals.reportsOpen} />
+          </View>
+        )}
         <Text style={s.section}>Signalements</Text>
         {reports.map((r) => (
           <View key={r.id} style={s.card}>
@@ -142,6 +175,33 @@ export function AdminScreen({}: Props) {
             </Pressable>
           </View>
         ))}
+        <Text style={[s.section, { marginTop: spacing.lg }]}>Comptes</Text>
+        {users.map((user) => (
+          <View key={user.id} style={s.card}>
+            <Text style={s.body}>{user.displayName}</Text>
+            <Text style={s.sub}>{user.email} · {user.role} · {user._count.reviewsWritten} critiques</Text>
+            <View style={s.row}>
+              <Pressable style={s.chip} onPress={async () => {
+                await apiFetch(`/admin/users/${user.id}`, {
+                  method: "PATCH",
+                  body: JSON.stringify({ role: user.role === "ADMIN" ? "USER" : "ADMIN" }),
+                });
+                await load();
+              }}>
+                <Text style={s.chipText}>{user.role === "ADMIN" ? "Retirer admin" : "Rendre admin"}</Text>
+              </Pressable>
+              <Pressable style={s.chip} onPress={async () => {
+                await apiFetch(`/admin/users/${user.id}`, {
+                  method: "PATCH",
+                  body: JSON.stringify({ bannedUntil: user.bannedUntil ? null : "2099-01-01T00:00:00.000Z" }),
+                });
+                await load();
+              }}>
+                <Text style={[s.chipText, { color: "#fca5a5" }]}>{user.bannedUntil ? "Réactiver" : "Suspendre"}</Text>
+              </Pressable>
+            </View>
+          </View>
+        ))}
       </ScrollView>
     </SafeAreaView>
   );
@@ -185,4 +245,17 @@ const s = StyleSheet.create({
   chipText: { color: colors.text, fontSize: 11 },
   err: { color: "#f87171", padding: spacing.lg },
   msg: { color: colors.kinoHot, marginVertical: 8 },
+  metrics: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: spacing.md },
+  metric: { width: "48%", borderWidth: 1, borderColor: colors.border, padding: 10, backgroundColor: colors.panel },
+  metricValue: { color: colors.text, fontSize: 22, fontWeight: "800" },
+  metricLabel: { color: colors.muted, fontSize: 10, textTransform: "uppercase" },
 });
+
+function Metric({ label, value }: { label: string; value: number }) {
+  return (
+    <View style={s.metric}>
+      <Text style={s.metricValue}>{value}</Text>
+      <Text style={s.metricLabel}>{label}</Text>
+    </View>
+  );
+}

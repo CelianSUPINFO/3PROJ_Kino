@@ -81,6 +81,12 @@ export class ReviewsController {
     return this.reviews.addComment(user.sub, id, body.body, body.parentId);
   }
 
+  @Delete('comments/:id')
+  @UseGuards(JwtAuthGuard)
+  removeComment(@CurrentUser() user: JwtUser, @Param('id') id: string) {
+    return this.reviews.deleteComment(user.sub, user.role, id);
+  }
+
   @Post(':id/report')
   @UseGuards(JwtAuthGuard)
   report(

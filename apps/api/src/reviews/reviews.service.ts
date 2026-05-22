@@ -134,6 +134,18 @@ export class ReviewsService {
     });
   }
 
+  async deleteComment(userId: string, role: string, commentId: string) {
+    const comment = await this.prisma.comment.findUnique({
+      where: { id: commentId },
+    });
+    if (!comment) throw new NotFoundException();
+    if (comment.userId !== userId && role !== 'ADMIN') {
+      throw new ForbiddenException();
+    }
+    await this.prisma.comment.delete({ where: { id: commentId } });
+    return { ok: true };
+  }
+
   async reportReview(reporterId: string, reviewId: string, reason: string) {
     const review = await this.prisma.review.findUnique({ where: { id: reviewId } });
     if (!review) throw new NotFoundException();

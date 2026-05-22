@@ -2,203 +2,181 @@
 
 import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
-import { useLocale } from "../components/AppProviders";
 
-type ReportRow = {
+type Report = {
   id: string;
   reason: string;
   status: "OPEN" | "RESOLVED" | "DISMISSED";
   reviewId: string;
   review: { id: string; body: string; userId: string };
-  reporter: { id: string; displayName: string };
+  reporter: { displayName: string };
 };
-
-type Me = { role: string };
-
-type ReviewAdmin = {
+type User = {
   id: string;
-  body: string;
-  rating: number;
-  featured: boolean;
-  user: { displayName: string };
+  email: string;
+  displayName: string;
+  role: "USER" | "ADMIN";
+  bannedUntil?: string | null;
+  lastSeenAt?: string | null;
+  createdAt: string;
+  _count: { reviewsWritten: number; followers: number; reportsFiled: number };
 };
-
-const STATUS_TONE: Record<ReportRow["status"], string> = {
-  OPEN: "bg-kino/20 text-kino-hot border-kino/40",
-  RESOLVED: "bg-emerald-500/15 text-emerald-200 border-emerald-400/30",
-  DISMISSED: "bg-white/10 text-white/60 border-white/10",
+type WorkStat = {
+  tmdbId: number;
+  mediaType: string;
+  title: string;
+  count: number;
+  average: number;
+};
+type Stats = {
+  totals: {
+    users: number;
+    activeUsers: number;
+    reviews: number;
+    reportsOpen: number;
+    averageReviewsPerUser: number;
+  };
+  topReviewedThisWeek: WorkStat[];
+  topRatedThisWeek: WorkStat[];
+  topFollowed: Array<{ id: string; displayName: string; _count: { followers: number } }>;
+  topReviewers: Array<{ id: string; displayName: string; _count: { reviewsWritten: number } }>;
 };
 
 export default function AdminPage() {
-  const { t } = useLocale();
   const [role, setRole] = useState<string | null>(null);
-  const [reports, setReports] = useState<ReportRow[]>([]);
-  const [reviews, setReviews] = useState<ReviewAdmin[]>([]);
-  const [msg, setMsg] = useState<string | null>(null);
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [reports, setReports] = useState<Report[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [tab, setTab] = useState<"dashboard" | "reports" | "users">("dashboard");
+  const [message, setMessage] = useState("");
 
   async function load() {
-    try {
-      const me = await apiFetch<Me>("/users/me");
-      setRole(me.role);
-      if (me.role === "ADMIN") {
-        const [rows, rev] = await Promise.all([
-          apiFetch<ReportRow[]>("/admin/reports"),
-          apiFetch<ReviewAdmin[]>("/admin/reviews"),
-        ]);
-        setReports(rows);
-        setReviews(rev);
-      }
-    } catch {
-      setRole(null);
-    }
+    const me = await apiFetch<{ role: string }>("/users/me");
+    setRole(me.role);
+    if (me.role !== "ADMIN") return;
+    const [nextStats, nextReports, nextUsers] = await Promise.all([
+      apiFetch<Stats>("/admin/stats"),
+      apiFetch<Report[]>("/admin/reports"),
+      apiFetch<User[]>("/admin/users"),
+    ]);
+    setStats(nextStats);
+    setReports(nextReports);
+    setUsers(nextUsers);
   }
 
   useEffect(() => {
-    load();
+    load().catch(() => setRole(null));
+    const timer = setInterval(() => load().catch(() => undefined), 30000);
+    return () => clearInterval(timer);
   }, []);
 
-  async function resolve(id: string, status: "RESOLVED" | "DISMISSED") {
-    await apiFetch(`/admin/reports/${id}`, {
-      method: "PATCH",
-      body: JSON.stringify({ status }),
-    });
-    load();
+  async function updateUser(id: string, data: object, done: string) {
+    await apiFetch(`/admin/users/${id}`, { method: "PATCH", body: JSON.stringify(data) });
+    setMessage(done);
+    await load();
   }
 
-  async function deleteReview(reviewId: string) {
-    await apiFetch(`/admin/reviews/${reviewId}`, { method: "DELETE" });
-    setMsg(t("admin.reviewDeleted"));
-    load();
-  }
-
-  async function banUser(userId: string) {
-    await apiFetch(`/admin/users/${userId}/ban`, {
-      method: "POST",
-      body: JSON.stringify({ until: null }),
-    });
-    setMsg(t("admin.userBanned"));
+  async function deleteUser(id: string) {
+    if (!window.confirm("Supprimer définitivement ce compte et toutes ses données ?")) return;
+    await apiFetch(`/admin/users/${id}`, { method: "DELETE" });
+    setMessage("Compte supprimé.");
+    await load();
   }
 
   if (role !== "ADMIN") {
-    return (
-      <div className="glass rounded-2xl p-6 text-center text-kino-muted">
-        {t("admin.accessRequired")}
-      </div>
-    );
+    return <div className="glass p-6 text-center text-kino-muted">Accès administrateur requis.</div>;
   }
-
-  const open = reports.filter((r) => r.status === "OPEN").length;
 
   return (
     <div className="space-y-6">
-      <header className="space-y-2">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-kino-hot">
-          {t("admin.title")}
-        </p>
-        <h1 className="text-display text-4xl font-bold text-white">{t("admin.panel")}</h1>
-        <p className="text-kino-muted">
-          {open > 0
-            ? t("admin.reportsAwaiting", { count: open })
-            : t("admin.noReports")}
-        </p>
+      <header>
+        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-kino-hot">Administration</p>
+        <h1 className="text-display mt-2 text-3xl font-bold text-white">Pilotage de Kino</h1>
+        <p className="mt-2 text-sm text-kino-muted">Activité récente, modération et gestion des comptes.</p>
       </header>
 
-      {msg && (
-        <p className="rounded-xl border border-kino/30 bg-kino/10 px-4 py-2 text-sm text-kino-hot">
-          {msg}
-        </p>
+      <div className="flex flex-wrap gap-2">
+        {(["dashboard", "reports", "users"] as const).map((item) => (
+          <button key={item} className={`chip ${tab === item ? "border-kino bg-kino/20 text-white" : ""}`} onClick={() => setTab(item)}>
+            {item === "dashboard" ? "Statistiques" : item === "reports" ? "Signalements" : "Comptes"}
+          </button>
+        ))}
+      </div>
+      {message && <p className="border-l-2 border-kino px-3 text-sm text-kino-hot">{message}</p>}
+
+      {tab === "dashboard" && stats && (
+        <div className="space-y-8">
+          <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+            <Metric label="Utilisateurs" value={stats.totals.users} />
+            <Metric label="Actifs maintenant" value={stats.totals.activeUsers} accent />
+            <Metric label="Critiques" value={stats.totals.reviews} />
+            <Metric label="Moyenne / utilisateur" value={stats.totals.averageReviewsPerUser} />
+            <Metric label="Signalements ouverts" value={stats.totals.reportsOpen} />
+          </section>
+          <section className="grid gap-6 lg:grid-cols-2">
+            <Ranking title="Films et séries les plus critiqués cette semaine" rows={stats.topReviewedThisWeek.map((x) => ({ label: x.title, value: x.count }))} />
+            <Ranking title="Meilleures notes globales de la semaine" rows={stats.topRatedThisWeek.map((x) => ({ label: x.title, value: x.average }))} suffix="/5" />
+            <Ranking title="Personnes les plus suivies" rows={stats.topFollowed.map((x) => ({ label: x.displayName, value: x._count.followers }))} />
+            <Ranking title="Personnes ayant le plus critiqué" rows={stats.topReviewers.map((x) => ({ label: x.displayName, value: x._count.reviewsWritten }))} />
+          </section>
+        </div>
       )}
 
-      <ul className="space-y-3">
-        {reports.map((r) => (
-          <li key={r.id} className="glass rounded-2xl p-5">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-2 text-sm">
-                <span
-                  className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold uppercase tracking-widest ${STATUS_TONE[r.status]}`}
-                >
-                  {r.status}
-                </span>
-                <span className="text-kino-muted">
-                  reported by{" "}
-                  <span className="font-medium text-white">
-                    {r.reporter.displayName}
-                  </span>
-                </span>
+      {tab === "reports" && (
+        <section className="space-y-3">
+          {reports.map((report) => (
+            <article key={report.id} className="glass p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-semibold text-white">{report.reason}</p>
+                <span className="text-xs uppercase tracking-wider text-kino-hot">{report.status}</span>
               </div>
-            </div>
-            <p className="mt-3 text-sm text-kino-muted">
-              <span className="font-semibold uppercase tracking-widest text-kino-muted">
-                {t("admin.reason")} ·
-              </span>{" "}
-              <span className="text-white">{r.reason}</span>
-            </p>
-            <blockquote className="mt-3 rounded-xl border-l-2 border-kino/50 bg-black/30 px-4 py-3 text-sm text-white/85">
-              &ldquo;{r.review.body}&rdquo;
-            </blockquote>
-            <div className="mt-4 flex flex-wrap gap-2">
-              <button className="chip" onClick={() => resolve(r.id, "RESOLVED")}>
-                {t("admin.resolve")}
-              </button>
-              <button className="chip" onClick={() => resolve(r.id, "DISMISSED")}>
-                {t("admin.dismiss")}
-              </button>
-              <button
-                className="chip border-red-400/40 bg-red-500/10 text-red-300"
-                onClick={() => deleteReview(r.reviewId)}
-              >
-                {t("admin.deleteReview")}
-              </button>
-              <button
-                className="chip border-red-400/40 bg-red-500/10 text-red-300"
-                onClick={() => banUser(r.review.userId)}
-              >
-                {t("admin.ban")}
-              </button>
-            </div>
-          </li>
-        ))}
-        {reports.length === 0 && (
-          <li className="glass rounded-2xl p-6 text-center text-kino-muted">
-            No reports.
-          </li>
-        )}
-      </ul>
-
-      <section className="space-y-3">
-        <h2 className="text-display text-2xl font-semibold text-white">{t("admin.featured")}</h2>
-        <p className="text-sm text-kino-muted">{t("admin.featuredHint")}</p>
-        <ul className="space-y-2">
-          {reviews.slice(0, 15).map((rev) => (
-            <li
-              key={rev.id}
-              className="glass flex flex-wrap items-center justify-between gap-3 rounded-2xl p-4"
-            >
-              <div>
-                <p className="text-sm font-medium text-white">
-                  {rev.user.displayName} · {rev.rating}/5
-                  {rev.featured && (
-                    <span className="ml-2 text-kino-gold">{t("admin.featuredBadge")}</span>
-                  )}
-                </p>
-                <p className="mt-1 line-clamp-2 text-sm text-kino-muted">{rev.body}</p>
+              <p className="mt-2 text-sm text-kino-muted">Signalé par {report.reporter.displayName}</p>
+              <p className="mt-3 border-l-2 border-white/10 pl-3 text-sm text-white/80">{report.review.body}</p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <button className="chip" onClick={async () => { await apiFetch(`/admin/reports/${report.id}`, { method: "PATCH", body: JSON.stringify({ status: "RESOLVED" }) }); await load(); }}>Résoudre</button>
+                <button className="chip" onClick={async () => { await apiFetch(`/admin/reports/${report.id}`, { method: "PATCH", body: JSON.stringify({ status: "DISMISSED" }) }); await load(); }}>Ignorer</button>
+                <button className="chip text-red-300" onClick={async () => { await apiFetch(`/admin/reviews/${report.reviewId}`, { method: "DELETE" }); await load(); }}>Supprimer la critique</button>
               </div>
-              <button
-                className="chip"
-                onClick={async () => {
-                  await apiFetch(`/reviews/admin/${rev.id}/featured`, {
-                    method: "POST",
-                    body: JSON.stringify({ featured: !rev.featured }),
-                  });
-                  load();
-                }}
-              >
-                {rev.featured ? t("admin.unfeature") : t("admin.feature")}
-              </button>
-            </li>
+            </article>
           ))}
-        </ul>
-      </section>
+          {reports.length === 0 && <p className="text-sm text-kino-muted">Aucun signalement.</p>}
+        </section>
+      )}
+
+      {tab === "users" && (
+        <section className="overflow-x-auto border border-white/10 bg-kino-panel">
+          <table className="w-full min-w-[860px] text-left text-sm">
+            <thead className="border-b border-white/10 text-xs uppercase tracking-wider text-kino-muted">
+              <tr><th className="p-3">Compte</th><th>Rôle</th><th>Activité</th><th>Critiques</th><th>Abonnés</th><th>Actions</th></tr>
+            </thead>
+            <tbody>
+              {users.map((user) => (
+                <tr key={user.id} className="border-b border-white/5">
+                  <td className="p-3"><p className="font-medium text-white">{user.displayName}</p><p className="text-xs text-kino-muted">{user.email}</p></td>
+                  <td className="text-white">{user.role}</td>
+                  <td className="text-kino-muted">{user.lastSeenAt ? new Date(user.lastSeenAt).toLocaleString("fr-FR") : "Jamais"}</td>
+                  <td className="text-white">{user._count.reviewsWritten}</td>
+                  <td className="text-white">{user._count.followers}</td>
+                  <td><div className="flex flex-wrap gap-1">
+                    <button className="chip" onClick={() => updateUser(user.id, { role: user.role === "ADMIN" ? "USER" : "ADMIN" }, "Rôle modifié.")}>{user.role === "ADMIN" ? "Retirer admin" : "Rendre admin"}</button>
+                    <button className="chip" onClick={() => updateUser(user.id, { bannedUntil: user.bannedUntil ? null : "2099-01-01T00:00:00.000Z" }, user.bannedUntil ? "Compte réactivé." : "Compte suspendu.")}>{user.bannedUntil ? "Réactiver" : "Suspendre"}</button>
+                    <button className="chip text-red-300" onClick={() => deleteUser(user.id)}>Supprimer</button>
+                  </div></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
     </div>
   );
+}
+
+function Metric({ label, value, accent = false }: { label: string; value: string | number; accent?: boolean }) {
+  return <div className="border border-white/10 bg-kino-panel p-4"><p className="text-xs uppercase tracking-wider text-kino-muted">{label}</p><p className={`mt-2 text-3xl font-bold ${accent ? "text-emerald-300" : "text-white"}`}>{value}</p></div>;
+}
+
+function Ranking({ title, rows, suffix = "" }: { title: string; rows: Array<{ label: string; value: number }>; suffix?: string }) {
+  const max = Math.max(...rows.map((row) => row.value), 1);
+  return <div><h2 className="mb-3 text-lg font-semibold text-white">{title}</h2><div className="space-y-3">{rows.map((row) => <div key={row.label}><div className="mb-1 flex justify-between gap-3 text-sm"><span className="truncate text-white">{row.label}</span><span className="text-kino-hot">{row.value}{suffix}</span></div><div className="h-2 overflow-hidden bg-white/5"><div className="h-full bg-kino" style={{ width: `${Math.max((row.value / max) * 100, 4)}%` }} /></div></div>)}{rows.length === 0 && <p className="text-sm text-kino-muted">Pas encore assez de données cette semaine.</p>}</div></div>;
 }

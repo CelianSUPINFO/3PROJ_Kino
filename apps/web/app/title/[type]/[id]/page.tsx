@@ -5,7 +5,6 @@ import { useParams } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { statusLabel } from "@/lib/i18n";
 import { useLocale } from "../../../components/AppProviders";
-import { FormattedBody } from "../../../components/FormattedBody";
 import { StarRating } from "../../../components/StarRating";
 
 type Detail = { source: string; data: Record<string, unknown> };
@@ -22,12 +21,12 @@ type ReviewRow = {
 };
 
 type ListRow = { id: string; name: string };
-type Me = { id: string };
+type Me = { id: string; role: string };
 type CommentRow = {
   id: string;
   body: string;
   createdAt: string;
-  user: { displayName: string };
+  user: { id: string; displayName: string };
 };
 
 export default function TitlePage() {
@@ -42,6 +41,7 @@ export default function TitlePage() {
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [meId, setMeId] = useState<string | null>(null);
+  const [meRole, setMeRole] = useState<string | null>(null);
   const [commentsByReview, setCommentsByReview] = useState<Record<string, CommentRow[]>>({});
   const [commentInputs, setCommentInputs] = useState<Record<string, string>>({});
   const [reportInputs, setReportInputs] = useState<Record<string, string>>({});
@@ -67,8 +67,14 @@ export default function TitlePage() {
       .then((rows) => setLists(rows.map((r) => ({ id: r.id, name: r.name }))))
       .catch(() => setLists([]));
     await apiFetch<Me>("/users/me")
-      .then((u) => setMeId(u.id))
-      .catch(() => setMeId(null));
+      .then((u) => {
+        setMeId(u.id);
+        setMeRole(u.role);
+      })
+      .catch(() => {
+        setMeId(null);
+        setMeRole(null);
+      });
     setLoading(false);
   }, [params, t]);
 
@@ -277,6 +283,16 @@ export default function TitlePage() {
       await loadComments(reviewId);
     } catch {
       setMsg(t("title.signInComment"));
+    }
+  }
+
+  async function removeComment(reviewId: string, commentId: string) {
+    try {
+      await apiFetch(`/reviews/comments/${commentId}`, { method: "DELETE" });
+      await Promise.all([loadComments(reviewId), loadAll()]);
+      setMsg(t("title.commentDeleted"));
+    } catch {
+      setMsg(t("title.deleteFailed"));
     }
   }
 
@@ -503,9 +519,6 @@ export default function TitlePage() {
               </div>
               <span className="text-white">{myRating}/5</span>
             </div>
-            <p className="text-xs text-kino-muted">
-              {t("title.formattingHint")}
-            </p>
             <textarea
               className="w-full rounded-xl border border-white/10 bg-black/30 p-3 text-white placeholder:text-white/40 focus:border-kino/60 focus:outline-none"
               rows={4}
@@ -575,7 +588,7 @@ export default function TitlePage() {
                         {t("title.spoilerBadge")}
                       </span>
                     )}
-                    <FormattedBody text={r.body} />
+                    {r.body}
                   </p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <button className="chip" onClick={() => toggleLike(r.id)}>
@@ -633,11 +646,21 @@ export default function TitlePage() {
                     <div className="mt-3 rounded-xl border border-white/10 bg-black/20 p-3">
                       <ul className="space-y-2">
                         {commentsByReview[r.id].map((c) => (
-                          <li key={c.id} className="text-sm text-kino-muted">
-                            <span className="font-medium text-white">
-                              {c.user.displayName}:
-                            </span>{" "}
-                            {c.body}
+                          <li key={c.id} className="flex items-start justify-between gap-3 text-sm text-kino-muted">
+                            <span>
+                              <span className="font-medium text-white">
+                                {c.user.displayName}:
+                              </span>{" "}
+                              {c.body}
+                            </span>
+                            {(meId === c.user.id || meRole === "ADMIN") && (
+                              <button
+                                className="shrink-0 text-xs text-red-300 hover:text-red-200"
+                                onClick={() => removeComment(r.id, c.id)}
+                              >
+                                {t("title.delete")}
+                              </button>
+                            )}
                           </li>
                         ))}
                         {commentsByReview[r.id].length === 0 && (

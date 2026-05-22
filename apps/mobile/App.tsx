@@ -24,6 +24,7 @@ import {
 import * as Linking from "expo-linking";
 import * as WebBrowser from "expo-web-browser";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 import { apiFetch, clearTokens, getApiRoot, logoutSession, setTokens } from "./src/api";
 import { PosterCard, type PosterItem } from "./src/components/PosterCard";
 import type { RootStackParamList } from "./src/navigation/types";
@@ -221,6 +222,7 @@ function HomeScreen({
     navigate: (name: keyof RootStackParamList, params?: object) => void;
   };
 }) {
+  const insets = useSafeAreaInsets();
   const [home, setHome] = useState<HomePayload | null>(null);
   const [engagement, setEngagement] = useState<EngagementPayload | null>(null);
   const [authed, setAuthed] = useState(false);
@@ -281,7 +283,7 @@ function HomeScreen({
         contentContainerStyle={{ paddingBottom: spacing.xxl }}
         showsVerticalScrollIndicator={false}
       >
-        <View style={s.topBar}>
+        <View style={[s.topBar, { paddingTop: Math.max(insets.top, spacing.sm) }]}>
           <Logo />
           <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
             <TouchableOpacity
@@ -2009,10 +2011,12 @@ const s = StyleSheet.create({
 
 export default function App() {
   return (
-    <ThemeContextProvider>
-      <LocaleProvider>
-        <AppNavigator />
-      </LocaleProvider>
-    </ThemeContextProvider>
+    <SafeAreaProvider>
+      <ThemeContextProvider>
+        <LocaleProvider>
+          <AppNavigator />
+        </LocaleProvider>
+      </ThemeContextProvider>
+    </SafeAreaProvider>
   );
 }

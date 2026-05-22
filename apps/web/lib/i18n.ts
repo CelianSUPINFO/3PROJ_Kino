@@ -296,6 +296,7 @@ const fr = {
   "title.send": "Envoyer",
   "title.noComments": "Aucun commentaire.",
   "title.commentPlaceholder": "Ajouter un commentaire…",
+  "title.commentDeleted": "Commentaire supprimé.",
   "title.runtimeMin": "{minutes} min",
 } as const;
 
@@ -595,6 +596,7 @@ const en: Record<keyof typeof fr, string> = {
   "title.send": "Send",
   "title.noComments": "No comments yet.",
   "title.commentPlaceholder": "Add a comment…",
+  "title.commentDeleted": "Comment deleted.",
   "title.runtimeMin": "{minutes} min",
 };
 

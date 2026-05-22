@@ -59,6 +59,7 @@ model User {
   locale       String    @default("fr")
   notifyEmail  Boolean   @default(true)
   notifyPush   Boolean   @default(true)
+  lastSeenAt   DateTime?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
@@ -84,6 +85,8 @@ model User {
   messagesSent   Message[] @relation("MsgSender")
   messagesRecv   Message[] @relation("MsgRecipient")
   swipeDecisions SwipeDecision[]
+
+  @@index([lastSeenAt])
 }
 
 model OAuthAccount {

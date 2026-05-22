@@ -11,7 +11,7 @@ import {
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { AdminGuard } from '../common/guards/admin.guard';
 import { AdminService } from './admin.service';
-import { BanUserDto, ResolveReportDto } from './dto/admin.dto';
+import { BanUserDto, ResolveReportDto, UpdateAdminUserDto } from './dto/admin.dto';
 
 @Controller('admin')
 @UseGuards(JwtAuthGuard, AdminGuard)
@@ -21,6 +21,26 @@ export class AdminController {
   @Get('reports')
   reports() {
     return this.admin.reports();
+  }
+
+  @Get('stats')
+  stats() {
+    return this.admin.stats();
+  }
+
+  @Get('users')
+  users() {
+    return this.admin.users();
+  }
+
+  @Patch('users/:id')
+  updateUser(@Param('id') id: string, @Body() body: UpdateAdminUserDto) {
+    return this.admin.updateUser(id, body);
+  }
+
+  @Delete('users/:id')
+  deleteUser(@Param('id') id: string) {
+    return this.admin.deleteUser(id);
   }
 
   @Patch('reports/:id')

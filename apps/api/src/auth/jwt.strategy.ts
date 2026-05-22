@@ -30,6 +30,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     if (!user || (user.bannedUntil && user.bannedUntil > new Date())) {
       throw new UnauthorizedException();
     }
+    if (!user.lastSeenAt || Date.now() - user.lastSeenAt.getTime() > 60_000) {
+      void this.prisma.user.update({
+        where: { id: user.id },
+        data: { lastSeenAt: new Date() },
+      });
+    }
     return {
       sub: user.id,
       email: user.email,

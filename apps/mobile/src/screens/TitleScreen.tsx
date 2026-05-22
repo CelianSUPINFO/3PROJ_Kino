@@ -13,7 +13,6 @@ import {
   View,
 } from "react-native";
 import { apiFetch } from "../api";
-import { FormattedText } from "../components/FormattedText";
 import type { RootStackParamList } from "../navigation/types";
 import { colors, radius, spacing } from "../theme";
 
@@ -32,7 +31,7 @@ type Review = {
 type Comment = {
   id: string;
   body: string;
-  user: { displayName: string };
+  user: { id: string; displayName: string };
 };
 
 type ListRow = { id: string; name: string };
@@ -47,6 +46,7 @@ export function TitleScreen({ route, navigation }: Props) {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [lists, setLists] = useState<ListRow[]>([]);
   const [meId, setMeId] = useState<string | null>(null);
+  const [meRole, setMeRole] = useState<string | null>(null);
   const [comments, setComments] = useState<Record<string, Comment[]>>({});
   const [commentDraft, setCommentDraft] = useState<Record<string, string>>({});
   const [reportDraft, setReportDraft] = useState<Record<string, string>>({});
@@ -71,9 +71,15 @@ export function TitleScreen({ route, navigation }: Props) {
     apiFetch<ListRow[]>("/library/lists/mine")
       .then(setLists)
       .catch(() => setLists([]));
-    apiFetch<{ id: string }>("/users/me")
-      .then((u) => setMeId(u.id))
-      .catch(() => setMeId(null));
+    apiFetch<{ id: string; role: string }>("/users/me")
+      .then((u) => {
+        setMeId(u.id);
+        setMeRole(u.role);
+      })
+      .catch(() => {
+        setMeId(null);
+        setMeRole(null);
+      });
   }, [type, id]);
 
   const myReview = meId ? reviews.find((r) => r.userId === meId) : undefined;
@@ -156,6 +162,16 @@ export function TitleScreen({ route, navigation }: Props) {
       await loadReviews();
     } catch {
       setMsg("Connexion requise pour commenter.");
+    }
+  }
+
+  async function deleteComment(reviewId: string, commentId: string) {
+    try {
+      await apiFetch(`/reviews/comments/${commentId}`, { method: "DELETE" });
+      await Promise.all([loadCommentsFor(reviewId), loadReviews()]);
+      setMsg("Commentaire supprimé.");
+    } catch {
+      setMsg("Impossible de supprimer ce commentaire.");
     }
   }
 
@@ -272,9 +288,6 @@ export function TitleScreen({ route, navigation }: Props) {
             </>
           )}
           <Text style={s.section}>Votre critique</Text>
-          <Text style={s.hint}>
-            Formatage : **gras**, *italique*. Saut de ligne supporté.
-          </Text>
           <View style={{ flexDirection: "row", gap: 4, marginVertical: 8 }}>
             {[1, 2, 3, 4, 5].map((n) => (
               <Pressable key={n} onPress={() => setRating(n)}>
@@ -315,7 +328,10 @@ export function TitleScreen({ route, navigation }: Props) {
                   {r.user.displayName} · {r.rating}/5
                 </Text>
               </Pressable>
-              <FormattedText text={r.body} style={s.body} spoiler={r.spoiler} />
+              <Text style={s.body}>
+                {r.spoiler ? "[Spoiler] " : ""}
+                {r.body}
+              </Text>
               <View style={s.actions}>
                 <Pressable style={s.chip} onPress={() => toggleLike(r.id)}>
                   <Text style={s.chipText}>J'aime ({r._count?.likes ?? 0})</Text>
@@ -355,12 +371,19 @@ export function TitleScreen({ route, navigation }: Props) {
               {comments[r.id] && (
                 <View style={{ marginTop: 8 }}>
                   {comments[r.id].map((c) => (
-                    <Text key={c.id} style={s.sub}>
-                      <Text style={{ fontWeight: "700", color: colors.text }}>
-                        {c.user.displayName}:
-                      </Text>{" "}
-                      {c.body}
-                    </Text>
+                    <View key={c.id} style={s.commentRow}>
+                      <Text style={[s.sub, { flex: 1 }]}>
+                        <Text style={{ fontWeight: "700", color: colors.text }}>
+                          {c.user.displayName}:
+                        </Text>{" "}
+                        {c.body}
+                      </Text>
+                      {(meId === c.user.id || meRole === "ADMIN") && (
+                        <Pressable onPress={() => deleteComment(r.id, c.id)}>
+                          <Text style={s.deleteComment}>Supprimer</Text>
+                        </Pressable>
+                      )}
+                    </View>
                   ))}
                   <TextInput
                     style={[s.input, { marginTop: 8 }]}
@@ -405,7 +428,6 @@ const s = StyleSheet.create({
   factLabel: { color: colors.muted, fontSize: 10, fontWeight: "700", textTransform: "uppercase" },
   factValue: { color: colors.text, fontSize: 13, fontWeight: "600", marginTop: 4 },
   sub: { color: colors.muted, lineHeight: 20, marginTop: 8 },
-  hint: { color: colors.muted, fontSize: 11, marginTop: 4 },
   section: {
     color: colors.text,
     fontWeight: "700",
@@ -452,6 +474,8 @@ const s = StyleSheet.create({
   },
   author: { color: colors.text, fontWeight: "700" },
   body: { color: colors.muted, marginTop: 6, lineHeight: 20 },
+  commentRow: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
+  deleteComment: { color: "#fca5a5", fontSize: 11, marginTop: 8 },
 });
 
 function Fact({ label, value }: { label: string; value: string }) {
