@@ -31,10 +31,9 @@ export function AuthShell({
         <div className="absolute inset-0 bg-gradient-to-br from-kino-ink/40 via-kino-ink/70 to-kino-ink" />
         <div className="relative z-10 flex h-full flex-col justify-between p-10">
           <Link href="/" className="flex items-center gap-2 text-white">
-            <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-kino to-kino-hot shadow-kino">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 2l2.6 6.3L21 9l-4.8 4.2L17.8 20 12 16.4 6.2 20l1.6-6.8L3 9l6.4-.7L12 2z" />
-              </svg>
+            <span className="inline-flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl shadow-kino">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/kino-logo.png" alt="" className="h-full w-full object-cover" />
             </span>
             <span className="text-display text-2xl font-bold">kino</span>
           </Link>

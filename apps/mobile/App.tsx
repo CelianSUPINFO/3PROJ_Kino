@@ -69,11 +69,7 @@ function useNavTheme() {
 function Logo() {
   return (
     <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-      <View style={logoStyles.square}>
-        <Text style={{ color: "#fff", fontSize: 14, fontWeight: "800" }}>
-          ★
-        </Text>
-      </View>
+      <Image source={require("./assets/icon.png")} style={logoStyles.square} />
       <Text style={logoStyles.word}>kino</Text>
     </View>
   );
@@ -83,10 +79,7 @@ const logoStyles = StyleSheet.create({
   square: {
     width: 32,
     height: 32,
-    backgroundColor: colors.kino,
     borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
   },
   word: {
     color: colors.text,

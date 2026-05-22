@@ -129,10 +129,9 @@ export function Nav() {
       <div className="mx-auto max-w-7xl overflow-visible rounded-2xl border border-white/10 bg-kino-panel/75 shadow-card backdrop-blur-xl">
         <div className="flex items-center gap-2 overflow-visible px-2 py-2 sm:gap-3 sm:px-3 md:px-4">
           <Link href="/" className="flex shrink-0 items-center gap-2 pl-0.5">
-            <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-kino to-kino-hot text-white shadow-kino sm:h-9 sm:w-9">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-                <path d="M12 2l2.6 6.3L21 9l-4.8 4.2L17.8 20 12 16.4 6.2 20l1.6-6.8L3 9l6.4-.7L12 2z" />
-              </svg>
+            <span className="inline-flex h-8 w-8 items-center justify-center overflow-hidden rounded-xl shadow-kino sm:h-9 sm:w-9">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/kino-logo.png" alt="" className="h-full w-full object-cover" />
             </span>
             <span className="text-display hidden text-lg font-bold tracking-tight text-white min-[420px]:inline sm:text-xl">
               kino
