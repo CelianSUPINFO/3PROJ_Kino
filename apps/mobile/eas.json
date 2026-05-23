@@ -18,6 +18,7 @@
     "preview": {
       "distribution": "internal",
       "channel": "preview",
+      "autoIncrement": true,
       "env": {
         "EXPO_PUBLIC_API_URL": "https://kino-api-9ipb.onrender.com/v1"
       },
