@@ -71,6 +71,20 @@ export function MenuScreen({ navigation }: Props) {
 
         <LinkRow label={t("nav.home")} onPress={() => navigation.navigate("Home")} />
         <LinkRow label={t("nav.tonight")} onPress={() => navigation.navigate("Tonight")} />
+        {isAdmin && (
+          <Pressable
+            onPress={() => navigation.navigate("Admin")}
+            style={[s.adminLink, { borderColor: colors.kino, backgroundColor: `${colors.kino}20` }]}
+          >
+            <View>
+              <Text style={[s.adminTitle, { color: colors.kinoHot }]}>Administration</Text>
+              <Text style={{ color: colors.muted, fontSize: 12 }}>
+                Statistiques, comptes et signalements
+              </Text>
+            </View>
+            <Text style={{ color: colors.kinoHot, fontSize: 22 }}>›</Text>
+          </Pressable>
+        )}
 
         <Section id="movies" label={t("nav.movies")}>
           {MOVIE_GENRES.map((g) => (
@@ -132,9 +146,6 @@ export function MenuScreen({ navigation }: Props) {
           label={t("nav.settings")}
           onPress={() => navigation.navigate(authed ? "Settings" : "Login")}
         />
-        {isAdmin && (
-          <LinkRow label={t("nav.admin")} onPress={() => navigation.navigate("Admin")} />
-        )}
         {!authed && (
           <>
             <LinkRow label={t("nav.login")} onPress={() => navigation.navigate("Login")} />
@@ -159,4 +170,14 @@ const s = StyleSheet.create({
   blockTitle: { fontSize: 16, fontWeight: "700" },
   blockBody: { paddingHorizontal: spacing.md, paddingBottom: spacing.sm },
   linkRow: { paddingVertical: 10 },
+  adminLink: {
+    marginVertical: spacing.md,
+    borderWidth: 1,
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  adminTitle: { fontSize: 16, fontWeight: "800", marginBottom: 3 },
 });

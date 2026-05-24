@@ -242,6 +242,17 @@ export function Nav() {
             </Link>
           )}
 
+          {me?.role === "ADMIN" && (
+            <Link
+              href="/admin"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-kino/40 bg-kino/15 text-kino-hot transition hover:bg-kino/25"
+              aria-label={t("nav.admin")}
+              title={t("nav.admin")}
+            >
+              <ShieldIcon />
+            </Link>
+          )}
+
           {isAuthed && me && (
             <Link
               href={`/u/${me.id}`}
@@ -357,6 +368,9 @@ export function Nav() {
                     <MobileSection title={t("nav.library")} href="/library" />
                     <MobileSection title={t("nav.notifications")} href="/notifications" />
                     <MobileSection title={t("nav.messages")} href="/messages" />
+                    {me?.role === "ADMIN" && (
+                      <MobileSection title={`◆ ${t("nav.admin")}`} href="/admin" />
+                    )}
                   </>
                 )}
               </div>
@@ -477,6 +491,25 @@ function BellIcon() {
     >
       <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" />
       <path d="M13.7 21a2 2 0 0 1-3.4 0" />
+    </svg>
+  );
+}
+
+function ShieldIcon() {
+  return (
+    <svg
+      width="17"
+      height="17"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10" />
+      <path d="M9 12l2 2 4-4" />
     </svg>
   );
 }

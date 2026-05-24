@@ -230,6 +230,7 @@ function HomeScreen({
     id: string;
     displayName: string;
     avatarUrl?: string | null;
+    role?: string;
   } | null>(null);
 
   async function reload() {
@@ -254,6 +255,7 @@ function HomeScreen({
         id: string;
         displayName: string;
         avatarUrl?: string | null;
+        role?: string;
       }>("/users/me");
       setMeNav(me);
     } catch {
@@ -286,6 +288,15 @@ function HomeScreen({
         <View style={[s.topBar, { paddingTop: Math.max(insets.top, spacing.sm) }]}>
           <Logo />
           <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
+            {meNav?.role === "ADMIN" && (
+              <TouchableOpacity
+                onPress={() => navigation.navigate("Admin")}
+                style={[s.iconBtn, s.adminIconBtn]}
+                accessibilityLabel="Administration"
+              >
+                <Text style={{ color: colors.kinoHot, fontSize: 16, fontWeight: "800" }}>A</Text>
+              </TouchableOpacity>
+            )}
             <TouchableOpacity
               onPress={() => navigation.navigate("Menu")}
               style={s.iconBtn}
@@ -1738,6 +1749,10 @@ const s = StyleSheet.create({
     borderColor: colors.border,
     alignItems: "center",
     justifyContent: "center",
+  },
+  adminIconBtn: {
+    borderColor: colors.kino,
+    backgroundColor: "rgba(255,46,126,0.12)",
   },
   avatarBtn: {
     width: 38,
