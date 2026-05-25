@@ -1197,8 +1197,10 @@ function FeedScreen({
 type Partner = { id: string; displayName: string; unreadCount?: number };
 type Msg = { id: string; body: string; createdAt: string; senderId?: string };
 
-function MessagesScreen() {
+function MessagesScreen({ route }: { route: { params?: { userId?: string } } }) {
   const [partners, setPartners] = useState<Partner[]>([]);
+  const [available, setAvailable] = useState<Partner[]>([]);
+  const [choosing, setChoosing] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Msg[]>([]);
   const [body, setBody] = useState("");
@@ -1208,10 +1210,22 @@ function MessagesScreen() {
     apiFetch<Partner[]>("/messages/partners")
       .then((rows) => {
         setPartners(rows);
-        if (rows[0]) setSelectedId(rows[0].id);
+        setSelectedId(route.params?.userId ?? rows[0]?.id ?? null);
       })
       .catch(() => setMsg("Sign in required"));
-  }, []);
+  }, [route.params?.userId]);
+
+  async function openChooser() {
+    const rows = await apiFetch<Partner[]>("/messages/available");
+    setAvailable(rows);
+    setChoosing(true);
+  }
+
+  function startConversation(partner: Partner) {
+    setPartners((rows) => rows.some((row) => row.id === partner.id) ? rows : [partner, ...rows]);
+    setSelectedId(partner.id);
+    setChoosing(false);
+  }
 
   useEffect(() => {
     if (!selectedId) return;
@@ -1233,10 +1247,23 @@ function MessagesScreen() {
 
   return (
     <SafeAreaView style={s.screen}>
-      <View style={{ padding: spacing.lg }}>
-        <Eyebrow>CHAT</Eyebrow>
-        <H1>Messages</H1>
+      <View style={{ padding: spacing.lg, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+        <View><Eyebrow>CHAT</Eyebrow><H1>Messages</H1></View>
+        <TouchableOpacity accessibilityLabel="Nouvelle discussion" onPress={openChooser} style={s.btnPrimary}>
+          <Text style={s.btnPrimaryText}>+</Text>
+        </TouchableOpacity>
       </View>
+      {choosing && (
+        <View style={[s.card, { marginHorizontal: spacing.lg, marginBottom: 8 }]}>
+          <Text style={{ color: colors.text, fontWeight: "700", marginBottom: 6 }}>Nouvelle discussion</Text>
+          {available.map((partner) => (
+            <TouchableOpacity key={partner.id} onPress={() => startConversation(partner)} style={{ paddingVertical: 8 }}>
+              <Text style={{ color: colors.kinoHot }}>{partner.displayName}</Text>
+            </TouchableOpacity>
+          ))}
+          {available.length === 0 && <Text style={s.sub}>Aucun abonnement mutuel sans discussion.</Text>}
+        </View>
+      )}
       {msg && <Text style={[s.err, { marginLeft: spacing.lg }]}>{msg}</Text>}
       <FlatList
         horizontal

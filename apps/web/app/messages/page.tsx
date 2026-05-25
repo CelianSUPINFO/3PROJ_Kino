@@ -32,6 +32,8 @@ export default function MessagesPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [body, setBody] = useState("");
   const [err, setErr] = useState<string | null>(null);
+  const [available, setAvailable] = useState<Partner[]>([]);
+  const [choosing, setChoosing] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -41,10 +43,24 @@ export default function MessagesPage() {
     apiFetch<Partner[]>("/messages/partners")
       .then((rows) => {
         setPartners(rows);
-        if (rows.length > 0) setSelected(rows[0]);
+        const requested = new URLSearchParams(window.location.search).get("userId");
+        const initial = rows.find((row) => row.id === requested) ?? rows[0];
+        if (initial) setSelected(initial);
       })
       .catch(() => setErr(t("messages.signIn")));
   }, [t]);
+
+  async function openChooser() {
+    const rows = await apiFetch<Partner[]>("/messages/available");
+    setAvailable(rows);
+    setChoosing(true);
+  }
+
+  function startConversation(partner: Partner) {
+    setPartners((rows) => rows.some((row) => row.id === partner.id) ? rows : [partner, ...rows]);
+    setSelected(partner);
+    setChoosing(false);
+  }
 
   useEffect(() => {
     if (!selected) return;
@@ -83,9 +99,21 @@ export default function MessagesPage() {
   return (
     <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
       <aside className="glass h-fit rounded-2xl p-3 md:sticky md:top-24">
-        <h1 className="text-display px-2 pb-2 text-lg font-semibold text-white">
-          {t("messages.title")}
-        </h1>
+        <div className="flex items-center justify-between px-2 pb-2">
+          <h1 className="text-display text-lg font-semibold text-white">{t("messages.title")}</h1>
+          <button type="button" aria-label="Nouvelle discussion" className="chip text-lg" onClick={() => void openChooser()}>+</button>
+        </div>
+        {choosing && (
+          <div className="mb-3 rounded-xl border border-white/10 bg-black/20 p-2">
+            <p className="px-2 pb-2 text-xs text-kino-muted">Nouvelle discussion</p>
+            {available.map((partner) => (
+              <button key={partner.id} type="button" className="block w-full rounded-lg px-2 py-2 text-left text-sm text-white hover:bg-white/10" onClick={() => startConversation(partner)}>
+                {partner.displayName}
+              </button>
+            ))}
+            {available.length === 0 && <p className="px-2 py-2 text-xs text-kino-muted">Aucun abonnement mutuel sans discussion.</p>}
+          </div>
+        )}
         <ul className="space-y-1">
           {partners.map((p) => (
             <li key={p.id}>

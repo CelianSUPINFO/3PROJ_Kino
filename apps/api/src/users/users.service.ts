@@ -43,6 +43,13 @@ export class UsersService {
 
   async updateMe(userId: string, data: UpdateProfileDto) {
     const { favoriteFilms, ...rest } = data;
+    if (favoriteFilms) {
+      const movies = favoriteFilms.filter((item) => item.mediaType === 'MOVIE');
+      const series = favoriteFilms.filter((item) => item.mediaType === 'TV');
+      if (movies.length > 5 || series.length > 5) {
+        throw new BadRequestException('Maximum 5 films et 5 séries favoris');
+      }
+    }
     return this.prisma.user.update({
       where: { id: userId },
       data: {

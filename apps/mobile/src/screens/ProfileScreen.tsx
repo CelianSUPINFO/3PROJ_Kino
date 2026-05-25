@@ -75,6 +75,8 @@ export function ProfileScreen({ route, navigation }: Props) {
   const [draft, setDraft] = useState<Profile | null>(null);
   const [uploading, setUploading] = useState<"avatar" | "banner" | null>(null);
   const [pickQ, setPickQ] = useState("");
+  const [pickType, setPickType] = useState<"movie" | "tv">("movie");
+  const [revealedSpoilers, setRevealedSpoilers] = useState<Set<string>>(new Set());
   const [pickResults, setPickResults] = useState<
     { id: number; title?: string; name?: string; poster_path?: string; media_type?: string }[]
   >([]);
@@ -108,18 +110,21 @@ export function ProfileScreen({ route, navigation }: Props) {
   useEffect(() => {
     const timer = setTimeout(() => {
       const path = pickQ.trim().length >= 2
-        ? `/media/search?q=${encodeURIComponent(pickQ)}&page=1&type=movie`
-        : "/media/discover/movie?page=1&sort=popularity.desc";
+        ? `/media/search?q=${encodeURIComponent(pickQ)}&page=1&type=${pickType}`
+        : `/media/discover/${pickType}?page=1&sort=popularity.desc`;
       apiFetch<{ results: typeof pickResults }>(path, { auth: false })
         .then((r) => setPickResults(r.results?.slice(0, 6) ?? []))
         .catch(() => setPickResults([]));
     }, 250);
     return () => clearTimeout(timer);
-  }, [pickQ]);
+  }, [pickQ, pickType]);
 
   const isOwn = meId === profile?.id;
   const isFollowing = meId ? followers.some((u) => u.id === meId) : false;
   const favorites = profile?.favoriteFilms ?? [];
+  const favoriteMovies = favorites.filter((item) => item.mediaType === "MOVIE");
+  const favoriteSeries = favorites.filter((item) => item.mediaType === "TV");
+  const mutualFollow = !!meId && isFollowing && following.some((user) => user.id === meId);
 
   async function toggleFollow() {
     if (!profile || !meId) {
@@ -208,11 +213,12 @@ export function ProfileScreen({ route, navigation }: Props) {
   function addFavorite(item: (typeof pickResults)[0]) {
     if (!draft) return;
     const list = [...(draft.favoriteFilms ?? [])];
-    if (list.length >= 5) return;
-    if (list.some((f) => f.tmdbId === item.id)) return;
+    const mediaType = pickType === "tv" ? "TV" : "MOVIE";
+    if (list.filter((f) => f.mediaType === mediaType).length >= 5) return;
+    if (list.some((f) => f.tmdbId === item.id && f.mediaType === mediaType)) return;
     list.push({
       tmdbId: item.id,
-      mediaType: item.media_type === "tv" ? "TV" : "MOVIE",
+      mediaType,
       title: item.title ?? item.name,
       posterPath: item.poster_path ?? null,
     });
@@ -221,11 +227,11 @@ export function ProfileScreen({ route, navigation }: Props) {
     setPickResults([]);
   }
 
-  function removeFavorite(tmdbId: number) {
+  function removeFavorite(tmdbId: number, mediaType: FavoriteFilm["mediaType"]) {
     if (!draft) return;
     setDraft({
       ...draft,
-      favoriteFilms: (draft.favoriteFilms ?? []).filter((f) => f.tmdbId !== tmdbId),
+      favoriteFilms: (draft.favoriteFilms ?? []).filter((f) => f.tmdbId !== tmdbId || f.mediaType !== mediaType),
     });
   }
 
@@ -284,14 +290,16 @@ export function ProfileScreen({ route, navigation }: Props) {
             </Pressable>
           )}
           {!isOwn && meId && (
-            <Pressable
-              style={[s.btn, { backgroundColor: colors.kino }]}
-              onPress={toggleFollow}
-            >
-              <Text style={s.btnText}>
-                {isFollowing ? t("profile.unfollow") : t("profile.follow")}
-              </Text>
-            </Pressable>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+              {mutualFollow && (
+                <Pressable style={[s.btnGhost, { borderColor: colors.border }]} onPress={() => navigation.navigate("Messages", { userId: profile.id })}>
+                  <Text style={{ color: colors.text, fontWeight: "700" }}>Message</Text>
+                </Pressable>
+              )}
+              <Pressable style={[s.btn, { backgroundColor: colors.kino }]} onPress={toggleFollow}>
+                <Text style={s.btnText}>{isFollowing ? t("profile.unfollow") : t("profile.follow")}</Text>
+              </Pressable>
+            </View>
           )}
           {msg && <Text style={[s.sub, { color: colors.muted }]}>{msg}</Text>}
 
@@ -326,7 +334,11 @@ export function ProfileScreen({ route, navigation }: Props) {
                 colors={colors}
               />
               <Text style={[s.section, { color: colors.text }]}>{t("profile.favorites")}</Text>
-              <Text style={[s.sub, { color: colors.muted }]}>{t("profile.favoritesHint")}</Text>
+              <Text style={[s.sub, { color: colors.muted }]}>5 films et 5 séries maximum.</Text>
+              <View style={{ flexDirection: "row", gap: 8, marginVertical: 8 }}>
+                <Pressable style={pickType === "movie" ? [s.btn, { backgroundColor: colors.kino }] : [s.btnGhost, { borderColor: colors.border }]} onPress={() => setPickType("movie")}><Text style={pickType === "movie" ? s.btnText : { color: colors.text }}>Films</Text></Pressable>
+                <Pressable style={pickType === "tv" ? [s.btn, { backgroundColor: colors.kino }] : [s.btnGhost, { borderColor: colors.border }]} onPress={() => setPickType("tv")}><Text style={pickType === "tv" ? s.btnText : { color: colors.text }}>Séries</Text></Pressable>
+              </View>
               <TextInput
                 value={pickQ}
                 onChangeText={setPickQ}
@@ -335,7 +347,7 @@ export function ProfileScreen({ route, navigation }: Props) {
                 style={[s.input, { borderColor: colors.border, color: colors.text }]}
               />
               <Text style={[s.sub, { color: colors.muted }]}>
-                {t("profile.favoriteCount", { count: draft.favoriteFilms?.length ?? 0 })}
+                    {(draft.favoriteFilms ?? []).filter((item) => item.mediaType === (pickType === "tv" ? "TV" : "MOVIE")).length}/5
               </Text>
               {pickResults.map((item) => (
                 <Pressable key={item.id} onPress={() => addFavorite(item)} style={[s.pickRow, { borderColor: colors.border }]}>
@@ -349,9 +361,9 @@ export function ProfileScreen({ route, navigation }: Props) {
               <FlatList
                 horizontal
                 data={draft.favoriteFilms ?? []}
-                keyExtractor={(f) => String(f.tmdbId)}
+                keyExtractor={(f) => `${f.mediaType}-${f.tmdbId}`}
                 renderItem={({ item }) => (
-                  <Pressable onPress={() => removeFavorite(item.tmdbId)} style={s.favCard}>
+                  <Pressable onPress={() => removeFavorite(item.tmdbId, item.mediaType)} style={s.favCard}>
                     {item.posterPath ? (
                       <Image
                         source={{ uri: `https://image.tmdb.org/t/p/w185${item.posterPath}` }}
@@ -388,9 +400,9 @@ export function ProfileScreen({ route, navigation }: Props) {
 
           {!editing && favorites.length > 0 && (
             <>
-              <Text style={[s.section, { color: colors.text }]}>{t("profile.favorites")}</Text>
+              <Text style={[s.section, { color: colors.text }]}>Films préférés</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
-                {favorites.map((f) => (
+                {favoriteMovies.map((f) => (
                   <Pressable
                     key={f.tmdbId}
                     style={s.favCard}
@@ -413,6 +425,15 @@ export function ProfileScreen({ route, navigation }: Props) {
                     <Text numberOfLines={1} style={{ color: colors.muted, fontSize: 11, maxWidth: 72 }}>
                       {f.title}
                     </Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+              <Text style={[s.section, { color: colors.text, marginTop: spacing.lg }]}>Séries préférées</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 8 }}>
+                {favoriteSeries.map((f) => (
+                  <Pressable key={`TV-${f.tmdbId}`} style={s.favCard} onPress={() => navigation.navigate("Title", { type: "tv", id: f.tmdbId, title: f.title ?? "Série" })}>
+                    {f.posterPath ? <Image source={{ uri: `https://image.tmdb.org/t/p/w185${f.posterPath}` }} style={s.favPoster} /> : <View style={[s.favPoster, { backgroundColor: colors.border }]} />}
+                    <Text numberOfLines={1} style={{ color: colors.muted, fontSize: 11, maxWidth: 72 }}>{f.title}</Text>
                   </Pressable>
                 ))}
               </ScrollView>
@@ -440,9 +461,11 @@ export function ProfileScreen({ route, navigation }: Props) {
                   <View style={{ flex: 1 }}>
                     <Text style={{ color: colors.text, fontWeight: "800" }}>{review.title}</Text>
                     <Text style={{ color: colors.gold, marginTop: 3 }}>{"★".repeat(review.rating)} {review.rating}/5</Text>
-                    <Text style={{ color: colors.muted, marginTop: 5 }} numberOfLines={4}>
-                      {review.spoiler ? "[Spoiler] " : ""}{review.body}
-                    </Text>
+                    {review.spoiler && !revealedSpoilers.has(review.id) ? (
+                      <Pressable style={[s.btnGhost, { borderColor: colors.border, marginTop: 6, alignSelf: "flex-start" }]} onPress={() => setRevealedSpoilers((current) => new Set(current).add(review.id))}>
+                        <Text style={{ color: colors.text, fontWeight: "700" }}>Spoiler</Text>
+                      </Pressable>
+                    ) : <Text style={{ color: colors.muted, marginTop: 5 }} numberOfLines={4}>{review.body}</Text>}
                     <Text style={{ color: colors.muted, fontSize: 11, marginTop: 6 }}>
                       {review._count.likes} J'aime · {review._count.comments} commentaires
                     </Text>

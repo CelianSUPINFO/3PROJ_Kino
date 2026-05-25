@@ -23,9 +23,11 @@ export function ListDetailScreen({ route, navigation }: Props) {
   const [titles, setTitles] = useState<Title[]>([]);
   const [meId, setMeId] = useState<string | null>(null);
   const [editName, setEditName] = useState(listName);
+  const [addQ, setAddQ] = useState("");
+  const [results, setResults] = useState<{ id: number; title?: string }[]>([]);
 
   async function load() {
-    const data = await apiFetch<ListDetail>(`/library/lists/${listId}`, { auth: false });
+    const data = await apiFetch<ListDetail>(`/library/lists/${listId}`);
     setList(data);
     setEditName(data.name);
     const enriched = await Promise.all(data.items.map(async (item) => {
@@ -45,6 +47,19 @@ export function ListDetailScreen({ route, navigation }: Props) {
     apiFetch<{ id: string }>("/users/me").then((me) => setMeId(me.id)).catch(() => setMeId(null));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [listId]);
+
+  useEffect(() => {
+    if (!list || meId !== list.userId || addQ.trim().length < 2) {
+      setResults([]);
+      return;
+    }
+    const timer = setTimeout(() => {
+      apiFetch<{ results: typeof results }>(`/media/search?q=${encodeURIComponent(addQ)}&type=movie&page=1`, { auth: false })
+        .then((data) => setResults(data.results.slice(0, 6)))
+        .catch(() => setResults([]));
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [addQ, list, meId]);
 
   async function remove(item: Title) {
     if (!list) return;
@@ -73,6 +88,14 @@ export function ListDetailScreen({ route, navigation }: Props) {
     navigation.goBack();
   }
 
+  async function addItem(tmdbId: number) {
+    if (!list) return;
+    await apiFetch(`/library/lists/${list.id}/items`, { method: "POST", body: JSON.stringify({ tmdbId, mediaType: "MOVIE" }) });
+    setAddQ("");
+    setResults([]);
+    await load();
+  }
+
   const owner = !!list && meId === list.userId;
   return (
     <SafeAreaView style={[s.screen, { backgroundColor: colors.ink }]}>
@@ -90,6 +113,12 @@ export function ListDetailScreen({ route, navigation }: Props) {
             <Pressable style={[s.button, { borderColor: colors.border }]} onPress={toggleVisibility}><Text style={{ color: colors.text }}>{list?.isPublic ? "Rendre privée" : "Rendre publique"}</Text></Pressable>
             <Pressable style={[s.button, { borderColor: "#fca5a5" }]} onPress={deleteList}><Text style={{ color: "#fca5a5" }}>Supprimer la liste</Text></Pressable>
             </View>
+            <TextInput value={addQ} onChangeText={setAddQ} placeholder="Rechercher un film à ajouter..." placeholderTextColor={colors.muted} style={[s.renameInput, { borderColor: colors.border, color: colors.text, marginTop: 12 }]} />
+            {results.map((result) => (
+              <Pressable key={result.id} style={[s.resultRow, { borderBottomColor: colors.border }]} onPress={() => addItem(result.id)}>
+                <Text style={{ color: colors.text, flex: 1 }}>{result.title}</Text><Text style={{ color: colors.kinoHot, fontSize: 20 }}>+</Text>
+              </Pressable>
+            ))}
           </View>
         )}
       </View>
@@ -125,4 +154,5 @@ const s = StyleSheet.create({
   poster: { width: 44, height: 66, borderRadius: radius.sm },
   title: { flex: 1, fontWeight: "600" },
   remove: { padding: 10 },
+  resultRow: { flexDirection: "row", alignItems: "center", paddingVertical: 9, borderBottomWidth: StyleSheet.hairlineWidth },
 });

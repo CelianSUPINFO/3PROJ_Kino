@@ -78,6 +78,9 @@ export function LibraryScreen({ navigation }: Props) {
   const [newListName, setNewListName] = useState("");
   const [newListPublic, setNewListPublic] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const [addTargetId, setAddTargetId] = useState<string | null>(null);
+  const [addQ, setAddQ] = useState("");
+  const [addResults, setAddResults] = useState<{ id: number; title?: string }[]>([]);
 
   async function load() {
     try {
@@ -100,6 +103,19 @@ export function LibraryScreen({ navigation }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    if (!addTargetId || addQ.trim().length < 2) {
+      setAddResults([]);
+      return;
+    }
+    const timer = setTimeout(() => {
+      apiFetch<{ results: typeof addResults }>(`/media/search?q=${encodeURIComponent(addQ)}&type=movie&page=1`, { auth: false })
+        .then((data) => setAddResults(data.results.slice(0, 6)))
+        .catch(() => setAddResults([]));
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [addQ, addTargetId]);
+
   const byStatus = useMemo(() => {
     const map: Record<string, PosterItem[]> = {};
     for (const s of STATUS_ORDER) map[s] = [];
@@ -118,6 +134,14 @@ export function LibraryScreen({ navigation }: Props) {
     setNewListName("");
     setNewListPublic(false);
     load();
+  }
+
+  async function addMovieToList(tmdbId: number) {
+    if (!addTargetId) return;
+    await apiFetch(`/library/lists/${addTargetId}/items`, { method: "POST", body: JSON.stringify({ tmdbId, mediaType: "MOVIE" }) });
+    setAddQ("");
+    setAddResults([]);
+    await load();
   }
 
   function openTitle(item: PosterItem) {
@@ -218,6 +242,24 @@ export function LibraryScreen({ navigation }: Props) {
               </Text>
             </Pressable>
           ))}
+          {lists.length > 0 && (
+            <View style={{ marginTop: spacing.md }}>
+              <Text style={{ color: colors.muted, marginBottom: 6 }}>Ajouter un film à une liste</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, marginBottom: 8 }}>
+                {lists.map((list) => (
+                  <Pressable key={list.id} style={[s.targetChip, { borderColor: addTargetId === list.id ? colors.kino : colors.border }]} onPress={() => setAddTargetId(list.id)}>
+                    <Text style={{ color: colors.text }}>{list.name}</Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+              <TextInput value={addQ} onChangeText={setAddQ} editable={!!addTargetId} placeholder="Rechercher un film..." placeholderTextColor={colors.muted} style={[s.input, { borderColor: colors.border, color: colors.text, opacity: addTargetId ? 1 : 0.5 }]} />
+              {addResults.map((result) => (
+                <Pressable key={result.id} style={[s.resultRow, { borderBottomColor: colors.border }]} onPress={() => addMovieToList(result.id)}>
+                  <Text style={{ color: colors.text, flex: 1 }}>{result.title}</Text><Text style={{ color: colors.kinoHot, fontSize: 20 }}>+</Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -241,4 +283,6 @@ const s = StyleSheet.create({
   input: { borderWidth: 1, borderRadius: radius.pill, paddingHorizontal: 14, paddingVertical: 8 },
   addBtn: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
   listRow: { paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "rgba(255,255,255,0.08)" },
+  targetChip: { borderWidth: 1, borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 7 },
+  resultRow: { flexDirection: "row", alignItems: "center", paddingVertical: 9, borderBottomWidth: StyleSheet.hairlineWidth },
 });

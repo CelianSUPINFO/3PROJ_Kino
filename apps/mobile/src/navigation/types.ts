@@ -18,7 +18,7 @@ export type RootStackParamList = {
 
   LibraryStatus: { status: string; title: string };
 
-  Messages: undefined;
+  Messages: { userId?: string } | undefined;
 
   Notifications: undefined;
 

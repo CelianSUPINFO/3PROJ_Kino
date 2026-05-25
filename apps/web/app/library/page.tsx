@@ -66,6 +66,9 @@ export default function LibraryPage() {
   const [newListPublic, setNewListPublic] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
+  const [addTargetId, setAddTargetId] = useState("");
+  const [addQ, setAddQ] = useState("");
+  const [addResults, setAddResults] = useState<{ id: number; title?: string }[]>([]);
 
   async function loadData() {
     apiFetch<StatusRow[]>("/library/me")
@@ -83,6 +86,19 @@ export default function LibraryPage() {
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!addTargetId || addQ.trim().length < 2) {
+      setAddResults([]);
+      return;
+    }
+    const timer = setTimeout(() => {
+      apiFetch<{ results: typeof addResults }>(`/media/search?q=${encodeURIComponent(addQ)}&type=movie&page=1`, { auth: false })
+        .then((data) => setAddResults(data.results.slice(0, 6)))
+        .catch(() => setAddResults([]));
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [addQ, addTargetId]);
 
   const byStatus = useMemo(() => {
     const map: Record<string, PosterCardData[]> = {};
@@ -113,6 +129,14 @@ export default function LibraryPage() {
   async function deleteList(list: ListRow) {
     if (!confirm(`Supprimer la liste "${list.name}" ?`)) return;
     await apiFetch(`/library/lists/${list.id}`, { method: "DELETE" });
+    await loadData();
+  }
+
+  async function addMovieToList(tmdbId: number) {
+    if (!addTargetId) return;
+    await apiFetch(`/library/lists/${addTargetId}/items`, { method: "POST", body: JSON.stringify({ tmdbId, mediaType: "MOVIE" }) });
+    setAddQ("");
+    setAddResults([]);
     await loadData();
   }
 
@@ -201,6 +225,20 @@ export default function LibraryPage() {
             +
           </button>
         </div>
+        {lists.length > 0 && (
+          <div className="relative flex flex-col gap-2 border-t border-white/10 pt-4 sm:flex-row">
+            <select value={addTargetId} onChange={(e) => setAddTargetId(e.target.value)} className="rounded-full border border-white/10 bg-black/30 px-4 py-2 text-sm text-white">
+              <option value="">Choisir une liste</option>
+              {lists.map((list) => <option key={list.id} value={list.id}>{list.name}</option>)}
+            </select>
+            <div className="relative flex-1">
+              <input value={addQ} onChange={(e) => setAddQ(e.target.value)} disabled={!addTargetId} placeholder="Rechercher un film à ajouter..." className="w-full rounded-full border border-white/10 bg-black/30 px-4 py-2 text-sm text-white disabled:opacity-50" />
+              {addResults.length > 0 && <div className="absolute z-20 mt-2 w-full rounded-xl border border-white/10 bg-kino-panel p-2 shadow-card">
+                {addResults.map((result) => <button key={result.id} type="button" className="block w-full rounded-lg px-3 py-2 text-left text-sm text-white hover:bg-white/10" onClick={() => void addMovieToList(result.id)}>{result.title}</button>)}
+              </div>}
+            </div>
+          </div>
+        )}
         <ul className="space-y-2">
           {lists.map((l) => (
             <li

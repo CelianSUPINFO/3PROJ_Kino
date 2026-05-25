@@ -59,6 +59,8 @@ export default function UserPage() {
   const [draft, setDraft] = useState<Profile | null>(null);
   const [uploading, setUploading] = useState<"avatar" | "banner" | null>(null);
   const [pickQ, setPickQ] = useState("");
+  const [pickType, setPickType] = useState<"movie" | "tv">("movie");
+  const [revealedSpoilers, setRevealedSpoilers] = useState<Set<string>>(new Set());
   const [pickResults, setPickResults] = useState<
     { id: number; title?: string; name?: string; poster_path?: string; media_type?: string }[]
   >([]);
@@ -101,18 +103,21 @@ export default function UserPage() {
     }
     const timer = setTimeout(() => {
       apiFetch<{ results: typeof pickResults }>(
-        `/media/search?q=${encodeURIComponent(pickQ)}&page=1&type=movie`,
+        `/media/search?q=${encodeURIComponent(pickQ)}&page=1&type=${pickType}`,
         { auth: false },
       )
         .then((r) => setPickResults(r.results?.slice(0, 6) ?? []))
         .catch(() => setPickResults([]));
     }, 250);
     return () => clearTimeout(timer);
-  }, [pickQ]);
+  }, [pickQ, pickType]);
 
   const isOwnProfile = meId === p?.id;
   const isFollowing = meId ? followers.some((u) => u.id === meId) : false;
   const favorites = (p?.favoriteFilms ?? []) as FavoriteFilm[];
+  const favoriteMovies = favorites.filter((item) => item.mediaType === "MOVIE");
+  const favoriteSeries = favorites.filter((item) => item.mediaType === "TV");
+  const mutualFollow = !!meId && isFollowing && following.some((user) => user.id === meId);
 
   async function toggleFollow() {
     if (!p) return;
@@ -179,11 +184,12 @@ export default function UserPage() {
   function addFavorite(item: (typeof pickResults)[0]) {
     if (!draft) return;
     const list = [...(draft.favoriteFilms ?? [])];
-    if (list.length >= 5) return;
-    if (list.some((f) => f.tmdbId === item.id)) return;
+    const mediaType = pickType === "tv" ? "TV" : "MOVIE";
+    if (list.filter((f) => f.mediaType === mediaType).length >= 5) return;
+    if (list.some((f) => f.tmdbId === item.id && f.mediaType === mediaType)) return;
     list.push({
       tmdbId: item.id,
-      mediaType: item.media_type === "tv" ? "TV" : "MOVIE",
+      mediaType,
       title: item.title ?? item.name,
       posterPath: item.poster_path ?? null,
     });
@@ -192,11 +198,11 @@ export default function UserPage() {
     setPickResults([]);
   }
 
-  function removeFavorite(tmdbId: number) {
+  function removeFavorite(tmdbId: number, mediaType: FavoriteFilm["mediaType"]) {
     if (!draft) return;
     setDraft({
       ...draft,
-      favoriteFilms: (draft.favoriteFilms ?? []).filter((f) => f.tmdbId !== tmdbId),
+      favoriteFilms: (draft.favoriteFilms ?? []).filter((f) => f.tmdbId !== tmdbId || f.mediaType !== mediaType),
     });
   }
 
@@ -282,9 +288,12 @@ export default function UserPage() {
                   </button>
                 )
               ) : (
-                <button type="button" className="btn-primary !py-2 !px-4 text-sm" onClick={toggleFollow}>
-                  {isFollowing ? t("profile.unfollow") : t("profile.follow")}
-                </button>
+                <>
+                  {mutualFollow && <Link href={`/messages?userId=${p.id}`} className="chip">Message</Link>}
+                  <button type="button" className="btn-primary !py-2 !px-4 text-sm" onClick={toggleFollow}>
+                    {isFollowing ? t("profile.unfollow") : t("profile.follow")}
+                  </button>
+                </>
               )}
             </div>
           </div>
@@ -307,7 +316,11 @@ export default function UserPage() {
               <Field label={t("profile.website")} value={draft.website ?? ""} onChange={(v) => setDraft({ ...draft, website: v })} />
               <div>
                 <p className="text-sm font-semibold text-white">{t("profile.favorites")}</p>
-                <p className="text-xs text-kino-muted">{t("profile.favoritesHint")}</p>
+                <p className="text-xs text-kino-muted">Choisissez jusqu&apos;à 5 films et 5 séries.</p>
+                <div className="mt-2 flex gap-2">
+                  <button type="button" className={pickType === "movie" ? "btn-primary !py-1.5 !px-4 text-xs" : "chip"} onClick={() => setPickType("movie")}>Films</button>
+                  <button type="button" className={pickType === "tv" ? "btn-primary !py-1.5 !px-4 text-xs" : "chip"} onClick={() => setPickType("tv")}>Séries</button>
+                </div>
                 <input
                   className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white"
                   placeholder={t("nav.searchPlaceholder")}
@@ -331,7 +344,7 @@ export default function UserPage() {
                 )}
                 <div className="mt-3 flex flex-wrap gap-2">
                   {(draft.favoriteFilms ?? []).map((f) => (
-                    <div key={f.tmdbId} className="relative">
+                    <div key={`${f.mediaType}-${f.tmdbId}`} className="relative">
                       {f.posterPath ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
@@ -347,7 +360,7 @@ export default function UserPage() {
                       <button
                         type="button"
                         className="absolute -right-1 -top-1 rounded-full bg-red-500 px-1.5 text-xs text-white"
-                        onClick={() => removeFavorite(f.tmdbId)}
+                        onClick={() => removeFavorite(f.tmdbId, f.mediaType)}
                       >
                         ×
                       </button>
@@ -379,10 +392,10 @@ export default function UserPage() {
 
       {!editing && (
         <section className="glass rounded-2xl p-5">
-          <h2 className="text-display text-lg font-semibold text-white">{t("profile.favorites")}</h2>
+          <h2 className="text-display text-lg font-semibold text-white">Films préférés</h2>
           {favorites.length > 0 ? (
             <div className="mt-4 grid grid-cols-3 gap-3 min-[420px]:grid-cols-4 sm:flex sm:flex-wrap">
-              {favorites.map((f) => (
+              {favoriteMovies.map((f) => (
                 <Link
                   key={f.tmdbId}
                   href={`/title/${f.mediaType === "TV" ? "tv" : "movie"}/${f.tmdbId}`}
@@ -407,6 +420,20 @@ export default function UserPage() {
           ) : (
             <p className="mt-3 text-sm text-kino-muted">{t("profile.noFavorites")}</p>
           )}
+          <h2 className="mt-6 text-display text-lg font-semibold text-white">Séries préférées</h2>
+          {favoriteSeries.length > 0 ? (
+            <div className="mt-4 grid grid-cols-3 gap-3 min-[420px]:grid-cols-4 sm:flex sm:flex-wrap">
+              {favoriteSeries.map((f) => (
+                <Link key={`TV-${f.tmdbId}`} href={`/title/tv/${f.tmdbId}`} className="group min-w-0 sm:w-24 sm:shrink-0">
+                  {f.posterPath ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={`https://image.tmdb.org/t/p/w185${f.posterPath}`} alt="" className="aspect-[2/3] w-full rounded-xl object-cover transition group-hover:ring-2 group-hover:ring-kino" />
+                  ) : <div className="flex aspect-[2/3] items-center justify-center rounded-xl bg-white/10 text-xs text-white">#{f.tmdbId}</div>}
+                  <p className="mt-1 truncate text-xs text-kino-muted">{f.title}</p>
+                </Link>
+              ))}
+            </div>
+          ) : <p className="mt-3 text-sm text-kino-muted">{t("profile.noFavorites")}</p>}
         </section>
       )}
 
@@ -417,9 +444,8 @@ export default function UserPage() {
           </h2>
           <div className="mt-4 grid gap-3 md:grid-cols-2">
             {reviews.map((review) => (
-              <Link
+              <div
                 key={review.id}
-                href={`/title/${review.mediaType === "TV" ? "tv" : "movie"}/${review.tmdbId}`}
                 className="flex gap-3 border border-white/10 bg-white/[0.03] p-3 transition hover:border-kino/40"
               >
                 {review.posterPath && (
@@ -427,11 +453,13 @@ export default function UserPage() {
                   <img src={`https://image.tmdb.org/t/p/w185${review.posterPath}`} alt="" className="h-24 w-16 shrink-0 object-cover" />
                 )}
                 <div className="min-w-0">
-                  <p className="font-semibold text-white">{review.title}</p>
+                  <Link href={`/title/${review.mediaType === "TV" ? "tv" : "movie"}/${review.tmdbId}`} className="font-semibold text-white hover:text-kino-hot">{review.title}</Link>
                   <p className="mt-1 text-sm text-kino-gold">{"★".repeat(review.rating)} {review.rating}/5</p>
-                  <p className="mt-2 line-clamp-3 text-sm text-kino-muted">{review.spoiler ? "[Spoiler] " : ""}{review.body}</p>
+                  {review.spoiler && !revealedSpoilers.has(review.id) ? (
+                    <button type="button" className="chip mt-2" onClick={() => setRevealedSpoilers((current) => new Set(current).add(review.id))}>Spoiler</button>
+                  ) : <p className="mt-2 line-clamp-3 text-sm text-kino-muted">{review.body}</p>}
                 </div>
-              </Link>
+              </div>
             ))}
             {reviews.length === 0 && <p className="text-sm text-kino-muted">Aucune critique publiée.</p>}
           </div>

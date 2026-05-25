@@ -17,6 +17,11 @@ export class MessagesController {
     return this.messages.partners(user.sub);
   }
 
+  @Get('available')
+  available(@CurrentUser() user: JwtUser) {
+    return this.messages.available(user.sub);
+  }
+
   @Get(':userId')
   thread(@CurrentUser() user: JwtUser, @Param('userId') otherId: string) {
     return this.messages.thread(user.sub, otherId);

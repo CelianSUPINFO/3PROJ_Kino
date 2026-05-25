@@ -59,7 +59,7 @@ export class UpdateProfileDto {
 
   @IsOptional()
   @IsArray()
-  @ArrayMaxSize(5)
+  @ArrayMaxSize(10)
   @ValidateNested({ each: true })
   @Type(() => FavoriteFilmItemDto)
   favoriteFilms?: FavoriteFilmItemDto[];

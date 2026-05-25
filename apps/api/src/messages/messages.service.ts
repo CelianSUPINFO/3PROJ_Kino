@@ -86,4 +86,39 @@ export class MessagesService {
     const counts = new Map(unread.map((r) => [r.senderId, r._count._all]));
     return partners.map((p) => ({ ...p, unreadCount: counts.get(p.id) ?? 0 }));
   }
+
+  async available(userId: string) {
+    const following = await this.prisma.follow.findMany({
+      where: { followerId: userId },
+      select: { followingId: true },
+    });
+    const followingIds = following.map((row) => row.followingId);
+    if (followingIds.length === 0) return [];
+
+    const mutual = await this.prisma.follow.findMany({
+      where: { followerId: { in: followingIds }, followingId: userId },
+      select: { followerId: true },
+    });
+    const mutualIds = mutual.map((row) => row.followerId);
+    if (mutualIds.length === 0) return [];
+
+    const existing = await this.prisma.message.findMany({
+      where: {
+        OR: [
+          { senderId: userId, recipientId: { in: mutualIds } },
+          { recipientId: userId, senderId: { in: mutualIds } },
+        ],
+      },
+      select: { senderId: true, recipientId: true },
+    });
+    const existingIds = new Set(
+      existing.map((row) => (row.senderId === userId ? row.recipientId : row.senderId)),
+    );
+
+    return this.prisma.user.findMany({
+      where: { id: { in: mutualIds.filter((id) => !existingIds.has(id)) } },
+      select: { id: true, displayName: true, avatarUrl: true },
+      orderBy: { displayName: 'asc' },
+    });
+  }
 }
