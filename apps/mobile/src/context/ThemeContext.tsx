@@ -9,6 +9,7 @@ import {
 } from "react";
 import { colors as darkColors } from "../theme";
 import { lightColors } from "../hooks/useAppTheme";
+import { apiFetch } from "../api";
 
 export type AppPalette = typeof darkColors;
 
@@ -29,6 +30,14 @@ export function ThemeContextProvider({ children }: { children: React.ReactNode }
     AsyncStorage.getItem("kino_theme").then((v) => {
       if (v === "light" || v === "dark") setThemeState(v);
     });
+    apiFetch<{ theme?: string }>("/users/me")
+      .then((me) => {
+        if (me.theme === "light" || me.theme === "dark") {
+          setThemeState(me.theme);
+          AsyncStorage.setItem("kino_theme", me.theme);
+        }
+      })
+      .catch(() => undefined);
   }, []);
 
   const setTheme = useCallback(async (t: "light" | "dark") => {

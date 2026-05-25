@@ -40,6 +40,17 @@ type Profile = {
 };
 
 type PublicUser = { id: string; displayName: string; avatarUrl?: string | null };
+type ProfileReview = {
+  id: string;
+  tmdbId: number;
+  mediaType: "MOVIE" | "TV";
+  title: string;
+  posterPath?: string | null;
+  rating: number;
+  body: string;
+  spoiler: boolean;
+  _count: { likes: number; comments: number };
+};
 
 function initials(name: string) {
   return name
@@ -57,6 +68,7 @@ export function ProfileScreen({ route, navigation }: Props) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [followers, setFollowers] = useState<PublicUser[]>([]);
   const [following, setFollowing] = useState<PublicUser[]>([]);
+  const [reviews, setReviews] = useState<ProfileReview[]>([]);
   const [meId, setMeId] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
@@ -69,16 +81,18 @@ export function ProfileScreen({ route, navigation }: Props) {
 
   const load = useCallback(async () => {
     try {
-      const [p, fol, fing, me] = await Promise.all([
+      const [p, fol, fing, reviewRows, me] = await Promise.all([
         apiFetch<Profile>(`/users/${userId}`, { auth: false }),
         apiFetch<PublicUser[]>(`/users/${userId}/followers`, { auth: false }),
         apiFetch<PublicUser[]>(`/users/${userId}/following`, { auth: false }),
+        apiFetch<ProfileReview[]>(`/users/${userId}/reviews`, { auth: false }),
         apiFetch<{ id: string }>("/users/me").catch(() => null),
       ]);
       setProfile(p);
       setDraft(p);
       setFollowers(fol);
       setFollowing(fing);
+      setReviews(reviewRows);
       setMeId(me?.id ?? null);
       setMsg(null);
     } catch {
@@ -92,15 +106,11 @@ export function ProfileScreen({ route, navigation }: Props) {
   }, [load]);
 
   useEffect(() => {
-    if (!pickQ.trim() || pickQ.length < 2) {
-      setPickResults([]);
-      return;
-    }
     const timer = setTimeout(() => {
-      apiFetch<{ results: typeof pickResults }>(
-        `/media/search?q=${encodeURIComponent(pickQ)}&page=1&type=movie`,
-        { auth: false },
-      )
+      const path = pickQ.trim().length >= 2
+        ? `/media/search?q=${encodeURIComponent(pickQ)}&page=1&type=movie`
+        : "/media/discover/movie?page=1&sort=popularity.desc";
+      apiFetch<{ results: typeof pickResults }>(path, { auth: false })
         .then((r) => setPickResults(r.results?.slice(0, 6) ?? []))
         .catch(() => setPickResults([]));
     }, 250);
@@ -320,13 +330,20 @@ export function ProfileScreen({ route, navigation }: Props) {
               <TextInput
                 value={pickQ}
                 onChangeText={setPickQ}
-                placeholder={t("nav.searchPlaceholder")}
+                placeholder={t("profile.favoriteSearch")}
                 placeholderTextColor={colors.muted}
                 style={[s.input, { borderColor: colors.border, color: colors.text }]}
               />
+              <Text style={[s.sub, { color: colors.muted }]}>
+                {t("profile.favoriteCount", { count: draft.favoriteFilms?.length ?? 0 })}
+              </Text>
               {pickResults.map((item) => (
-                <Pressable key={item.id} onPress={() => addFavorite(item)} style={s.pickRow}>
-                  <Text style={{ color: colors.kinoHot }}>{item.title ?? item.name}</Text>
+                <Pressable key={item.id} onPress={() => addFavorite(item)} style={[s.pickRow, { borderColor: colors.border }]}>
+                  {item.poster_path ? (
+                    <Image source={{ uri: `https://image.tmdb.org/t/p/w92${item.poster_path}` }} style={s.pickPoster} />
+                  ) : null}
+                  <Text style={{ color: colors.kinoHot, flex: 1 }}>{item.title ?? item.name}</Text>
+                  <Text style={{ color: colors.text, fontSize: 18 }}>+</Text>
                 </Pressable>
               ))}
               <FlatList
@@ -399,6 +416,40 @@ export function ProfileScreen({ route, navigation }: Props) {
                   </Pressable>
                 ))}
               </ScrollView>
+            </>
+          )}
+
+          {!editing && (
+            <>
+              <Text style={[s.section, { color: colors.text, marginTop: spacing.lg }]}>
+                {t("profile.reviews")} ({reviews.length})
+              </Text>
+              {reviews.map((review) => (
+                <Pressable
+                  key={review.id}
+                  style={[s.reviewCard, { borderColor: colors.border, backgroundColor: colors.panel }]}
+                  onPress={() => navigation.navigate("Title", {
+                    type: review.mediaType === "TV" ? "tv" : "movie",
+                    id: review.tmdbId,
+                    title: review.title,
+                  })}
+                >
+                  {review.posterPath ? (
+                    <Image source={{ uri: `https://image.tmdb.org/t/p/w185${review.posterPath}` }} style={s.reviewPoster} />
+                  ) : null}
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: colors.text, fontWeight: "800" }}>{review.title}</Text>
+                    <Text style={{ color: colors.gold, marginTop: 3 }}>{"★".repeat(review.rating)} {review.rating}/5</Text>
+                    <Text style={{ color: colors.muted, marginTop: 5 }} numberOfLines={4}>
+                      {review.spoiler ? "[Spoiler] " : ""}{review.body}
+                    </Text>
+                    <Text style={{ color: colors.muted, fontSize: 11, marginTop: 6 }}>
+                      {review._count.likes} J'aime · {review._count.comments} commentaires
+                    </Text>
+                  </View>
+                </Pressable>
+              ))}
+              {reviews.length === 0 && <Text style={[s.sub, { color: colors.muted }]}>{t("profile.noReviews")}</Text>}
             </>
           )}
 
@@ -527,7 +578,8 @@ const s = StyleSheet.create({
     paddingVertical: 10,
     fontSize: 14,
   },
-  pickRow: { paddingVertical: 8 },
+  pickRow: { paddingVertical: 8, flexDirection: "row", alignItems: "center", gap: 10, borderBottomWidth: 1 },
+  pickPoster: { width: 36, height: 54, borderRadius: 5 },
   favCard: { marginRight: 10, width: 72 },
   favPoster: { width: 72, height: 108, borderRadius: 8, marginBottom: 4 },
   uploadPreview: { width: 64, height: 64, borderRadius: radius.md, borderWidth: 1 },
@@ -537,4 +589,6 @@ const s = StyleSheet.create({
     borderRadius: radius.pill,
     borderWidth: 1,
   },
+  reviewCard: { flexDirection: "row", gap: 12, padding: 12, borderWidth: 1, borderRadius: radius.md, marginBottom: 10 },
+  reviewPoster: { width: 64, height: 96, borderRadius: 8 },
 });

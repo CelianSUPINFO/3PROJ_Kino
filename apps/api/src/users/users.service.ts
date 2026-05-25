@@ -8,6 +8,7 @@ import { Prisma } from '@prisma/client';
 import { v2 as cloudinary } from 'cloudinary';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { TmdbService } from '../media/tmdb.service';
 import { UpdateProfileDto } from './dto/user.dto';
 
 @Injectable()
@@ -16,6 +17,7 @@ export class UsersService {
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
     private readonly config: ConfigService,
+    private readonly tmdb: TmdbService,
   ) {}
 
   async me(userId: string) {
@@ -178,6 +180,38 @@ export class UsersService {
       },
     });
     return rows.map((r) => r.following);
+  }
+
+  async reviews(id: string) {
+    const reviews = await this.prisma.review.findMany({
+      where: { userId: id },
+      orderBy: { updatedAt: 'desc' },
+      include: { _count: { select: { likes: true, comments: true } } },
+    });
+    const titles = await this.tmdb.resolveTitles(
+      reviews.map((review) => ({
+        tmdbId: review.tmdbId,
+        mediaType: review.mediaType,
+      })),
+    );
+    const cached = await this.prisma.cachedWork.findMany({
+      where: {
+        OR: reviews.map((review) => ({
+          tmdbId: review.tmdbId,
+          mediaType: review.mediaType,
+        })),
+      },
+      select: { tmdbId: true, mediaType: true, posterPath: true },
+    });
+    return reviews.map((review) => ({
+      ...review,
+      title: titles[`${review.mediaType}:${review.tmdbId}`] ?? `#${review.tmdbId}`,
+      posterPath:
+        cached.find(
+          (work) =>
+            work.tmdbId === review.tmdbId && work.mediaType === review.mediaType,
+        )?.posterPath ?? null,
+    }));
   }
 
   async follow(actorId: string, targetId: string) {

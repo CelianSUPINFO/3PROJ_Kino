@@ -24,6 +24,16 @@ type Profile = {
 };
 
 type PublicUser = { id: string; displayName: string; avatarUrl?: string | null };
+type ProfileReview = {
+  id: string;
+  tmdbId: number;
+  mediaType: "MOVIE" | "TV";
+  title: string;
+  posterPath?: string | null;
+  rating: number;
+  body: string;
+  spoiler: boolean;
+};
 
 function initials(name: string) {
   return name
@@ -40,6 +50,7 @@ export default function UserPage() {
   const [p, setP] = useState<Profile | null>(null);
   const [followers, setFollowers] = useState<PublicUser[]>([]);
   const [following, setFollowing] = useState<PublicUser[]>([]);
+  const [reviews, setReviews] = useState<ProfileReview[]>([]);
   const [meId, setMeId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -57,16 +68,18 @@ export default function UserPage() {
     setLoading(true);
     setError(null);
     try {
-      const [profile, followerRows, followingRows, me] = await Promise.all([
+      const [profile, followerRows, followingRows, reviewRows, me] = await Promise.all([
         apiFetch<Profile>(`/users/${params.id}`, { auth: false }),
         apiFetch<PublicUser[]>(`/users/${params.id}/followers`, { auth: false }),
         apiFetch<PublicUser[]>(`/users/${params.id}/following`, { auth: false }),
+        apiFetch<ProfileReview[]>(`/users/${params.id}/reviews`, { auth: false }),
         apiFetch<{ id: string }>("/users/me").catch(() => null),
       ]);
       setP(profile);
       setDraft(profile);
       setFollowers(followerRows);
       setFollowing(followingRows);
+      setReviews(reviewRows);
       setMeId(me?.id ?? null);
     } catch {
       setP(null);
@@ -394,6 +407,34 @@ export default function UserPage() {
           ) : (
             <p className="mt-3 text-sm text-kino-muted">{t("profile.noFavorites")}</p>
           )}
+        </section>
+      )}
+
+      {!editing && (
+        <section className="glass rounded-2xl p-5">
+          <h2 className="text-display text-lg font-semibold text-white">
+            Critiques <span className="text-kino-muted">({reviews.length})</span>
+          </h2>
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            {reviews.map((review) => (
+              <Link
+                key={review.id}
+                href={`/title/${review.mediaType === "TV" ? "tv" : "movie"}/${review.tmdbId}`}
+                className="flex gap-3 border border-white/10 bg-white/[0.03] p-3 transition hover:border-kino/40"
+              >
+                {review.posterPath && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={`https://image.tmdb.org/t/p/w185${review.posterPath}`} alt="" className="h-24 w-16 shrink-0 object-cover" />
+                )}
+                <div className="min-w-0">
+                  <p className="font-semibold text-white">{review.title}</p>
+                  <p className="mt-1 text-sm text-kino-gold">{"★".repeat(review.rating)} {review.rating}/5</p>
+                  <p className="mt-2 line-clamp-3 text-sm text-kino-muted">{review.spoiler ? "[Spoiler] " : ""}{review.body}</p>
+                </div>
+              </Link>
+            ))}
+            {reviews.length === 0 && <p className="text-sm text-kino-muted">Aucune critique publiée.</p>}
+          </div>
         </section>
       )}
 

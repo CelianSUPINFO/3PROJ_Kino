@@ -1,5 +1,7 @@
 import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { colors, radius } from "../theme";
+import { useLocale } from "../context/LocaleContext";
+import { useThemeColors } from "../context/ThemeContext";
+import { radius } from "../theme";
 
 export type PosterItem = {
   id: number;
@@ -21,7 +23,9 @@ export function PosterCard({
   width?: number;
   fullWidth?: boolean;
 }) {
-  const label = item.title ?? item.name ?? "Untitled";
+  const { colors } = useThemeColors();
+  const { t } = useLocale();
+  const label = item.title ?? item.name ?? t("common.untitled");
   const uri = item.poster_path
     ? `https://image.tmdb.org/t/p/w342${item.poster_path}`
     : null;
@@ -31,7 +35,7 @@ export function PosterCard({
       onPress={onPress}
       style={[styles.card, fullWidth ? { width: "100%" } : { width }]}
     >
-      <View style={[styles.posterWrap, fullWidth ? { aspectRatio: 2 / 3 } : null]}>
+      <View style={[styles.posterWrap, { borderColor: colors.border, backgroundColor: colors.panel }, fullWidth ? { aspectRatio: 2 / 3 } : null]}>
         {uri ? (
           <Image source={{ uri }} style={styles.poster} resizeMode="cover" />
         ) : (
@@ -41,12 +45,12 @@ export function PosterCard({
         )}
         {typeof item.vote_average === "number" && item.vote_average > 0 && (
           <View style={styles.badge}>
-            <Text style={styles.badgeText}>★ {item.vote_average.toFixed(1)}</Text>
+            <Text style={[styles.badgeText, { color: colors.gold }]}>★ {item.vote_average.toFixed(1)}</Text>
           </View>
         )}
         <View style={styles.gradient} />
       </View>
-      <Text numberOfLines={2} style={styles.label}>
+      <Text numberOfLines={2} style={[styles.label, { color: colors.text }]}>
         {label}
       </Text>
     </TouchableOpacity>
@@ -63,8 +67,6 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     overflow: "hidden",
     borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.panel,
   },
   poster: { width: "100%", height: "100%" },
   posterPlaceholder: {
@@ -88,9 +90,8 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: 999,
   },
-  badgeText: { color: colors.gold, fontSize: 10, fontWeight: "700" },
+  badgeText: { fontSize: 10, fontWeight: "700" },
   label: {
-    color: colors.text,
     marginTop: 6,
     fontSize: 12,
     fontWeight: "600",

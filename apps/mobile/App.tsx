@@ -37,7 +37,8 @@ import { MenuScreen } from "./src/screens/MenuScreen";
 import { ProfileScreen } from "./src/screens/ProfileScreen";
 import { SearchScreen } from "./src/screens/SearchScreen";
 import { TitleScreen } from "./src/screens/TitleScreen";
-import { LocaleProvider } from "./src/context/LocaleContext";
+import { LocaleProvider, useLocale } from "./src/context/LocaleContext";
+import { categoryLabel, notificationLabel } from "./src/lib/i18n";
 import { ThemeContextProvider, useThemeColors } from "./src/context/ThemeContext";
 import { colors, radius, spacing, typography } from "./src/theme";
 import { registerPushNotifications, unregisterPushNotifications } from "./src/pushNotifications";
@@ -223,6 +224,8 @@ function HomeScreen({
   };
 }) {
   const insets = useSafeAreaInsets();
+  const { locale, t } = useLocale();
+  const { colors: c } = useThemeColors();
   const [home, setHome] = useState<HomePayload | null>(null);
   const [engagement, setEngagement] = useState<EngagementPayload | null>(null);
   const [authed, setAuthed] = useState(false);
@@ -280,7 +283,7 @@ function HomeScreen({
   }
 
   return (
-    <SafeAreaView style={s.screen}>
+    <SafeAreaView style={[s.screen, { backgroundColor: c.ink }]}>
       <ScrollView
         contentContainerStyle={{ paddingBottom: spacing.xxl }}
         showsVerticalScrollIndicator={false}
@@ -292,7 +295,7 @@ function HomeScreen({
               <TouchableOpacity
                 onPress={() => navigation.navigate("Admin")}
                 style={[s.iconBtn, s.adminIconBtn]}
-                accessibilityLabel="Administration"
+                accessibilityLabel={t("nav.admin")}
               >
                 <Text style={{ color: colors.kinoHot, fontSize: 16, fontWeight: "800" }}>A</Text>
               </TouchableOpacity>
@@ -359,7 +362,7 @@ function HomeScreen({
               >
                 <View style={s.heroOverlay} />
                 <View style={s.heroContent}>
-                  <Eyebrow>À L'AFFICHE</Eyebrow>
+                  <Eyebrow>{t("hero.featured").toUpperCase()}</Eyebrow>
                   <Text numberOfLines={2} style={s.heroTitle}>
                     {featured.title ?? featured.name}
                   </Text>
@@ -370,7 +373,7 @@ function HomeScreen({
                   )}
                   <View style={{ flexDirection: "row", gap: 8, marginTop: 10 }}>
                     <PrimaryButton
-                      label="Détails"
+                      label={t("hero.details")}
                       onPress={() =>
                         openTitle(
                           featured,
@@ -379,7 +382,7 @@ function HomeScreen({
                       }
                     />
                     <GhostButton
-                      label="Ce soir ?"
+                      label={t("hero.tonight")}
                       onPress={() => navigation.navigate("Tonight")}
                     />
                   </View>
@@ -387,7 +390,7 @@ function HomeScreen({
               </ImageBackground>
             ) : (
               <View style={s.heroContent}>
-                <Eyebrow>FEATURED TONIGHT</Eyebrow>
+                <Eyebrow>{t("hero.featured").toUpperCase()}</Eyebrow>
                 <Text style={s.heroTitle}>
                   {featured.title ?? featured.name}
                 </Text>
@@ -403,20 +406,20 @@ function HomeScreen({
           <View style={s.engagementRow}>
             <View style={[s.engBadge, { backgroundColor: "#ff7a1a" }]}>
               <Text style={s.engValue}>{engagement.streakDays}</Text>
-              <Text style={s.engLabel}>day streak</Text>
+              <Text style={s.engLabel}>{t("engagement.days")}</Text>
             </View>
             <View style={[s.engBadge, { backgroundColor: colors.kino }]}>
               <Text style={s.engValue}>
                 {engagement.weekly.reviews}/{engagement.weekly.targetReviews}
               </Text>
-              <Text style={s.engLabel}>reviews</Text>
+              <Text style={s.engLabel}>{t("engagement.reviewsWeek")}</Text>
             </View>
             <View style={[s.engBadge, { backgroundColor: "#6b5bff" }]}>
               <Text style={s.engValue}>
                 {engagement.weekly.completed}/
                 {engagement.weekly.targetCompleted}
               </Text>
-              <Text style={s.engLabel}>completed</Text>
+              <Text style={s.engLabel}>{t("engagement.completedWeek")}</Text>
             </View>
           </View>
         )}
@@ -428,14 +431,12 @@ function HomeScreen({
           style={s.tonightBanner}
         >
           <View style={s.tonightGlow} />
-          <Eyebrow>NOT SURE WHAT TO WATCH?</Eyebrow>
-          <Text style={s.tonightTitle}>Let Kino pick your night.</Text>
-          <Text style={s.tonightSub}>
-            Swipe through curated picks. Smash to keep, pass to skip.
-          </Text>
+          <Eyebrow>{t("home.ctaBadge").toUpperCase()}</Eyebrow>
+          <Text style={s.tonightTitle}>{t("home.ctaTitle")}</Text>
+          <Text style={s.tonightSub}>{t("home.ctaBody")}</Text>
           <View style={{ marginTop: 12, alignSelf: "flex-start" }}>
             <PrimaryButton
-              label="Start swiping"
+              label={t("home.ctaTonight")}
               onPress={() => navigation.navigate("Tonight")}
             />
           </View>
@@ -443,9 +444,9 @@ function HomeScreen({
 
         {home?.trending?.movies && home.trending.movies.length > 0 && (
           <Section
-            title="Trending movies"
+            title={t("home.trendingMovies")}
             action={{
-              label: "Search",
+              label: t("nav.search"),
               onPress: () => navigation.navigate("Search"),
             }}
           >
@@ -466,7 +467,7 @@ function HomeScreen({
         )}
 
         {home?.trending?.tv && home.trending.tv.length > 0 && (
-          <Section title="Trending series">
+          <Section title={t("home.trendingTv")}>
             <FlatList
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -480,7 +481,7 @@ function HomeScreen({
         )}
 
         {home?.categories?.map((cat) => (
-          <Section key={cat.id} title={cat.label}>
+          <Section key={cat.id} title={categoryLabel(locale, cat.id)}>
             <FlatList
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -497,7 +498,7 @@ function HomeScreen({
         ))}
 
         {home?.latestRatings && home.latestRatings.length > 0 && (
-          <Section title="Latest ratings">
+          <Section title={t("home.latestRatings")}>
             <View style={s.card}>
               {home.latestRatings.slice(0, 5).map((r) => (
                 <View key={r.id} style={s.ratingRow}>
@@ -519,46 +520,6 @@ function HomeScreen({
           </Section>
         )}
 
-        {/* Account actions */}
-        <Section title="Your account">
-          <View style={{ gap: 8 }}>
-            {!authed && (
-              <View style={{ flexDirection: "row", gap: 8 }}>
-                <View style={{ flex: 1 }}>
-                  <PrimaryButton
-                    label="Log in"
-                    onPress={() => navigation.navigate("Login")}
-                  />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <GhostButton
-                    label="Sign up"
-                    onPress={() => navigation.navigate("Register")}
-                  />
-                </View>
-              </View>
-            )}
-            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-              <Chip label="Feed" onPress={() => navigation.navigate("Feed")} />
-              <Chip
-                label="Library"
-                onPress={() => navigation.navigate("Library")}
-              />
-              <Chip
-                label="Messages"
-                onPress={() => navigation.navigate("Messages")}
-              />
-              <Chip
-                label="Notifications"
-                onPress={() => navigation.navigate("Notifications")}
-              />
-              <Chip
-                label="Settings"
-                onPress={() => navigation.navigate("Settings")}
-              />
-            </View>
-          </View>
-        </Section>
       </ScrollView>
     </SafeAreaView>
   );
@@ -1357,14 +1318,15 @@ function SettingsScreen({
 }: {
   navigation: { navigate: (name: keyof RootStackParamList) => void };
 }) {
-  const { setTheme: applyTheme } = useThemeColors();
+  const { colors: c, setTheme: applyTheme } = useThemeColors();
+  const { setLocale, t } = useLocale();
   const [me, setMe] = useState<Me | null>(null);
   const [status, setStatus] = useState<string | null>(null);
 
   useEffect(() => {
     apiFetch<Me>("/users/me")
       .then(setMe)
-      .catch(() => setStatus("Sign in required"));
+      .catch(() => setStatus(t("settings.signIn")));
   }, []);
 
   async function save() {
@@ -1385,7 +1347,10 @@ function SettingsScreen({
     if (updated.theme === "light" || updated.theme === "dark") {
       await applyTheme(updated.theme);
     }
-    setStatus("Profile saved");
+    if (updated.locale === "fr" || updated.locale === "en") {
+      await setLocale(updated.locale);
+    }
+    setStatus(t("common.save"));
   }
 
   async function logout() {
@@ -1432,12 +1397,12 @@ function SettingsScreen({
   }
 
   return (
-    <SafeAreaView style={s.screen}>
+    <SafeAreaView style={[s.screen, { backgroundColor: c.ink }]}>
       <ScrollView
         contentContainerStyle={{ padding: spacing.lg, paddingBottom: 40 }}
       >
-        <Eyebrow>VOTRE COMPTE</Eyebrow>
-        <H1>{me ? `Bonjour, ${me.displayName}` : "Parametres"}</H1>
+        <Eyebrow>{t("common.yourAccount").toUpperCase()}</Eyebrow>
+        <H1>{me ? t("common.hello", { name: me.displayName }) : t("settings.title")}</H1>
         {status && <Text style={[s.sub, { marginBottom: 8 }]}>{status}</Text>}
         {me && (
           <>
@@ -1466,33 +1431,33 @@ function SettingsScreen({
               value={me.website ?? ""}
               onChangeText={(v) => setMe({ ...me, website: v })}
             />
-            <Label>Theme</Label>
+            <Label>{t("settings.theme")}</Label>
             <View style={{ flexDirection: "row", gap: 8, marginBottom: 8 }}>
               <Chip
-                label="Sombre"
+                label={t("settings.themeDark")}
                 active={me.theme === "dark"}
                 onPress={() => setMe({ ...me, theme: "dark" })}
               />
               <Chip
-                label="Clair"
+                label={t("settings.themeLight")}
                 active={me.theme === "light"}
                 onPress={() => setMe({ ...me, theme: "light" })}
               />
             </View>
-            <Label>Langue</Label>
+            <Label>{t("settings.language")}</Label>
             <View style={{ flexDirection: "row", gap: 8, marginBottom: 8 }}>
               <Chip
-                label="Francais"
+                label={t("settings.langFr")}
                 active={me.locale === "fr"}
                 onPress={() => setMe({ ...me, locale: "fr" })}
               />
               <Chip
-                label="English"
+                label={t("settings.langEn")}
                 active={me.locale === "en"}
                 onPress={() => setMe({ ...me, locale: "en" })}
               />
             </View>
-            <Label>Notifications push (temps reel)</Label>
+            <Label>{t("settings.notifyPush")}</Label>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 }}>
               <Switch
                 value={me.notifyPush}
@@ -1505,7 +1470,7 @@ function SettingsScreen({
               <>
                 <View style={{ height: 8 }} />
                 <PrimaryButton
-                  label="Panneau admin"
+                  label={t("admin.panel")}
                   onPress={() =>
                     (navigation as { navigate: (n: string) => void }).navigate(
                       "Admin",
@@ -1514,13 +1479,13 @@ function SettingsScreen({
                 />
               </>
             )}
-            <PrimaryButton label="Enregistrer" onPress={save} />
+            <PrimaryButton label={t("common.save")} onPress={save} />
             <View style={{ height: 8 }} />
             <GhostButton label="Export RGPD (JSON)" onPress={exportJson} />
             <View style={{ height: 8 }} />
-            <GhostButton label="Supprimer mon compte" onPress={deleteAccount} />
+            <GhostButton label={t("settings.deleteAccount")} onPress={deleteAccount} />
             <View style={{ height: 8 }} />
-            <GhostButton label="Deconnexion" onPress={logout} />
+            <GhostButton label={t("nav.logout")} onPress={logout} />
           </>
         )}
       </ScrollView>
@@ -1541,6 +1506,8 @@ const notificationLabels: Record<string, string> = {
 };
 
 function NotificationsScreen() {
+  const { colors: c } = useThemeColors();
+  const { locale, t } = useLocale();
   const [items, setItems] = useState<Notif[]>([]);
   const [status, setStatus] = useState<string | null>(null);
 
@@ -1550,7 +1517,7 @@ function NotificationsScreen() {
       setItems(rows);
       setStatus(null);
     } catch {
-      setStatus("Sign in required");
+      setStatus(t("common.signInRequired"));
     }
   }
 
@@ -1573,13 +1540,13 @@ function NotificationsScreen() {
   }, []);
 
   return (
-    <SafeAreaView style={s.screen}>
+    <SafeAreaView style={[s.screen, { backgroundColor: c.ink }]}>
       <View style={{ padding: spacing.lg }}>
-        <Eyebrow>ALERTES</Eyebrow>
-        <H1>Notifications</H1>
+        <Eyebrow>{t("notifications.alerts").toUpperCase()}</Eyebrow>
+        <H1>{t("notifications.title")}</H1>
         <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
           <Chip label="Actualiser" onPress={load} />
-          <Chip label="Tout lire" onPress={readAll} />
+          <Chip label={t("notifications.markAll")} onPress={readAll} />
         </View>
       </View>
       {status && (
@@ -1605,7 +1572,7 @@ function NotificationsScreen() {
                 fontWeight: "600",
               }}
             >
-              {notificationLabels[item.type] ??
+              {notificationLabel(locale, item.type) ??
                 item.type.toLowerCase().replace(/_/g, " ")}
             </Text>
             <Text style={[s.sub, { fontSize: 11 }]}>
@@ -1622,7 +1589,8 @@ function NotificationsScreen() {
 
 function AppNavigator() {
   const navTheme = useNavTheme();
-  const { theme } = useThemeColors();
+  const { theme, colors: c } = useThemeColors();
+  const { t } = useLocale();
   useEffect(() => {
     apiFetch("/users/me")
       .then(() => registerPushNotifications())
@@ -1633,10 +1601,10 @@ function AppNavigator() {
       <StatusBar style={theme === "light" ? "dark" : "light"} />
       <Stack.Navigator
         screenOptions={{
-          headerStyle: { backgroundColor: colors.ink },
-          headerTintColor: colors.text,
+          headerStyle: { backgroundColor: c.ink },
+          headerTintColor: c.text,
           headerTitleStyle: { fontWeight: "800" },
-          contentStyle: { backgroundColor: colors.ink },
+          contentStyle: { backgroundColor: c.ink },
         }}
       >
         <Stack.Screen
@@ -1647,22 +1615,22 @@ function AppNavigator() {
         <Stack.Screen
           name="Tonight"
           component={TonightScreen}
-          options={{ title: "Tonight?" }}
+          options={{ title: t("tonight.title") }}
         />
         <Stack.Screen
           name="Login"
           component={LoginScreen}
-          options={{ title: "Log in" }}
+          options={{ title: t("nav.login") }}
         />
         <Stack.Screen
           name="Register"
           component={RegisterScreen}
-          options={{ title: "Sign up" }}
+          options={{ title: t("nav.register") }}
         />
         <Stack.Screen
           name="Search"
           component={SearchScreen}
-          options={{ title: "Explore" }}
+          options={{ title: t("search.title") }}
         />
         <Stack.Screen
           name="Title"
@@ -1672,32 +1640,32 @@ function AppNavigator() {
         <Stack.Screen
           name="Feed"
           component={FeedScreen}
-          options={{ title: "Feed" }}
+          options={{ title: t("nav.feed") }}
         />
         <Stack.Screen
           name="Library"
           component={LibraryScreen}
-          options={{ title: "Library" }}
+          options={{ title: t("nav.library") }}
         />
         <Stack.Screen
           name="Messages"
           component={MessagesScreen}
-          options={{ title: "Messages" }}
+          options={{ title: t("nav.messages") }}
         />
         <Stack.Screen
           name="Notifications"
           component={NotificationsScreen}
-          options={{ title: "Alerts" }}
+          options={{ title: t("notifications.alerts") }}
         />
         <Stack.Screen
           name="Settings"
           component={SettingsScreen}
-          options={{ title: "Settings" }}
+          options={{ title: t("nav.settings") }}
         />
         <Stack.Screen
           name="Profile"
           component={ProfileScreen}
-          options={{ title: "Profil" }}
+          options={{ title: t("profile.member") }}
         />
         <Stack.Screen
           name="ListDetail"

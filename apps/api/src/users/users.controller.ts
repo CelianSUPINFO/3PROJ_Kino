@@ -93,6 +93,11 @@ export class UsersController {
     return this.users.following(id);
   }
 
+  @Get(':id/reviews')
+  reviews(@Param('id') id: string) {
+    return this.users.reviews(id);
+  }
+
   @Post(':id/follow')
   @UseGuards(JwtAuthGuard)
   follow(@CurrentUser() user: JwtUser, @Param('id') id: string) {
