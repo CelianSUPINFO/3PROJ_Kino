@@ -1230,19 +1230,30 @@ function MessagesScreen({ route }: { route: { params?: { userId?: string } } }) 
   useEffect(() => {
     if (!selectedId) return;
     apiFetch<Msg[]>(`/messages/${selectedId}`)
-      .then(setMessages)
-      .catch(() => setMessages([]));
+      .then((rows) => {
+        setMessages(rows);
+        setMsg(null);
+      })
+      .catch(() => {
+        setMessages([]);
+        setMsg("Cette discussion nécessite un abonnement mutuel.");
+      });
   }, [selectedId]);
 
   async function send() {
     if (!selectedId || !body.trim()) return;
-    await apiFetch("/messages", {
-      method: "POST",
-      body: JSON.stringify({ recipientId: selectedId, body: body.trim() }),
-    });
-    setBody("");
-    const rows = await apiFetch<Msg[]>(`/messages/${selectedId}`);
-    setMessages(rows);
+    try {
+      await apiFetch("/messages", {
+        method: "POST",
+        body: JSON.stringify({ recipientId: selectedId, body: body.trim() }),
+      });
+      setBody("");
+      setMsg(null);
+      const rows = await apiFetch<Msg[]>(`/messages/${selectedId}`);
+      setMessages(rows);
+    } catch {
+      setMsg("Message non envoyé. Vérifiez que vous vous suivez mutuellement.");
+    }
   }
 
   return (

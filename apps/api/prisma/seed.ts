@@ -115,6 +115,16 @@ async function main() {
       });
     }
   }
+  await prisma.follow.upsert({
+    where: { followerId_followingId: { followerId: users[1].id, followingId: users[2].id } },
+    update: {},
+    create: { followerId: users[1].id, followingId: users[2].id },
+  });
+  await prisma.follow.upsert({
+    where: { followerId_followingId: { followerId: users[2].id, followingId: users[1].id } },
+    update: {},
+    create: { followerId: users[2].id, followingId: users[1].id },
+  });
 
   for (let i = 0; i < Math.min(reviews.length, 18); i += 1) {
     const author = users[(i + 3) % users.length];

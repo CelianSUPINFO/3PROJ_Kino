@@ -74,13 +74,28 @@ export class MessagesService {
       ...sent.map((s) => s.recipientId),
       ...recv.map((r) => r.senderId),
     ]);
+    const candidateIds = [...ids];
+    const inboundRows = candidateIds.length
+      ? await this.prisma.follow.findMany({
+          where: { followerId: { in: candidateIds }, followingId: userId },
+          select: { followerId: true },
+        })
+      : [];
+    const outboundRows = candidateIds.length
+      ? await this.prisma.follow.findMany({
+          where: { followerId: userId, followingId: { in: candidateIds } },
+          select: { followingId: true },
+        })
+      : [];
+    const outboundIds = new Set(outboundRows.map((row) => row.followingId));
+    const mutualIds = inboundRows.map((row) => row.followerId).filter((id) => outboundIds.has(id));
     const partners = await this.prisma.user.findMany({
-      where: { id: { in: [...ids] } },
+      where: { id: { in: mutualIds } },
       select: { id: true, displayName: true, avatarUrl: true },
     });
     const unread = await this.prisma.message.groupBy({
       by: ['senderId'],
-      where: { recipientId: userId, readAt: null, senderId: { in: [...ids] } },
+      where: { recipientId: userId, readAt: null, senderId: { in: mutualIds } },
       _count: { _all: true },
     });
     const counts = new Map(unread.map((r) => [r.senderId, r._count._all]));

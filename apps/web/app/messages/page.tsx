@@ -32,6 +32,7 @@ export default function MessagesPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [body, setBody] = useState("");
   const [err, setErr] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [available, setAvailable] = useState<Partner[]>([]);
   const [choosing, setChoosing] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
@@ -65,8 +66,14 @@ export default function MessagesPage() {
   useEffect(() => {
     if (!selected) return;
     apiFetch<Message[]>(`/messages/${selected.id}`)
-      .then(setMessages)
-      .catch(() => setMessages([]));
+      .then((rows) => {
+        setMessages(rows);
+        setActionError(null);
+      })
+      .catch(() => {
+        setMessages([]);
+        setActionError("Cette discussion nécessite un abonnement mutuel.");
+      });
   }, [selected]);
 
   useEffect(() => {
@@ -75,13 +82,18 @@ export default function MessagesPage() {
 
   async function send() {
     if (!selected || !body.trim()) return;
-    await apiFetch("/messages", {
-      method: "POST",
-      body: JSON.stringify({ recipientId: selected.id, body: body.trim() }),
-    });
-    setBody("");
-    const rows = await apiFetch<Message[]>(`/messages/${selected.id}`);
-    setMessages(rows);
+    try {
+      await apiFetch("/messages", {
+        method: "POST",
+        body: JSON.stringify({ recipientId: selected.id, body: body.trim() }),
+      });
+      setBody("");
+      setActionError(null);
+      const rows = await apiFetch<Message[]>(`/messages/${selected.id}`);
+      setMessages(rows);
+    } catch {
+      setActionError("Message non envoyé. Vérifiez que vous vous suivez mutuellement.");
+    }
   }
 
   if (err) {
@@ -164,6 +176,7 @@ export default function MessagesPage() {
           )}
         </header>
         <div className="flex-1 space-y-2 overflow-y-auto p-4">
+          {actionError && <p className="rounded-xl border border-red-300/30 bg-red-500/10 p-3 text-sm text-red-200">{actionError}</p>}
           {messages.map((m) => {
             const mine = me?.id === m.senderId;
             return (
