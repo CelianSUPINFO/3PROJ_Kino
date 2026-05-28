@@ -144,9 +144,9 @@ export default function Home() {
                     <div className="flex min-w-0 items-center gap-3">
                       <Avatar name={r.user.displayName} />
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-medium text-white">
+                        <Link href={`/u/${r.user.id}`} className="block truncate text-sm font-medium text-white hover:text-kino-hot">
                           {r.user.displayName}
-                        </p>
+                        </Link>
                         <p className="truncate text-xs text-kino-muted">
                           {t("home.rated")}{" "}
                           <Link

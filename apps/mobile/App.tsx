@@ -23,9 +23,10 @@ import {
 } from "react-native";
 import * as Linking from "expo-linking";
 import * as WebBrowser from "expo-web-browser";
+import { io, Socket } from "socket.io-client";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
-import { apiFetch, clearTokens, getApiRoot, logoutSession, setTokens } from "./src/api";
+import { apiFetch, clearTokens, getAccessToken, getApiRoot, logoutSession, setTokens } from "./src/api";
 import { PosterCard, type PosterItem } from "./src/components/PosterCard";
 import type { RootStackParamList } from "./src/navigation/types";
 import { AdminScreen } from "./src/screens/AdminScreen";
@@ -190,7 +191,7 @@ type HomePayload = {
     tmdbId: number;
     mediaType: "MOVIE" | "TV";
     title: string;
-    user: { displayName: string };
+    user: { id: string; displayName: string };
   }[];
   recentWatched?: {
     tmdbId: number;
@@ -501,7 +502,7 @@ function HomeScreen({
           <Section title={t("home.latestRatings")}>
             <View style={s.card}>
               {home.latestRatings.slice(0, 5).map((r) => (
-                <View key={r.id} style={s.ratingRow}>
+                <Pressable key={r.id} style={s.ratingRow} onPress={() => navigation.navigate("Profile", { userId: r.user.id })}>
                   <View style={s.avatar}>
                     <Text style={s.avatarText}>
                       {(r.user.displayName ?? "??").slice(0, 2).toUpperCase()}
@@ -514,7 +515,7 @@ function HomeScreen({
                     {" · ★ "}
                     {r.rating}/5
                   </Text>
-                </View>
+                </Pressable>
               ))}
             </View>
           </Section>
@@ -1238,6 +1239,26 @@ function MessagesScreen({ route }: { route: { params?: { userId?: string } } }) 
         setMessages([]);
         setMsg("Cette discussion nécessite un abonnement mutuel.");
       });
+  }, [selectedId]);
+
+  useEffect(() => {
+    let socket: Socket | undefined;
+    void getAccessToken().then((token) => {
+      if (!token) return;
+      socket = io(`${getApiRoot()}/realtime`, {
+        auth: { token },
+        transports: ["websocket"],
+      });
+      socket.on("message:new", (message: Msg & { recipientId?: string }) => {
+        if (selectedId && (message.senderId === selectedId || message.recipientId === selectedId)) {
+          setMessages((rows) => rows.some((row) => row.id === message.id) ? rows : [...rows, message]);
+        }
+        void apiFetch<Partner[]>("/messages/partners").then(setPartners).catch(() => undefined);
+      });
+    });
+    return () => {
+      socket?.disconnect();
+    };
   }, [selectedId]);
 
   async function send() {

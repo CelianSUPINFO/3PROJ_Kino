@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { apiFetch } from "@/lib/api";
+import { io, Socket } from "socket.io-client";
+import { apiFetch, getAccessToken } from "@/lib/api";
 import { useLocale } from "../components/AppProviders";
 
 type Partner = { id: string; displayName: string; unreadCount?: number };
@@ -74,6 +75,25 @@ export default function MessagesPage() {
         setMessages([]);
         setActionError("Cette discussion nécessite un abonnement mutuel.");
       });
+  }, [selected]);
+
+  useEffect(() => {
+    const token = getAccessToken();
+    if (!token) return;
+    const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/v1";
+    const socket: Socket = io(`${apiBase.replace(/\/v1$/, "")}/realtime`, {
+      auth: { token },
+      transports: ["websocket"],
+    });
+    socket.on("message:new", (message: Message) => {
+      if (selected && (message.senderId === selected.id || message.recipientId === selected.id)) {
+        setMessages((rows) => rows.some((row) => row.id === message.id) ? rows : [...rows, message]);
+      }
+      void apiFetch<Partner[]>("/messages/partners").then(setPartners).catch(() => undefined);
+    });
+    return () => {
+      socket.disconnect();
+    };
   }, [selected]);
 
   useEffect(() => {

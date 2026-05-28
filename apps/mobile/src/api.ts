@@ -10,6 +10,10 @@ const base =
 const ACCESS = "kino_access";
 const REFRESH = "kino_refresh";
 
+export async function getAccessToken() {
+  return AsyncStorage.getItem(ACCESS);
+}
+
 export function getApiRoot() {
   return base.replace(/\/v1\/?$/, "");
 }
