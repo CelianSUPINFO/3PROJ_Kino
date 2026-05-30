@@ -1255,6 +1255,13 @@ function MessagesScreen({ route }: { route: { params?: { userId?: string } } }) 
         }
         void apiFetch<Partner[]>("/messages/partners").then(setPartners).catch(() => undefined);
       });
+      socket.on("notification:new", (notification: { type?: string; payload?: { senderId?: string } }) => {
+        if (notification.type !== "NEW_MESSAGE") return;
+        if (selectedId === notification.payload?.senderId) {
+          void apiFetch<Msg[]>(`/messages/${selectedId}`).then(setMessages).catch(() => undefined);
+        }
+        void apiFetch<Partner[]>("/messages/partners").then(setPartners).catch(() => undefined);
+      });
     });
     return () => {
       socket?.disconnect();

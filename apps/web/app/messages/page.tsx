@@ -91,6 +91,14 @@ export default function MessagesPage() {
       }
       void apiFetch<Partner[]>("/messages/partners").then(setPartners).catch(() => undefined);
     });
+    socket.on("notification:new", (notification: { type?: string; payload?: { senderId?: string } }) => {
+      if (notification.type !== "NEW_MESSAGE") return;
+      const selectedId = selected?.id;
+      if (selectedId && selectedId === notification.payload?.senderId) {
+        void apiFetch<Message[]>(`/messages/${selectedId}`).then(setMessages).catch(() => undefined);
+      }
+      void apiFetch<Partner[]>("/messages/partners").then(setPartners).catch(() => undefined);
+    });
     return () => {
       socket.disconnect();
     };
