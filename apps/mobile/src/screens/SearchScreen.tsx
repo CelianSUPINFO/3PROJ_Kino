@@ -4,6 +4,7 @@ import {
   FlatList,
   Pressable,
   SafeAreaView,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -21,6 +22,10 @@ type Unified = {
   lists: { id: string; name: string; user: { displayName: string } }[];
   works: { results: PosterItem[]; total_pages?: number };
 };
+
+function initials(name: string) {
+  return name.split(" ").map((part) => part[0]).slice(0, 2).join("").toUpperCase();
+}
 
 export function SearchScreen({ navigation }: Props) {
   const [q, setQ] = useState("");
@@ -134,17 +139,24 @@ export function SearchScreen({ navigation }: Props) {
           <Text style={s.btnText}>{loading ? "..." : "Rechercher"}</Text>
         </Pressable>
       </View>
+      {(users.length > 0 || lists.length > 0) && (
+        <ScrollView
+          style={{ maxHeight: type === "users" || type === "lists" ? 360 : 220 }}
+          contentContainerStyle={{ paddingBottom: 8 }}
+          showsVerticalScrollIndicator={false}
+        >
       {users.length > 0 && (
         <View style={{ paddingHorizontal: spacing.lg }}>
           <Text style={s.section}>Utilisateurs</Text>
-          {users.map((u) => (
+          {users.filter((user) => user.id !== meId).map((u) => (
             <View key={u.id} style={s.userRow}>
-              <Pressable style={{ flex: 1 }} onPress={() => navigation.navigate("Profile", { userId: u.id })}>
-                <Text style={s.link}>{u.displayName}</Text>
+              <Pressable style={s.userLink} onPress={() => navigation.navigate("Profile", { userId: u.id })}>
+                <View style={s.avatar}><Text style={s.avatarText}>{initials(u.displayName)}</Text></View>
+                <Text style={s.userName} numberOfLines={1}>{u.displayName}</Text>
               </Pressable>
               {meId && meId !== u.id && (
                 <Pressable style={s.followBtn} disabled={followed[u.id]} onPress={() => follow(u.id)}>
-                  <Text style={s.btnText}>{followed[u.id] ? "Suivi" : "Suivre"}</Text>
+                  <Text style={followed[u.id] ? s.followedText : s.btnText}>{followed[u.id] ? "Suivi" : "Suivre"}</Text>
                 </Pressable>
               )}
             </View>
@@ -170,6 +182,8 @@ export function SearchScreen({ navigation }: Props) {
             </Pressable>
           ))}
         </View>
+      )}
+        </ScrollView>
       )}
       <FlatList
         data={results}
@@ -242,8 +256,13 @@ const s = StyleSheet.create({
     marginTop: 10,
   },
   btnText: { color: "#fff", fontWeight: "700" },
-  section: { color: colors.text, fontWeight: "700", marginBottom: 6 },
+  section: { color: colors.text, fontWeight: "700", fontSize: 18, marginBottom: 8 },
   link: { color: colors.kinoHot, paddingVertical: 6, fontWeight: "600" },
-  userRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  followBtn: { backgroundColor: colors.kino, borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 7 },
+  userRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
+  userLink: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 10 },
+  avatar: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center", backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border },
+  avatarText: { color: colors.kinoHot, fontWeight: "800", fontSize: 12 },
+  userName: { flex: 1, color: colors.text, fontWeight: "700" },
+  followBtn: { minWidth: 76, alignItems: "center", backgroundColor: colors.kino, borderRadius: radius.pill, paddingHorizontal: 14, paddingVertical: 8 },
+  followedText: { color: colors.muted, fontWeight: "700" },
 });

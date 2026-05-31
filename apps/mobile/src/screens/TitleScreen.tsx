@@ -51,6 +51,7 @@ export function TitleScreen({ route, navigation }: Props) {
   const [commentDraft, setCommentDraft] = useState<Record<string, string>>({});
   const [reportDraft, setReportDraft] = useState<Record<string, string>>({});
   const [showReport, setShowReport] = useState<Record<string, boolean>>({});
+  const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
 
   const mediaType = type === "tv" ? "TV" : "MOVIE";
 
@@ -80,6 +81,9 @@ export function TitleScreen({ route, navigation }: Props) {
         setMeId(null);
         setMeRole(null);
       });
+    apiFetch<{ tmdbId: number; mediaType: string; status: string }[]>("/library/me")
+      .then((rows) => setSelectedStatus(rows.find((row) => row.tmdbId === id && row.mediaType === mediaType)?.status ?? null))
+      .catch(() => setSelectedStatus(null));
   }, [type, id]);
 
   const myReview = meId ? reviews.find((r) => r.userId === meId) : undefined;
@@ -100,7 +104,8 @@ export function TitleScreen({ route, navigation }: Props) {
         method: "POST",
         body: JSON.stringify({ tmdbId: id, mediaType, status }),
       });
-      setMsg(`Statut : ${status}`);
+      setSelectedStatus(status);
+      setMsg("Bibliothèque mise à jour.");
     } catch {
       setMsg("Connexion requise.");
     }
@@ -224,7 +229,7 @@ export function TitleScreen({ route, navigation }: Props) {
   return (
     <SafeAreaView style={s.screen}>
       <ScrollView contentContainerStyle={{ paddingBottom: 48 }}>
-        <View style={{ height: 180, backgroundColor: colors.panel }}>
+        <View style={{ height: 220, backgroundColor: colors.panel }}>
           {backdrop && (
             <ImageBackground
               source={{ uri: `https://image.tmdb.org/t/p/w780${backdrop}` }}
@@ -270,8 +275,8 @@ export function TitleScreen({ route, navigation }: Props) {
                 ["DROPPED", "Abandonné"],
               ] as const
             ).map(([st, label]) => (
-              <Pressable key={st} style={s.chip} onPress={() => setStatus(st)}>
-                <Text style={s.chipText}>{label}</Text>
+              <Pressable key={st} style={[s.chip, selectedStatus === st && s.chipActive]} onPress={() => setStatus(st)}>
+                <Text style={[s.chipText, selectedStatus === st && s.chipActiveText]}>{label}</Text>
               </Pressable>
             ))}
           </View>
@@ -309,7 +314,7 @@ export function TitleScreen({ route, navigation }: Props) {
             <Switch value={spoiler} onValueChange={setSpoiler} trackColor={{ true: colors.kino }} />
             <Text style={s.sub}>Contient des spoilers</Text>
           </View>
-          <Pressable style={s.btn} onPress={publish}>
+          <Pressable style={[s.btn, !body.trim() && { opacity: 0.5 }]} disabled={!body.trim()} onPress={publish}>
             <Text style={s.btnText}>{myReview ? "Mettre à jour" : "Publier"}</Text>
           </Pressable>
           {myReview && (
@@ -424,7 +429,7 @@ const s = StyleSheet.create({
   meta: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 8 },
   metaText: { color: colors.text, backgroundColor: colors.panel, borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 5, fontSize: 12 },
   facts: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  fact: { width: "48%", minWidth: 140, backgroundColor: colors.panel, borderRadius: radius.md, padding: 10 },
+  fact: { flexBasis: "47%", flexGrow: 1, minWidth: 140, backgroundColor: colors.panel, borderRadius: radius.md, padding: 10 },
   factLabel: { color: colors.muted, fontSize: 10, fontWeight: "700", textTransform: "uppercase" },
   factValue: { color: colors.text, fontSize: 13, fontWeight: "600", marginTop: 4 },
   sub: { color: colors.muted, lineHeight: 20, marginTop: 8 },
@@ -444,6 +449,8 @@ const s = StyleSheet.create({
     paddingVertical: 6,
   },
   chipText: { color: colors.text, fontSize: 12 },
+  chipActive: { borderColor: colors.kino, backgroundColor: "rgba(255,46,126,0.18)" },
+  chipActiveText: { color: colors.kinoHot, fontWeight: "700" },
   input: {
     borderWidth: 1,
     borderColor: colors.border,

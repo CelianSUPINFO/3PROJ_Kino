@@ -548,6 +548,7 @@ function TonightScreen({
     navigate: (name: "Title", params: RootStackParamList["Title"]) => void;
   };
 }) {
+  const { locale } = useLocale();
   const [items, setItems] = useState<TonightResult[]>([]);
   const [index, setIndex] = useState(0);
   const [type, setType] = useState<"movie" | "tv">("movie");
@@ -677,16 +678,16 @@ function TonightScreen({
   return (
     <SafeAreaView style={s.screen}>
       <View style={{ paddingHorizontal: spacing.lg }}>
-        <Eyebrow>TONIGHT?</Eyebrow>
-        <H1>Smash or Pass</H1>
+        <Eyebrow>{locale === "fr" ? "CE SOIR ?" : "TONIGHT?"}</Eyebrow>
+        <H1>{locale === "fr" ? "À garder ou passer" : "Smash or Pass"}</H1>
         <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
           <Chip
-            label="Movies"
+            label={locale === "fr" ? "Films" : "Movies"}
             active={type === "movie"}
             onPress={() => setType("movie")}
           />
           <Chip
-            label="TV shows"
+            label={locale === "fr" ? "Séries" : "TV shows"}
             active={type === "tv"}
             onPress={() => setType("tv")}
           />
@@ -713,12 +714,12 @@ function TonightScreen({
           </View>
         ) : !current ? (
           <View style={s.emptyCard}>
-            <Text style={s.h1}>You&apos;re all caught up</Text>
+            <Text style={s.h1}>{locale === "fr" ? "Vous avez tout parcouru" : "You're all caught up"}</Text>
             <Text style={s.sub}>
-              Switch category or refresh to see fresh picks.
+              {locale === "fr" ? "Changez de catégorie ou actualisez les suggestions." : "Switch category or refresh to see fresh picks."}
             </Text>
             <View style={{ height: 12 }} />
-            <PrimaryButton label="Refresh picks" onPress={load} />
+            <PrimaryButton label={locale === "fr" ? "Actualiser" : "Refresh picks"} onPress={load} />
           </View>
         ) : (
           <View style={{ flex: 1 }}>
@@ -793,7 +794,7 @@ function TonightScreen({
             }
           >
             <Text style={{ color: colors.text, fontWeight: "600" }}>
-              Details →
+              {locale === "fr" ? "Détails" : "Details"} →
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -1527,19 +1528,21 @@ function SettingsScreen({
                 onPress={() => setMe({ ...me, locale: "en" })}
               />
             </View>
-            <Label>{t("settings.notifyPush")}</Label>
+            <Label>{t("settings.notifications")}</Label>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 }}>
               <Switch
                 value={me.notifyPush}
                 onValueChange={(v) => setMe({ ...me, notifyPush: v })}
                 trackColor={{ true: colors.kino }}
               />
-              <Text style={s.sub}>Alertes instantanees dans l'app</Text>
+              <Text style={[s.sub, { flex: 1 }]}>Alertes instantanées dans l'application</Text>
             </View>
+            <View style={{ height: 12 }} />
+            <PrimaryButton label={t("common.save")} onPress={save} />
             {me.role === "ADMIN" && (
               <>
                 <View style={{ height: 8 }} />
-                <PrimaryButton
+                <GhostButton
                   label={t("admin.panel")}
                   onPress={() =>
                     (navigation as { navigate: (n: string) => void }).navigate(
@@ -1549,13 +1552,15 @@ function SettingsScreen({
                 />
               </>
             )}
-            <PrimaryButton label={t("common.save")} onPress={save} />
             <View style={{ height: 8 }} />
             <GhostButton label="Export RGPD (JSON)" onPress={exportJson} />
             <View style={{ height: 8 }} />
-            <GhostButton label={t("settings.deleteAccount")} onPress={deleteAccount} />
-            <View style={{ height: 8 }} />
             <GhostButton label={t("nav.logout")} onPress={logout} />
+            <View style={{ height: 18 }} />
+            <Text style={[s.label, { color: colors.danger }]}>ZONE SENSIBLE</Text>
+            <TouchableOpacity onPress={deleteAccount} style={[s.btnGhost, { borderColor: colors.danger }]}>
+              <Text style={{ color: colors.danger, fontWeight: "700" }}>{t("settings.deleteAccount")}</Text>
+            </TouchableOpacity>
           </>
         )}
       </ScrollView>
@@ -1705,7 +1710,20 @@ function AppNavigator() {
         <Stack.Screen
           name="Title"
           component={TitleScreen}
-          options={({ route }) => ({ title: route.params.title })}
+          options={({ route, navigation }) => ({
+            title: route.params.title,
+            headerBackVisible: false,
+            headerLeft: () => (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t("nav.home")}
+                onPress={() => navigation.navigate("Home")}
+                style={{ paddingHorizontal: 12, paddingVertical: 6 }}
+              >
+                <Text style={{ color: c.text, fontSize: 23 }}>⌂</Text>
+              </Pressable>
+            ),
+          })}
         />
         <Stack.Screen
           name="Feed"

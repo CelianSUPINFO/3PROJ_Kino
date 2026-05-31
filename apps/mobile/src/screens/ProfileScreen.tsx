@@ -136,7 +136,7 @@ export function ProfileScreen({ route, navigation }: Props) {
         method: isFollowing ? "DELETE" : "POST",
       });
       await load();
-      setMsg(isFollowing ? t("profile.unfollow") : t("profile.follow"));
+      setMsg(isFollowing ? "Abonnement retiré." : "Abonnement ajouté.");
     } catch {
       setMsg(t("common.retry"));
     }
@@ -249,7 +249,7 @@ export function ProfileScreen({ route, navigation }: Props) {
   return (
     <SafeAreaView style={[s.screen, { backgroundColor: colors.ink }]}>
       <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
-        <View style={s.bannerWrap}>
+        <View style={bannerUri ? s.bannerWrap : s.bannerWrapEmpty}>
           {bannerUri ? (
             <ImageBackground source={{ uri: bannerUri }} style={s.banner} resizeMode="cover">
               <View style={s.bannerOverlay} />
@@ -283,7 +283,7 @@ export function ProfileScreen({ route, navigation }: Props) {
 
           {isOwn && !editing && (
             <Pressable
-              style={[s.btn, { backgroundColor: colors.kino }]}
+              style={[s.btn, s.actionButton, { backgroundColor: colors.kino }]}
               onPress={() => setEditing(true)}
             >
               <Text style={s.btnText}>{t("profile.edit")}</Text>
@@ -292,16 +292,16 @@ export function ProfileScreen({ route, navigation }: Props) {
           {!isOwn && meId && (
             <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
               {mutualFollow && (
-                <Pressable style={[s.btnGhost, { borderColor: colors.border }]} onPress={() => navigation.navigate("Messages", { userId: profile.id })}>
+                <Pressable style={[s.btnGhost, s.actionButton, { borderColor: colors.border }]} onPress={() => navigation.navigate("Messages", { userId: profile.id })}>
                   <Text style={{ color: colors.text, fontWeight: "700" }}>Message</Text>
                 </Pressable>
               )}
-              <Pressable style={[s.btn, { backgroundColor: colors.kino }]} onPress={toggleFollow}>
+              <Pressable style={[s.btn, s.actionButton, { backgroundColor: colors.kino }]} onPress={toggleFollow}>
                 <Text style={s.btnText}>{isFollowing ? t("profile.unfollow") : t("profile.follow")}</Text>
               </Pressable>
             </View>
           )}
-          {msg && <Text style={[s.sub, { color: colors.muted }]}>{msg}</Text>}
+          {msg && <Text style={[s.feedback, { color: colors.muted, borderColor: colors.border }]}>{msg}</Text>}
 
           {editing && draft && (
             <View style={[s.editBox, { borderColor: colors.border, backgroundColor: colors.panel }]}>
@@ -511,6 +511,9 @@ function ImageUploadRow({
   colors: { text: string; muted: string; border: string; panel: string; kino: string };
   onPress: () => void;
 }) {
+  const actionLabel = label.toLowerCase().includes("banni")
+    ? "Choisir une bannière"
+    : "Choisir une photo";
   return (
     <View style={{ marginTop: spacing.sm }}>
       <Text style={{ color: colors.muted, fontSize: 12, marginBottom: 6 }}>{label}</Text>
@@ -525,7 +528,7 @@ function ImageUploadRow({
           disabled={busy}
           style={[s.uploadButton, { borderColor: colors.border, backgroundColor: colors.kino }]}
         >
-          <Text style={s.btnText}>{busy ? "Upload..." : label}</Text>
+          <Text style={s.btnText}>{busy ? "Envoi..." : actionLabel}</Text>
         </Pressable>
       </View>
     </View>
@@ -566,6 +569,7 @@ function Field({
 const s = StyleSheet.create({
   screen: { flex: 1 },
   bannerWrap: { height: 140 },
+  bannerWrapEmpty: { height: 72 },
   banner: { flex: 1 },
   bannerOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.35)" },
   body: { padding: spacing.lg, marginTop: -36 },
@@ -593,6 +597,8 @@ const s = StyleSheet.create({
     alignItems: "center",
   },
   btnText: { color: "#fff", fontWeight: "700" },
+  actionButton: { minWidth: 118, paddingHorizontal: 18 },
+  feedback: { marginTop: 10, borderWidth: 1, borderRadius: radius.md, paddingHorizontal: 12, paddingVertical: 8 },
   editBox: { marginTop: spacing.md, padding: spacing.md, borderRadius: radius.lg, borderWidth: 1 },
   input: {
     borderWidth: 1,
