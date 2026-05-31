@@ -921,6 +921,7 @@ async function runGoogleOAuth(
     throw new Error("google oauth missing tokens");
   }
   await setTokens(access, refresh);
+  await registerPushNotifications().catch(() => undefined);
   navigation.navigate("Home");
 }
 
@@ -948,6 +949,7 @@ function LoginScreen({
           : null;
       if (access && refresh) {
         await setTokens(access, refresh);
+        await registerPushNotifications().catch(() => undefined);
         navigation.navigate("Home");
       }
     });
@@ -979,6 +981,7 @@ function LoginScreen({
         },
       );
       await setTokens(res.accessToken, res.refreshToken);
+      await registerPushNotifications().catch(() => undefined);
       navigation.navigate("Home");
     } catch {
       setErr("Invalid credentials");
@@ -1055,6 +1058,7 @@ function RegisterScreen({
         },
       );
       await setTokens(res.accessToken, res.refreshToken);
+      await registerPushNotifications().catch(() => undefined);
       navigation.navigate("Home");
     } catch {
       setErr("Sign-up failed");
