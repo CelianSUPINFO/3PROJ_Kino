@@ -1710,19 +1710,8 @@ function AppNavigator() {
         <Stack.Screen
           name="Title"
           component={TitleScreen}
-          options={({ route, navigation }) => ({
+          options={({ route }) => ({
             title: route.params.title,
-            headerBackVisible: false,
-            headerLeft: () => (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={t("nav.home")}
-                onPress={() => navigation.navigate("Home")}
-                style={{ paddingHorizontal: 12, paddingVertical: 6 }}
-              >
-                <Text style={{ color: c.text, fontSize: 23 }}>⌂</Text>
-              </Pressable>
-            ),
           })}
         />
         <Stack.Screen
