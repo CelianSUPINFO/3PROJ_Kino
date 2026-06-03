@@ -1,5 +1,17 @@
 const base = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/v1";
 
+function readableError(raw: string, fallback: string) {
+  try {
+    const parsed = JSON.parse(raw) as { message?: string | string[]; error?: string };
+    const message = Array.isArray(parsed.message)
+      ? parsed.message.join(" ")
+      : parsed.message;
+    return message || parsed.error || fallback;
+  } catch {
+    return raw || fallback;
+  }
+}
+
 function getTokens() {
   if (typeof window === "undefined") return { access: null as string | null, refresh: null as string | null };
   return {
@@ -62,7 +74,7 @@ export async function apiFetch<T>(
   }
   if (!res.ok) {
     const err = await res.text();
-    throw new Error(err || res.statusText);
+    throw new Error(readableError(err, res.statusText || "La requête a échoué."));
   }
   if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;

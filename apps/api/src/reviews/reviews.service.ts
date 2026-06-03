@@ -94,6 +94,8 @@ export class ReviewsService {
     if (review && review.userId !== userId) {
       await this.notifications.createAndDeliver(review.userId, 'REVIEW_LIKED', {
         reviewId,
+        tmdbId: review.tmdbId,
+        mediaType: review.mediaType,
         by: userId,
       });
     }
@@ -117,6 +119,8 @@ export class ReviewsService {
       await this.notifications.createAndDeliver(review.userId, 'REVIEW_COMMENT', {
         reviewId,
         commentId: c.id,
+        tmdbId: review.tmdbId,
+        mediaType: review.mediaType,
         by: userId,
       });
     }

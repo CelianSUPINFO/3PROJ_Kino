@@ -23,6 +23,26 @@ const ICONS: Record<string, string> = {
   RECOMMENDATION: "✨",
 };
 
+function notificationHref(notification: N) {
+  const payload = notification.payload ?? {};
+  if (notification.type === "NEW_FOLLOWER" && payload.followerId) {
+    return `/u/${payload.followerId}`;
+  }
+  if (notification.type === "NEW_MESSAGE" && payload.senderId) {
+    return `/messages?userId=${payload.senderId}`;
+  }
+  if (
+    (notification.type === "REVIEW_LIKED" ||
+      notification.type === "REVIEW_COMMENT") &&
+    payload.tmdbId
+  ) {
+    const type = payload.mediaType === "TV" ? "tv" : "movie";
+    return `/title/${type}/${payload.tmdbId}?review=${payload.reviewId ?? ""}`;
+  }
+  if (notification.type === "RECOMMENDATION") return "/ce-soir";
+  return undefined;
+}
+
 export default function NotificationsPage() {
   const { locale, t } = useLocale();
   const [items, setItems] = useState<N[]>([]);
@@ -98,7 +118,24 @@ export default function NotificationsPage() {
         </section>
       )}
       <ul className="space-y-2">
-        {items.map((n, idx) => (
+        {items.map((n, idx) => {
+          const href = notificationHref(n);
+          const content = (
+            <>
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/5 text-lg text-kino-hot">
+                {ICONS[n.type] ?? "•"}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium">
+                  {notificationLabel(locale, n.type)}
+                </p>
+                <p className="text-xs text-kino-muted">
+                  {new Date(n.createdAt).toLocaleString(locale === "fr" ? "fr-FR" : "en-US")}
+                </p>
+              </div>
+            </>
+          );
+          return (
           <li
             key={n.id}
             className={`card-animate flex items-start gap-3 rounded-2xl border p-4 transition ${
@@ -108,24 +145,23 @@ export default function NotificationsPage() {
             }`}
             style={{ animationDelay: `${Math.min(idx * 25, 200)}ms` }}
           >
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/5 text-lg text-kino-hot">
-              {ICONS[n.type] ?? "•"}
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium">
-                {notificationLabel(locale, n.type)}
-              </p>
-              <p className="text-xs text-kino-muted">
-                {new Date(n.createdAt).toLocaleString(locale === "fr" ? "fr-FR" : "en-US")}
-              </p>
-            </div>
+            {href ? (
+              <Link
+                href={href}
+                className="flex min-w-0 flex-1 items-start gap-3"
+                onClick={() => !n.read && void markRead(n.id)}
+              >
+                {content}
+              </Link>
+            ) : content}
             {!n.read && (
               <button className="chip" onClick={() => markRead(n.id)}>
                 {t("notifications.markRead")}
               </button>
             )}
           </li>
-        ))}
+          );
+        })}
         {items.length === 0 && signedIn !== false && (
           <li className="glass rounded-2xl p-6 text-center">
             <h2 className="text-display text-2xl font-semibold text-white">

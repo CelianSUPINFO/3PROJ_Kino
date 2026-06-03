@@ -100,16 +100,16 @@ export class LibraryService {
     };
   }
 
-  async createList(userId: string, name: string, isPublic: boolean) {
+  async createList(userId: string, name: string, isPublic: boolean, description = '', coverUrl?: string) {
     return this.prisma.customList.create({
-      data: { userId, name, isPublic },
+      data: { userId, name, isPublic, description, coverUrl },
     });
   }
 
   async updateList(
     userId: string,
     listId: string,
-    data: { name?: string; isPublic?: boolean },
+    data: { name?: string; isPublic?: boolean; description?: string; coverUrl?: string },
   ) {
     const list = await this.prisma.customList.findUnique({
       where: { id: listId },
@@ -144,7 +144,12 @@ export class LibraryService {
       where: {
         listId_tmdbId_mediaType: { listId, tmdbId, mediaType },
       },
-      create: { listId, tmdbId, mediaType },
+      create: {
+        listId,
+        tmdbId,
+        mediaType,
+        position: await this.prisma.customListItem.count({ where: { listId } }),
+      },
       update: {},
     });
     await this.prisma.activity.create({
@@ -155,6 +160,20 @@ export class LibraryService {
       },
     });
     return item;
+  }
+
+  async reorderList(userId: string, listId: string, itemIds: string[]) {
+    const list = await this.prisma.customList.findUnique({ where: { id: listId } });
+    if (!list || list.userId !== userId) throw new NotFoundException();
+    await this.prisma.$transaction(
+      itemIds.map((id, position) =>
+        this.prisma.customListItem.updateMany({
+          where: { id, listId },
+          data: { position },
+        }),
+      ),
+    );
+    return { ok: true };
   }
 
   async removeFromList(
@@ -183,7 +202,7 @@ export class LibraryService {
   async getListPublic(listId: string, viewerId?: string) {
     const list = await this.prisma.customList.findUnique({
       where: { id: listId },
-      include: { items: true },
+      include: { items: { orderBy: [{ position: 'asc' }, { addedAt: 'asc' }] } },
     });
     if (!list) throw new NotFoundException();
     if (!list.isPublic && list.userId !== viewerId) {

@@ -113,7 +113,10 @@ function Chip({
     <TouchableOpacity
       onPress={onPress}
       activeOpacity={0.8}
-      style={[s.chip, active ? s.chipActive : null]}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ selected: active }}
+      style={[s.chip, { minHeight: 44 }, active ? s.chipActive : null]}
     >
       <Text style={[s.chipText, active ? s.chipTextActive : null]}>
         {label}
@@ -136,6 +139,9 @@ function PrimaryButton({
       activeOpacity={0.85}
       onPress={onPress}
       disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled }}
       style={[s.btnPrimary, disabled ? { opacity: 0.6 } : null]}
     >
       <Text style={s.btnPrimaryText}>{label}</Text>
@@ -151,7 +157,7 @@ function GhostButton({
   onPress: () => void;
 }) {
   return (
-    <TouchableOpacity activeOpacity={0.85} onPress={onPress} style={s.btnGhost}>
+    <TouchableOpacity accessibilityRole="button" accessibilityLabel={label} activeOpacity={0.85} onPress={onPress} style={s.btnGhost}>
       <Text style={s.btnGhostText}>{label}</Text>
     </TouchableOpacity>
   );
@@ -1204,6 +1210,8 @@ type Partner = { id: string; displayName: string; unreadCount?: number };
 type Msg = { id: string; body: string; createdAt: string; senderId?: string };
 
 function MessagesScreen({ route }: { route: { params?: { userId?: string } } }) {
+  const { t, locale } = useLocale();
+  const { colors: c } = useThemeColors();
   const [partners, setPartners] = useState<Partner[]>([]);
   const [available, setAvailable] = useState<Partner[]>([]);
   const [choosing, setChoosing] = useState(false);
@@ -1218,7 +1226,7 @@ function MessagesScreen({ route }: { route: { params?: { userId?: string } } }) 
         setPartners(rows);
         setSelectedId(route.params?.userId ?? rows[0]?.id ?? null);
       })
-      .catch(() => setMsg("Sign in required"));
+      .catch(() => setMsg(t("common.signInRequired")));
   }, [route.params?.userId]);
 
   async function openChooser() {
@@ -1292,9 +1300,9 @@ function MessagesScreen({ route }: { route: { params?: { userId?: string } } }) 
   return (
     <SafeAreaView style={s.screen}>
       <View style={{ padding: spacing.lg, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-        <View><Eyebrow>CHAT</Eyebrow><H1>Messages</H1></View>
-        <TouchableOpacity accessibilityLabel="Nouvelle discussion" onPress={openChooser} style={s.btnPrimary}>
-          <Text style={s.btnPrimaryText}>+</Text>
+        <View><Eyebrow>{t("messages.title").toUpperCase()}</Eyebrow><H1>{t("messages.title")}</H1></View>
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel={locale === "fr" ? "Nouvelle discussion" : "New conversation"} onPress={openChooser} style={s.btnPrimary}>
+          <Text style={s.btnPrimaryText}>{locale === "fr" ? "Nouveau" : "New"}</Text>
         </TouchableOpacity>
       </View>
       {choosing && (
@@ -1358,14 +1366,14 @@ function MessagesScreen({ route }: { route: { params?: { userId?: string } } }) 
         }}
       >
         <TextInput
-          placeholder="Type a message..."
-          placeholderTextColor={colors.muted}
+          placeholder={t("messages.placeholder")}
+          placeholderTextColor={c.muted}
           style={[s.input, { flex: 1, marginBottom: 0 }]}
           value={body}
           onChangeText={setBody}
         />
-        <TouchableOpacity onPress={send} style={s.btnPrimary}>
-          <Text style={s.btnPrimaryText}>Send</Text>
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel={t("common.send")} onPress={send} style={s.btnPrimary}>
+          <Text style={s.btnPrimaryText}>{t("common.send")}</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -1570,17 +1578,15 @@ function SettingsScreen({
 
 // ------------ Notifications ------------
 
-type Notif = { id: string; type: string; read: boolean; createdAt: string };
-
-const notificationLabels: Record<string, string> = {
-  NEW_FOLLOWER: "Nouvel abonne",
-  REVIEW_LIKED: "Nouvelle mention J'aime",
-  REVIEW_COMMENT: "Nouveau commentaire",
-  NEW_MESSAGE: "Nouveau message",
-  RECOMMENDATION: "Nouvelle recommandation",
+type Notif = {
+  id: string;
+  type: string;
+  read: boolean;
+  createdAt: string;
+  payload?: { followerId?: string; senderId?: string; tmdbId?: number; mediaType?: "MOVIE" | "TV"; reviewId?: string };
 };
 
-function NotificationsScreen() {
+function NotificationsScreen({ navigation }: { navigation: any }) {
   const { colors: c } = useThemeColors();
   const { locale, t } = useLocale();
   const [items, setItems] = useState<Notif[]>([]);
@@ -1603,6 +1609,26 @@ function NotificationsScreen() {
     );
   }
 
+  async function openNotification(item: Notif) {
+    await readOne(item.id);
+    if (item.type === "NEW_FOLLOWER" && item.payload?.followerId) {
+      navigation.navigate("Profile", { userId: item.payload.followerId });
+    } else if (item.type === "NEW_MESSAGE" && item.payload?.senderId) {
+      navigation.navigate("Messages", { userId: item.payload.senderId });
+    } else if (
+      (item.type === "REVIEW_LIKED" || item.type === "REVIEW_COMMENT") &&
+      item.payload?.tmdbId
+    ) {
+      navigation.navigate("Title", {
+        type: item.payload.mediaType === "TV" ? "tv" : "movie",
+        id: item.payload.tmdbId,
+        title: "",
+      });
+    } else if (item.type === "RECOMMENDATION") {
+      navigation.navigate("Tonight");
+    }
+  }
+
   async function readAll() {
     await apiFetch("/notifications/read-all", { method: "PATCH" });
     setItems((prev) => prev.map((n) => ({ ...n, read: true })));
@@ -1620,7 +1646,7 @@ function NotificationsScreen() {
         <Eyebrow>{t("notifications.alerts").toUpperCase()}</Eyebrow>
         <H1>{t("notifications.title")}</H1>
         <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
-          <Chip label="Actualiser" onPress={load} />
+          <Chip label={t("common.retry")} onPress={load} />
           <Chip label={t("notifications.markAll")} onPress={readAll} />
         </View>
       </View>
@@ -1638,12 +1664,15 @@ function NotificationsScreen() {
         renderItem={({ item }) => (
           <TouchableOpacity
             activeOpacity={0.85}
-            onPress={() => readOne(item.id)}
-            style={[s.card, item.read ? null : { borderColor: colors.kino }]}
+            accessibilityRole="button"
+            accessibilityLabel={notificationLabel(locale, item.type)}
+            accessibilityHint={locale === "fr" ? "Ouvre le contenu associé" : "Opens related content"}
+            onPress={() => openNotification(item)}
+            style={[s.card, item.read ? null : { borderColor: c.kino }]}
           >
             <Text
               style={{
-                color: item.read ? colors.muted : colors.text,
+                color: item.read ? c.muted : c.text,
                 fontWeight: "600",
               }}
             >

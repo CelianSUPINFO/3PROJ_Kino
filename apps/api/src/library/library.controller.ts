@@ -23,6 +23,7 @@ import {
   ListItemDto,
   SetStatusDto,
   UpdateListDto,
+  ReorderListDto,
 } from './dto/library.dto';
 
 @Controller('library')
@@ -75,7 +76,13 @@ export class LibraryController {
     @CurrentUser() user: JwtUser,
     @Body() body: CreateListDto,
   ) {
-    return this.library.createList(user.sub, body.name, body.isPublic);
+    return this.library.createList(user.sub, body.name, body.isPublic, body.description, body.coverUrl);
+  }
+
+  @Patch('lists/:id/reorder')
+  @UseGuards(JwtAuthGuard)
+  reorderList(@CurrentUser() user: JwtUser, @Param('id') id: string, @Body() body: ReorderListDto) {
+    return this.library.reorderList(user.sub, id, body.itemIds);
   }
 
   @Patch('lists/:id')

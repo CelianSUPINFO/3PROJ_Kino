@@ -1,6 +1,6 @@
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useEffect, useState } from "react";
-import { FlatList, Image, Pressable, SafeAreaView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Alert, FlatList, Image, Pressable, SafeAreaView, StyleSheet, Text, TextInput, View } from "react-native";
 import { apiFetch } from "../api";
 import type { RootStackParamList } from "../navigation/types";
 import { useThemeColors } from "../context/ThemeContext";
@@ -25,6 +25,7 @@ export function ListDetailScreen({ route, navigation }: Props) {
   const [editName, setEditName] = useState(listName);
   const [addQ, setAddQ] = useState("");
   const [results, setResults] = useState<{ id: number; title?: string }[]>([]);
+  const [addType, setAddType] = useState<"movie" | "tv">("movie");
 
   async function load() {
     const data = await apiFetch<ListDetail>(`/library/lists/${listId}`);
@@ -54,12 +55,12 @@ export function ListDetailScreen({ route, navigation }: Props) {
       return;
     }
     const timer = setTimeout(() => {
-      apiFetch<{ results: typeof results }>(`/media/search?q=${encodeURIComponent(addQ)}&type=movie&page=1`, { auth: false })
+      apiFetch<{ results: typeof results }>(`/media/search?q=${encodeURIComponent(addQ)}&type=${addType}&page=1`, { auth: false })
         .then((data) => setResults(data.results.slice(0, 6)))
         .catch(() => setResults([]));
     }, 250);
     return () => clearTimeout(timer);
-  }, [addQ, list, meId]);
+  }, [addQ, addType, list, meId]);
 
   async function remove(item: Title) {
     if (!list) return;
@@ -84,13 +85,22 @@ export function ListDetailScreen({ route, navigation }: Props) {
 
   async function deleteList() {
     if (!list) return;
-    await apiFetch(`/library/lists/${list.id}`, { method: "DELETE" });
-    navigation.goBack();
+    Alert.alert("Supprimer la liste ?", "Cette action est définitive.", [
+      { text: "Annuler", style: "cancel" },
+      {
+        text: "Supprimer",
+        style: "destructive",
+        onPress: async () => {
+          await apiFetch(`/library/lists/${list.id}`, { method: "DELETE" });
+          navigation.goBack();
+        },
+      },
+    ]);
   }
 
   async function addItem(tmdbId: number) {
     if (!list) return;
-    await apiFetch(`/library/lists/${list.id}/items`, { method: "POST", body: JSON.stringify({ tmdbId, mediaType: "MOVIE" }) });
+    await apiFetch(`/library/lists/${list.id}/items`, { method: "POST", body: JSON.stringify({ tmdbId, mediaType: addType === "tv" ? "TV" : "MOVIE" }) });
     setAddQ("");
     setResults([]);
     await load();
@@ -113,10 +123,14 @@ export function ListDetailScreen({ route, navigation }: Props) {
             <Pressable style={[s.button, { borderColor: colors.border }]} onPress={toggleVisibility}><Text style={{ color: colors.text }}>{list?.isPublic ? "Rendre privée" : "Rendre publique"}</Text></Pressable>
             <Pressable style={[s.button, { borderColor: "#fca5a5" }]} onPress={deleteList}><Text style={{ color: "#fca5a5" }}>Supprimer la liste</Text></Pressable>
             </View>
-            <TextInput value={addQ} onChangeText={setAddQ} placeholder="Rechercher un film à ajouter..." placeholderTextColor={colors.muted} style={[s.renameInput, { borderColor: colors.border, color: colors.text, marginTop: 12 }]} />
+            <View style={s.actions}>
+              <Pressable accessibilityRole="button" onPress={() => setAddType("movie")} style={[s.button, { borderColor: addType === "movie" ? colors.kino : colors.border }]}><Text style={{ color: colors.text }}>Films</Text></Pressable>
+              <Pressable accessibilityRole="button" onPress={() => setAddType("tv")} style={[s.button, { borderColor: addType === "tv" ? colors.kino : colors.border }]}><Text style={{ color: colors.text }}>Séries</Text></Pressable>
+            </View>
+            <TextInput value={addQ} onChangeText={setAddQ} placeholder="Rechercher une œuvre à ajouter..." placeholderTextColor={colors.muted} style={[s.renameInput, { borderColor: colors.border, color: colors.text, marginTop: 12 }]} />
             {results.map((result) => (
               <Pressable key={result.id} style={[s.resultRow, { borderBottomColor: colors.border }]} onPress={() => addItem(result.id)}>
-                <Text style={{ color: colors.text, flex: 1 }}>{result.title}</Text><Text style={{ color: colors.kinoHot, fontSize: 20 }}>+</Text>
+                <Text style={{ color: colors.text, flex: 1 }}>{result.title}</Text><Text style={{ color: colors.kinoHot, fontWeight: "700" }}>Ajouter</Text>
               </Pressable>
             ))}
           </View>
@@ -132,7 +146,7 @@ export function ListDetailScreen({ route, navigation }: Props) {
               {item.posterPath ? <Image source={{ uri: `https://image.tmdb.org/t/p/w92${item.posterPath}` }} style={s.poster} /> : <View style={[s.poster, { backgroundColor: colors.panel }]} />}
               <Text style={[s.title, { color: colors.text }]}>{item.title}</Text>
             </Pressable>
-            {owner && <Pressable style={s.remove} onPress={() => remove(item)}><Text style={{ color: "#fca5a5", fontSize: 20 }}>×</Text></Pressable>}
+            {owner && <Pressable accessibilityRole="button" accessibilityLabel={`Retirer ${item.title}`} style={s.remove} onPress={() => remove(item)}><Text style={{ color: "#fca5a5", fontWeight: "700" }}>Retirer</Text></Pressable>}
           </View>
         )}
         ListEmptyComponent={<Text style={{ color: colors.muted }}>Aucune œuvre dans cette liste.</Text>}

@@ -1,5 +1,5 @@
 import { MediaType, WatchStatus } from '@prisma/client';
-import { IsBoolean, IsEnum, IsInt, IsOptional, IsString, Length } from 'class-validator';
+import { IsArray, IsBoolean, IsEnum, IsInt, IsOptional, IsString, IsUrl, Length } from 'class-validator';
 
 export class SetStatusDto {
   @IsInt()
@@ -19,6 +19,15 @@ export class CreateListDto {
 
   @IsBoolean()
   isPublic!: boolean;
+
+  @IsOptional()
+  @IsString()
+  @Length(0, 500)
+  description?: string;
+
+  @IsOptional()
+  @IsUrl()
+  coverUrl?: string;
 }
 
 export class UpdateListDto {
@@ -30,6 +39,15 @@ export class UpdateListDto {
   @IsOptional()
   @IsBoolean()
   isPublic?: boolean;
+
+  @IsOptional()
+  @IsString()
+  @Length(0, 500)
+  description?: string;
+
+  @IsOptional()
+  @IsUrl()
+  coverUrl?: string;
 }
 
 export class ListItemDto {
@@ -38,4 +56,10 @@ export class ListItemDto {
 
   @IsEnum(MediaType)
   mediaType!: MediaType;
+}
+
+export class ReorderListDto {
+  @IsArray()
+  @IsString({ each: true })
+  itemIds!: string[];
 }

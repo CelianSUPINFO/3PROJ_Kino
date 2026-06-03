@@ -81,6 +81,7 @@ export function LibraryScreen({ navigation }: Props) {
   const [addTargetId, setAddTargetId] = useState<string | null>(null);
   const [addQ, setAddQ] = useState("");
   const [addResults, setAddResults] = useState<{ id: number; title?: string }[]>([]);
+  const [addType, setAddType] = useState<"movie" | "tv">("movie");
 
   async function load() {
     try {
@@ -109,12 +110,12 @@ export function LibraryScreen({ navigation }: Props) {
       return;
     }
     const timer = setTimeout(() => {
-      apiFetch<{ results: typeof addResults }>(`/media/search?q=${encodeURIComponent(addQ)}&type=movie&page=1`, { auth: false })
+      apiFetch<{ results: typeof addResults }>(`/media/search?q=${encodeURIComponent(addQ)}&type=${addType}&page=1`, { auth: false })
         .then((data) => setAddResults(data.results.slice(0, 6)))
         .catch(() => setAddResults([]));
     }, 250);
     return () => clearTimeout(timer);
-  }, [addQ, addTargetId]);
+  }, [addQ, addTargetId, addType]);
 
   const byStatus = useMemo(() => {
     const map: Record<string, PosterItem[]> = {};
@@ -136,9 +137,9 @@ export function LibraryScreen({ navigation }: Props) {
     load();
   }
 
-  async function addMovieToList(tmdbId: number) {
+  async function addWorkToList(tmdbId: number) {
     if (!addTargetId) return;
-    await apiFetch(`/library/lists/${addTargetId}/items`, { method: "POST", body: JSON.stringify({ tmdbId, mediaType: "MOVIE" }) });
+    await apiFetch(`/library/lists/${addTargetId}/items`, { method: "POST", body: JSON.stringify({ tmdbId, mediaType: addType === "tv" ? "TV" : "MOVIE" }) });
     setAddQ("");
     setAddResults([]);
     await load();
@@ -244,7 +245,11 @@ export function LibraryScreen({ navigation }: Props) {
           ))}
           {lists.length > 0 && (
             <View style={{ marginTop: spacing.md }}>
-              <Text style={{ color: colors.muted, marginBottom: 6 }}>Ajouter un film à une liste</Text>
+              <Text style={{ color: colors.muted, marginBottom: 6 }}>Ajouter une œuvre à une liste</Text>
+              <View style={{ flexDirection: "row", gap: 8, marginBottom: 8 }}>
+                <Pressable accessibilityRole="button" onPress={() => setAddType("movie")} style={[s.targetChip, { borderColor: addType === "movie" ? colors.kino : colors.border }]}><Text style={{ color: colors.text }}>Films</Text></Pressable>
+                <Pressable accessibilityRole="button" onPress={() => setAddType("tv")} style={[s.targetChip, { borderColor: addType === "tv" ? colors.kino : colors.border }]}><Text style={{ color: colors.text }}>Séries</Text></Pressable>
+              </View>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, marginBottom: 8 }}>
                 {lists.map((list) => (
                   <Pressable key={list.id} style={[s.targetChip, { borderColor: addTargetId === list.id ? colors.kino : colors.border }]} onPress={() => setAddTargetId(list.id)}>
@@ -252,10 +257,10 @@ export function LibraryScreen({ navigation }: Props) {
                   </Pressable>
                 ))}
               </ScrollView>
-              <TextInput value={addQ} onChangeText={setAddQ} editable={!!addTargetId} placeholder="Rechercher un film..." placeholderTextColor={colors.muted} style={[s.input, { borderColor: colors.border, color: colors.text, opacity: addTargetId ? 1 : 0.5 }]} />
+              <TextInput value={addQ} onChangeText={setAddQ} editable={!!addTargetId} placeholder="Rechercher une œuvre..." placeholderTextColor={colors.muted} style={[s.input, { borderColor: colors.border, color: colors.text, opacity: addTargetId ? 1 : 0.5 }]} />
               {addResults.map((result) => (
-                <Pressable key={result.id} style={[s.resultRow, { borderBottomColor: colors.border }]} onPress={() => addMovieToList(result.id)}>
-                  <Text style={{ color: colors.text, flex: 1 }}>{result.title}</Text><Text style={{ color: colors.kinoHot, fontSize: 20 }}>+</Text>
+                <Pressable accessibilityRole="button" accessibilityLabel={`Ajouter ${result.title ?? ""}`} key={result.id} style={[s.resultRow, { borderBottomColor: colors.border }]} onPress={() => addWorkToList(result.id)}>
+                  <Text style={{ color: colors.text, flex: 1 }}>{result.title}</Text><Text style={{ color: colors.kinoHot, fontWeight: "700" }}>Ajouter</Text>
                 </Pressable>
               ))}
             </View>

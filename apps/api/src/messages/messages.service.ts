@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { NotificationsGateway } from '../notifications/notifications.gateway';
@@ -12,6 +12,15 @@ export class MessagesService {
   ) {}
 
   private async mutualFollow(a: string, b: string) {
+    const blocked = await this.prisma.userBlock.findFirst({
+      where: {
+        OR: [
+          { blockerId: a, blockedId: b },
+          { blockerId: b, blockedId: a },
+        ],
+      },
+    });
+    if (blocked) return false;
     const [ab, ba] = await Promise.all([
       this.prisma.follow.findUnique({
         where: {
@@ -61,6 +70,32 @@ export class MessagesService {
       senderId: userId,
     });
     return message;
+  }
+
+  async remove(userId: string, messageId: string) {
+    const message = await this.prisma.message.findUnique({ where: { id: messageId } });
+    if (!message) throw new NotFoundException();
+    if (message.senderId !== userId) throw new ForbiddenException();
+    await this.prisma.message.delete({ where: { id: messageId } });
+    this.gateway.pushToUser(message.recipientId, 'message:deleted', { id: messageId });
+    return { ok: true };
+  }
+
+  async report(userId: string, messageId: string, reason: string) {
+    const message = await this.prisma.message.findUnique({ where: { id: messageId } });
+    if (!message || message.recipientId !== userId) throw new ForbiddenException();
+    await this.prisma.messageReport.upsert({
+      where: { reporterId_messageId: { reporterId: userId, messageId } },
+      create: { reporterId: userId, messageId, reason },
+      update: { reason, status: 'OPEN' },
+    });
+    return { ok: true };
+  }
+
+  async typing(userId: string, recipientId: string, active: boolean) {
+    if (!(await this.mutualFollow(userId, recipientId))) throw new ForbiddenException();
+    this.gateway.pushToUser(recipientId, 'message:typing', { senderId: userId, active });
+    return { ok: true };
   }
 
   async partners(userId: string) {

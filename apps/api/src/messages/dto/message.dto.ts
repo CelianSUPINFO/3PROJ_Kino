@@ -8,3 +8,9 @@ export class SendMessageDto {
   @Length(1, 1000)
   body!: string;
 }
+
+export class ReportMessageDto {
+  @IsString()
+  @Length(3, 500)
+  reason!: string;
+}

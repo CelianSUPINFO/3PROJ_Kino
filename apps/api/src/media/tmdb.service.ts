@@ -29,7 +29,7 @@ export class TmdbService {
     }
   }
 
-  private client() {
+  private client(language = 'fr-FR') {
     const headers: Record<string, string> = {};
     const params: Record<string, string> = {};
     if (this.readAccessToken) {
@@ -40,7 +40,7 @@ export class TmdbService {
     return axios.create({
       baseURL: this.base,
       headers,
-      params,
+      params: { ...params, language },
       timeout: 15000,
     });
   }
@@ -53,11 +53,12 @@ export class TmdbService {
     minVote?: number,
     mediaType?: 'movie' | 'tv',
     creator?: string,
+    language = 'fr-FR',
   ) {
     if (creator) {
-      return this.searchByCreator(creator, query, page, year, minVote, mediaType);
+      return this.searchByCreator(creator, query, page, year, minVote, mediaType, language);
     }
-    const c = this.client();
+    const c = this.client(language);
     const { data } = await c.get('/search/multi', {
       params: {
         query,
@@ -97,8 +98,9 @@ export class TmdbService {
     year?: number,
     minVote?: number,
     mediaType?: 'movie' | 'tv',
+    language = 'fr-FR',
   ) {
-    const c = this.client();
+    const c = this.client(language);
     const people = await c.get('/search/person', {
       params: { query: creator, page: 1, include_adult: false },
     });
@@ -141,10 +143,11 @@ export class TmdbService {
     year?: number,
     genreId?: number,
     minVote?: number,
+    language = 'fr-FR',
   ) {
     const path =
       mediaType === MediaType.MOVIE ? '/discover/movie' : '/discover/tv';
-    const c = this.client();
+    const c = this.client(language);
     const { data } = await c.get(path, {
       params: {
         page,
@@ -183,19 +186,19 @@ export class TmdbService {
     return values;
   }
 
-  async getDetails(mediaType: MediaType, tmdbId: number) {
+  async getDetails(mediaType: MediaType, tmdbId: number, language = 'fr-FR') {
     const cached = await this.prisma.cachedWork.findUnique({
       where: {
         tmdbId_mediaType: { tmdbId, mediaType },
       },
     });
     const now = Date.now();
-    if (cached && now - cached.cachedAt.getTime() < CACHE_MS) {
+    if (language.startsWith('fr') && cached && now - cached.cachedAt.getTime() < CACHE_MS) {
       return { source: 'cache' as const, data: cached.payload };
     }
     const path =
       mediaType === MediaType.MOVIE ? `/movie/${tmdbId}` : `/tv/${tmdbId}`;
-    const c = this.client();
+    const c = this.client(language);
     const { data } = await c.get(path, {
       params: { append_to_response: 'credits,videos' },
     });
@@ -214,7 +217,7 @@ export class TmdbService {
       mediaType === MediaType.MOVIE
         ? (data.runtime as number | null)
         : ((data.episode_run_time?.[0] as number | undefined) ?? null);
-    await this.prisma.cachedWork.upsert({
+    if (language.startsWith('fr')) await this.prisma.cachedWork.upsert({
       where: { tmdbId_mediaType: { tmdbId, mediaType } },
       create: {
         tmdbId,

@@ -24,6 +24,7 @@ export class MediaController {
     @Query('minVote') minVote?: string,
     @Query('type') type?: string,
     @Query('creator') creator?: string,
+    @Query('language') language = 'fr-FR',
   ) {
     return this.tmdb.search(
       q ?? '',
@@ -33,6 +34,7 @@ export class MediaController {
       minVote ? parseFloat(minVote) : undefined,
       type === 'movie' || type === 'tv' ? type : undefined,
       creator?.trim() || undefined,
+      language === 'en' || language === 'en-US' ? 'en-US' : 'fr-FR',
     );
   }
 
@@ -45,6 +47,7 @@ export class MediaController {
     @Query('year') year?: string,
     @Query('genre') genre?: string,
     @Query('minVote') minVote?: string,
+    @Query('language') language = 'fr-FR',
   ) {
     const mediaType = type === 'tv' ? MediaType.TV : MediaType.MOVIE;
     return this.tmdb.discover(
@@ -54,6 +57,7 @@ export class MediaController {
       year ? parseInt(year, 10) : undefined,
       genre ? parseInt(genre, 10) : undefined,
       minVote ? parseFloat(minVote) : undefined,
+      language === 'en' || language === 'en-US' ? 'en-US' : 'fr-FR',
     );
   }
 
@@ -62,8 +66,9 @@ export class MediaController {
   details(
     @Param('type') type: string,
     @Param('tmdbId', ParseIntPipe) tmdbId: number,
+    @Query('language') language = 'fr-FR',
   ) {
     const mediaType = type === 'tv' ? MediaType.TV : MediaType.MOVIE;
-    return this.tmdb.getDetails(mediaType, tmdbId);
+    return this.tmdb.getDetails(mediaType, tmdbId, language === 'en' || language === 'en-US' ? 'en-US' : 'fr-FR');
   }
 }

@@ -258,6 +258,40 @@ export class UsersService {
     return { ok: true };
   }
 
+  async blocks(userId: string) {
+    const rows = await this.prisma.userBlock.findMany({
+      where: { blockerId: userId },
+      include: { blocked: { select: { id: true, displayName: true, avatarUrl: true } } },
+      orderBy: { createdAt: 'desc' },
+    });
+    return rows.map((row) => row.blocked);
+  }
+
+  async block(userId: string, targetId: string) {
+    if (userId === targetId) throw new BadRequestException();
+    await this.prisma.$transaction([
+      this.prisma.userBlock.upsert({
+        where: { blockerId_blockedId: { blockerId: userId, blockedId: targetId } },
+        create: { blockerId: userId, blockedId: targetId },
+        update: {},
+      }),
+      this.prisma.follow.deleteMany({
+        where: {
+          OR: [
+            { followerId: userId, followingId: targetId },
+            { followerId: targetId, followingId: userId },
+          ],
+        },
+      }),
+    ]);
+    return { ok: true };
+  }
+
+  async unblock(userId: string, targetId: string) {
+    await this.prisma.userBlock.deleteMany({ where: { blockerId: userId, blockedId: targetId } });
+    return { ok: true };
+  }
+
   async exportData(userId: string) {
     const [
       user,

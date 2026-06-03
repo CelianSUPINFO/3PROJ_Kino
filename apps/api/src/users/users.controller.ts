@@ -109,4 +109,22 @@ export class UsersController {
   unfollow(@CurrentUser() user: JwtUser, @Param('id') id: string) {
     return this.users.unfollow(user.sub, id);
   }
+
+  @Get('me/blocks')
+  @UseGuards(JwtAuthGuard)
+  blocks(@CurrentUser() user: JwtUser) {
+    return this.users.blocks(user.sub);
+  }
+
+  @Post(':id/block')
+  @UseGuards(JwtAuthGuard)
+  block(@CurrentUser() user: JwtUser, @Param('id') id: string) {
+    return this.users.block(user.sub, id);
+  }
+
+  @Delete(':id/block')
+  @UseGuards(JwtAuthGuard)
+  unblock(@CurrentUser() user: JwtUser, @Param('id') id: string) {
+    return this.users.unblock(user.sub, id);
+  }
 }
