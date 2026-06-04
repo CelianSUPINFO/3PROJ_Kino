@@ -40,10 +40,13 @@ export class MessagesService {
     if (!(await this.mutualFollow(userId, otherId))) {
       throw new ForbiddenException('Abonnement mutuel requis');
     }
-    await this.prisma.message.updateMany({
+    const read = await this.prisma.message.updateMany({
       where: { senderId: otherId, recipientId: userId, readAt: null },
       data: { readAt: new Date() },
     });
+    if (read.count > 0) {
+      this.gateway.pushToUser(otherId, 'message:read', { readerId: userId });
+    }
     return this.prisma.message.findMany({
       where: {
         OR: [
@@ -77,6 +80,7 @@ export class MessagesService {
     if (!message) throw new NotFoundException();
     if (message.senderId !== userId) throw new ForbiddenException();
     await this.prisma.message.delete({ where: { id: messageId } });
+    this.gateway.pushToUser(userId, 'message:deleted', { id: messageId });
     this.gateway.pushToUser(message.recipientId, 'message:deleted', { id: messageId });
     return { ok: true };
   }

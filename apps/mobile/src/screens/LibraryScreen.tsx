@@ -20,7 +20,7 @@ import type { I18nKey } from "../lib/i18n";
 import { radius, spacing } from "../theme";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Library">;
-
+type Filter = "all" | "movie" | "tv";
 type LibraryRow = {
   tmdbId: number;
   mediaType: string;
@@ -28,35 +28,26 @@ type LibraryRow = {
   title: string;
   posterPath: string | null;
 };
-
 type ListRow = {
   id: string;
   name: string;
+  description?: string;
+  coverUrl?: string | null;
   isPublic: boolean;
   _count?: { items: number };
 };
-
 type Stats = {
-  byStatus: Record<string, number>;
   total: number;
   completed: number;
   estimatedHoursWatched: number;
 };
 
 const STATUS_ORDER = ["WATCHLIST", "IN_PROGRESS", "COMPLETED", "DROPPED"] as const;
-
 const STATUS_I18N: Record<(typeof STATUS_ORDER)[number], I18nKey> = {
   WATCHLIST: "library.toWatch",
   IN_PROGRESS: "library.inProgress",
   COMPLETED: "library.completed",
   DROPPED: "library.dropped",
-};
-
-const STATUS_PATH: Record<(typeof STATUS_ORDER)[number], string> = {
-  WATCHLIST: "watchlist",
-  IN_PROGRESS: "in-progress",
-  COMPLETED: "completed",
-  DROPPED: "dropped",
 };
 
 function toPoster(row: LibraryRow): PosterItem {
@@ -70,38 +61,40 @@ function toPoster(row: LibraryRow): PosterItem {
 }
 
 export function LibraryScreen({ navigation }: Props) {
-  const { t } = useLocale();
+  const { locale, t } = useLocale();
   const { colors } = useThemeColors();
   const [rows, setRows] = useState<LibraryRow[]>([]);
   const [lists, setLists] = useState<ListRow[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [filter, setFilter] = useState<Filter>("all");
+  const [creating, setCreating] = useState(false);
   const [newListName, setNewListName] = useState("");
+  const [newListDescription, setNewListDescription] = useState("");
   const [newListPublic, setNewListPublic] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
   const [addTargetId, setAddTargetId] = useState<string | null>(null);
-  const [addQ, setAddQ] = useState("");
-  const [addResults, setAddResults] = useState<{ id: number; title?: string }[]>([]);
   const [addType, setAddType] = useState<"movie" | "tv">("movie");
+  const [addQ, setAddQ] = useState("");
+  const [addResults, setAddResults] = useState<{ id: number; title?: string; name?: string }[]>([]);
 
   async function load() {
     try {
-      const [lib, listRows, st] = await Promise.all([
+      const [library, customLists, summary] = await Promise.all([
         apiFetch<LibraryRow[]>("/library/me"),
         apiFetch<ListRow[]>("/library/lists/mine"),
         apiFetch<Stats>("/library/stats"),
       ]);
-      setRows(lib);
-      setLists(listRows);
-      setStats(st);
-      setMsg(null);
-    } catch {
-      setMsg(t("library.signIn"));
+      setRows(library);
+      setLists(customLists);
+      setStats(summary);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("library.signIn"));
     }
   }
 
   useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    void load();
   }, []);
 
   useEffect(() => {
@@ -110,36 +103,48 @@ export function LibraryScreen({ navigation }: Props) {
       return;
     }
     const timer = setTimeout(() => {
-      apiFetch<{ results: typeof addResults }>(`/media/search?q=${encodeURIComponent(addQ)}&type=${addType}&page=1`, { auth: false })
+      apiFetch<{ results: typeof addResults }>(
+        `/media/search?q=${encodeURIComponent(addQ)}&type=${addType}&page=1&language=${locale === "fr" ? "fr-FR" : "en-US"}`,
+        { auth: false },
+      )
         .then((data) => setAddResults(data.results.slice(0, 6)))
         .catch(() => setAddResults([]));
     }, 250);
     return () => clearTimeout(timer);
-  }, [addQ, addTargetId, addType]);
+  }, [addQ, addTargetId, addType, locale]);
 
   const byStatus = useMemo(() => {
-    const map: Record<string, PosterItem[]> = {};
-    for (const s of STATUS_ORDER) map[s] = [];
+    const map: Record<string, PosterItem[]> = Object.fromEntries(STATUS_ORDER.map((status) => [status, []]));
     for (const row of rows) {
-      if (map[row.status]) map[row.status].push(toPoster(row));
+      const type = row.mediaType === "TV" ? "tv" : "movie";
+      if (filter === "all" || filter === type) map[row.status]?.push(toPoster(row));
     }
     return map;
-  }, [rows]);
+  }, [rows, filter]);
 
   async function createList() {
-    if (!newListName.trim()) return;
+    if (newListName.trim().length < 2) return;
     await apiFetch("/library/lists", {
       method: "POST",
-      body: JSON.stringify({ name: newListName, isPublic: newListPublic }),
+      body: JSON.stringify({
+        name: newListName.trim(),
+        description: newListDescription.trim(),
+        isPublic: newListPublic,
+      }),
     });
     setNewListName("");
+    setNewListDescription("");
     setNewListPublic(false);
-    load();
+    setCreating(false);
+    await load();
   }
 
-  async function addWorkToList(tmdbId: number) {
+  async function addWork(tmdbId: number) {
     if (!addTargetId) return;
-    await apiFetch(`/library/lists/${addTargetId}/items`, { method: "POST", body: JSON.stringify({ tmdbId, mediaType: addType === "tv" ? "TV" : "MOVIE" }) });
+    await apiFetch(`/library/lists/${addTargetId}/items`, {
+      method: "POST",
+      body: JSON.stringify({ tmdbId, mediaType: addType === "tv" ? "TV" : "MOVIE" }),
+    });
     setAddQ("");
     setAddResults([]);
     await load();
@@ -149,118 +154,142 @@ export function LibraryScreen({ navigation }: Props) {
     navigation.navigate("Title", {
       type: item.media_type === "tv" ? "tv" : "movie",
       id: item.id,
-      title: item.title ?? item.name ?? "…",
+      title: item.title ?? item.name ?? "",
     });
   }
 
-  if (msg && rows.length === 0) {
+  if (error && rows.length === 0) {
     return (
       <SafeAreaView style={[s.screen, { backgroundColor: colors.ink }]}>
-        <Text style={{ color: colors.muted, padding: spacing.lg, textAlign: "center" }}>
-          {msg}
-        </Text>
+        <View style={s.centerState}>
+          <Text style={[s.section, { color: colors.text }]}>{t("library.signIn")}</Text>
+          <Text style={[s.sub, { color: colors.muted }]}>{error}</Text>
+          <Pressable accessibilityRole="button" style={[s.primaryWide, { backgroundColor: colors.kino }]} onPress={() => navigation.navigate("Login")}>
+            <Text style={s.primaryText}>{t("nav.login")}</Text>
+          </Pressable>
+        </View>
       </SafeAreaView>
     );
   }
 
   return (
     <SafeAreaView style={[s.screen, { backgroundColor: colors.ink }]}>
-      <ScrollView contentContainerStyle={{ paddingBottom: spacing.xxl }}>
-        <View style={{ padding: spacing.lg }}>
-          <Text style={[s.eyebrow, { color: colors.kinoHot }]}>{t("nav.library")}</Text>
+      <ScrollView contentContainerStyle={{ paddingBottom: 100 }}>
+        <View style={s.header}>
+          <Text style={[s.eyebrow, { color: colors.kinoHot }]}>{t("nav.library").toUpperCase()}</Text>
           <Text style={[s.h1, { color: colors.text }]}>{t("library.title")}</Text>
           <Text style={[s.sub, { color: colors.muted }]}>{t("library.subtitle")}</Text>
           {stats && (
-            <Text style={[s.sub, { color: colors.muted }]}>
-              {stats.total} {t("library.stats", { hours: stats.estimatedHoursWatched })}
-            </Text>
+            <View style={s.statsRow}>
+              {[
+                [stats.total, locale === "fr" ? "Œuvres" : "Titles"],
+                [stats.completed, t("library.completed")],
+                [`${stats.estimatedHoursWatched} h`, locale === "fr" ? "Visionnées" : "Watched"],
+              ].map(([value, label]) => (
+                <View key={String(label)} style={[s.stat, { backgroundColor: colors.panel, borderColor: colors.border }]}>
+                  <Text style={[s.statValue, { color: colors.text }]}>{value}</Text>
+                  <Text style={[s.statLabel, { color: colors.muted }]}>{label}</Text>
+                </View>
+              ))}
+            </View>
           )}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.filterRow}>
+            {(["all", "movie", "tv"] as const).map((value) => (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityState={{ selected: filter === value }}
+                key={value}
+                onPress={() => setFilter(value)}
+                style={[s.chip, { borderColor: filter === value ? colors.kino : colors.border, backgroundColor: filter === value ? `${colors.kino}20` : "transparent" }]}
+              >
+                <Text style={{ color: colors.text }}>{value === "all" ? t("nav.all") : value === "movie" ? t("nav.movies") : t("nav.series")}</Text>
+              </Pressable>
+            ))}
+          </ScrollView>
         </View>
 
         {STATUS_ORDER.map((status) => {
           const items = byStatus[status] ?? [];
-          if (items.length === 0) return null;
+          if (!items.length) return null;
           return (
-            <View key={status} style={{ marginBottom: spacing.lg }}>
-              <View style={s.rowHead}>
+            <View key={status} style={s.mediaSection}>
+              <View style={s.sectionHead}>
                 <Text style={[s.section, { color: colors.text }]}>{t(STATUS_I18N[status])}</Text>
-                <Pressable
-                  onPress={() =>
-                    navigation.navigate("LibraryStatus", {
-                      status,
-                      title: t(STATUS_I18N[status]),
-                    })
-                  }
-                >
-                  <Text style={{ color: colors.kinoHot, fontWeight: "600" }}>
-                    {t("common.seeAll")} →
-                  </Text>
+                <Pressable accessibilityRole="button" onPress={() => navigation.navigate("LibraryStatus", { status, title: t(STATUS_I18N[status]) })}>
+                  <Text style={{ color: colors.kinoHot, fontWeight: "700" }}>{t("common.seeAll")} →</Text>
                 </Pressable>
               </View>
               <FlatList
                 horizontal
                 data={items.slice(0, 12)}
-                keyExtractor={(item) => `${status}-${item.id}`}
+                keyExtractor={(item) => `${status}-${item.media_type}-${item.id}`}
                 showsHorizontalScrollIndicator={false}
-                contentContainerStyle={{ paddingHorizontal: spacing.lg, gap: 12 }}
-                renderItem={({ item }) => (
-                  <PosterCard item={item} onPress={() => openTitle(item)} width={110} />
-                )}
+                contentContainerStyle={s.posterRow}
+                renderItem={({ item }) => <PosterCard item={item} onPress={() => openTitle(item)} width={110} />}
               />
             </View>
           );
         })}
 
-        <View style={[s.listsBox, { marginHorizontal: spacing.lg, borderColor: colors.border, backgroundColor: colors.panel }]}>
-          <Text style={[s.section, { color: colors.text }]}>{t("library.lists")}</Text>
-          <View style={{ flexDirection: "row", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-            <TextInput
-              value={newListName}
-              onChangeText={setNewListName}
-              placeholder="…"
-              placeholderTextColor={colors.muted}
-              style={[s.input, { flex: 1, minWidth: 120, borderColor: colors.border, color: colors.text }]}
-            />
-            <Switch value={newListPublic} onValueChange={setNewListPublic} />
-            <Pressable
-              style={[s.addBtn, { backgroundColor: colors.kino }]}
-              onPress={createList}
-            >
-              <Text style={{ color: "#fff", fontWeight: "700" }}>+</Text>
+        <View style={s.customLists}>
+          <View style={s.listHeader}>
+            <View style={{ flex: 1 }}>
+              <Text style={[s.section, { color: colors.text }]}>{t("library.lists")}</Text>
+              <Text style={[s.sub, { color: colors.muted }]}>
+                {locale === "fr" ? "Organisez et partagez vos sélections." : "Organize and share your picks."}
+              </Text>
+            </View>
+            <Pressable accessibilityRole="button" accessibilityLabel={locale === "fr" ? "Créer une liste" : "Create a list"} style={[s.createButton, { backgroundColor: colors.kino }]} onPress={() => setCreating((value) => !value)}>
+              <Text style={s.primaryText}>{creating ? t("common.cancel") : locale === "fr" ? "Créer" : "Create"}</Text>
             </Pressable>
           </View>
-          {lists.map((l) => (
-            <Pressable
-              key={l.id}
-              style={s.listRow}
-              onPress={() => navigation.navigate("ListDetail", { listId: l.id, listName: l.name })}
-            >
-              <Text style={{ color: colors.text, fontWeight: "600" }}>
-                {l.name} · {l._count?.items ?? 0}
-              </Text>
-              <Text style={{ color: colors.muted, fontSize: 12 }}>
-                {l.isPublic ? "Public" : "Private"}
-              </Text>
+
+          {creating && (
+            <View style={[s.form, { backgroundColor: colors.panel, borderColor: colors.border }]}>
+              <TextInput value={newListName} onChangeText={setNewListName} placeholder={locale === "fr" ? "Nom de la liste" : "List name"} placeholderTextColor={colors.muted} style={[s.input, { borderColor: colors.border, color: colors.text }]} />
+              <TextInput value={newListDescription} onChangeText={setNewListDescription} placeholder={locale === "fr" ? "Description (optionnelle)" : "Description (optional)"} placeholderTextColor={colors.muted} multiline style={[s.input, s.descriptionInput, { borderColor: colors.border, color: colors.text }]} />
+              <View style={s.visibilityRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: colors.text, fontWeight: "700" }}>{newListPublic ? t("common.public") : t("common.private")}</Text>
+                  <Text style={{ color: colors.muted, fontSize: 12 }}>{newListPublic ? (locale === "fr" ? "Visible et partageable." : "Visible and shareable.") : (locale === "fr" ? "Visible uniquement par vous." : "Visible only to you.")}</Text>
+                </View>
+                <Switch value={newListPublic} onValueChange={setNewListPublic} />
+              </View>
+              <Pressable accessibilityRole="button" disabled={newListName.trim().length < 2} style={[s.primaryWide, { backgroundColor: colors.kino, opacity: newListName.trim().length < 2 ? 0.5 : 1 }]} onPress={createList}>
+                <Text style={s.primaryText}>{locale === "fr" ? "Créer la liste" : "Create list"}</Text>
+              </Pressable>
+            </View>
+          )}
+
+          {lists.map((list) => (
+            <Pressable accessibilityRole="button" accessibilityLabel={list.name} key={list.id} style={[s.listCard, { backgroundColor: colors.panel, borderColor: colors.border }]} onPress={() => navigation.navigate("ListDetail", { listId: list.id, listName: list.name })}>
+              <View style={[s.listCover, { backgroundColor: colors.panelSoft }]}>
+                <Text style={{ color: colors.kinoHot, fontSize: 24, fontWeight: "800" }}>{list.name.slice(0, 1).toUpperCase()}</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: colors.text, fontWeight: "800", fontSize: 16 }}>{list.name}</Text>
+                {!!list.description && <Text numberOfLines={2} style={{ color: colors.muted, marginTop: 3 }}>{list.description}</Text>}
+                <Text style={{ color: colors.muted, fontSize: 12, marginTop: 6 }}>{list._count?.items ?? 0} {locale === "fr" ? "œuvre(s)" : "title(s)"} · {list.isPublic ? t("common.public") : t("common.private")}</Text>
+              </View>
+              <Text style={{ color: colors.kinoHot, fontSize: 26 }}>›</Text>
             </Pressable>
           ))}
-          {lists.length > 0 && (
-            <View style={{ marginTop: spacing.md }}>
-              <Text style={{ color: colors.muted, marginBottom: 6 }}>Ajouter une œuvre à une liste</Text>
-              <View style={{ flexDirection: "row", gap: 8, marginBottom: 8 }}>
-                <Pressable accessibilityRole="button" onPress={() => setAddType("movie")} style={[s.targetChip, { borderColor: addType === "movie" ? colors.kino : colors.border }]}><Text style={{ color: colors.text }}>Films</Text></Pressable>
-                <Pressable accessibilityRole="button" onPress={() => setAddType("tv")} style={[s.targetChip, { borderColor: addType === "tv" ? colors.kino : colors.border }]}><Text style={{ color: colors.text }}>Séries</Text></Pressable>
-              </View>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, marginBottom: 8 }}>
-                {lists.map((list) => (
-                  <Pressable key={list.id} style={[s.targetChip, { borderColor: addTargetId === list.id ? colors.kino : colors.border }]} onPress={() => setAddTargetId(list.id)}>
-                    <Text style={{ color: colors.text }}>{list.name}</Text>
-                  </Pressable>
-                ))}
+
+          {!!lists.length && (
+            <View style={[s.quickAdd, { borderColor: colors.border }]}>
+              <Text style={[s.section, { color: colors.text }]}>{locale === "fr" ? "Ajout rapide" : "Quick add"}</Text>
+              <Text style={[s.sub, { color: colors.muted }]}>{locale === "fr" ? "Choisissez une liste, puis recherchez une œuvre." : "Choose a list, then search for a title."}</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.filterRow}>
+                {lists.map((list) => <Pressable accessibilityRole="button" key={list.id} onPress={() => setAddTargetId(list.id)} style={[s.chip, { borderColor: addTargetId === list.id ? colors.kino : colors.border }]}><Text style={{ color: colors.text }}>{list.name}</Text></Pressable>)}
               </ScrollView>
-              <TextInput value={addQ} onChangeText={setAddQ} editable={!!addTargetId} placeholder="Rechercher une œuvre..." placeholderTextColor={colors.muted} style={[s.input, { borderColor: colors.border, color: colors.text, opacity: addTargetId ? 1 : 0.5 }]} />
+              <View style={s.filterRow}>
+                {(["movie", "tv"] as const).map((type) => <Pressable accessibilityRole="button" key={type} onPress={() => setAddType(type)} style={[s.chip, { borderColor: addType === type ? colors.kino : colors.border }]}><Text style={{ color: colors.text }}>{type === "movie" ? t("nav.movies") : t("nav.series")}</Text></Pressable>)}
+              </View>
+              <TextInput value={addQ} onChangeText={setAddQ} editable={!!addTargetId} placeholder={locale === "fr" ? "Rechercher une œuvre…" : "Search for a title…"} placeholderTextColor={colors.muted} style={[s.input, { borderColor: colors.border, color: colors.text, opacity: addTargetId ? 1 : 0.5 }]} />
               {addResults.map((result) => (
-                <Pressable accessibilityRole="button" accessibilityLabel={`Ajouter ${result.title ?? ""}`} key={result.id} style={[s.resultRow, { borderBottomColor: colors.border }]} onPress={() => addWorkToList(result.id)}>
-                  <Text style={{ color: colors.text, flex: 1 }}>{result.title}</Text><Text style={{ color: colors.kinoHot, fontWeight: "700" }}>Ajouter</Text>
+                <Pressable accessibilityRole="button" key={result.id} onPress={() => addWork(result.id)} style={[s.resultRow, { borderBottomColor: colors.border }]}>
+                  <Text style={{ color: colors.text, flex: 1 }}>{result.title ?? result.name}</Text>
+                  <Text style={{ color: colors.kinoHot, fontWeight: "800" }}>{locale === "fr" ? "Ajouter" : "Add"}</Text>
                 </Pressable>
               ))}
             </View>
@@ -273,21 +302,32 @@ export function LibraryScreen({ navigation }: Props) {
 
 const s = StyleSheet.create({
   screen: { flex: 1 },
+  header: { padding: spacing.lg },
   eyebrow: { fontSize: 11, fontWeight: "700", letterSpacing: 2 },
   h1: { fontSize: 28, fontWeight: "800", marginTop: 4 },
-  sub: { marginTop: 6, lineHeight: 20 },
-  rowHead: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: spacing.lg,
-    marginBottom: spacing.sm,
-  },
-  section: { fontSize: 18, fontWeight: "700" },
-  listsBox: { padding: spacing.md, borderRadius: radius.lg, borderWidth: 1, marginTop: spacing.md },
-  input: { borderWidth: 1, borderRadius: radius.pill, paddingHorizontal: 14, paddingVertical: 8 },
-  addBtn: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
-  listRow: { paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "rgba(255,255,255,0.08)" },
-  targetChip: { borderWidth: 1, borderRadius: radius.pill, paddingHorizontal: 12, paddingVertical: 7 },
-  resultRow: { flexDirection: "row", alignItems: "center", paddingVertical: 9, borderBottomWidth: StyleSheet.hairlineWidth },
+  sub: { marginTop: 5, lineHeight: 19 },
+  statsRow: { flexDirection: "row", gap: 8, marginTop: spacing.md },
+  stat: { flex: 1, minHeight: 82, borderWidth: 1, borderRadius: radius.md, padding: 10, justifyContent: "center" },
+  statValue: { fontSize: 20, fontWeight: "800" },
+  statLabel: { fontSize: 11, marginTop: 3 },
+  filterRow: { flexDirection: "row", gap: 8, marginTop: spacing.md },
+  chip: { minHeight: 44, borderWidth: 1, borderRadius: radius.pill, paddingHorizontal: 14, alignItems: "center", justifyContent: "center" },
+  mediaSection: { marginBottom: spacing.lg },
+  sectionHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: spacing.lg, marginBottom: spacing.sm },
+  section: { fontSize: 18, fontWeight: "800" },
+  posterRow: { paddingHorizontal: spacing.lg, gap: 12 },
+  customLists: { paddingHorizontal: spacing.lg, marginTop: spacing.sm },
+  listHeader: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: spacing.md },
+  createButton: { minHeight: 44, borderRadius: radius.pill, paddingHorizontal: 18, alignItems: "center", justifyContent: "center" },
+  primaryWide: { minHeight: 48, borderRadius: radius.pill, alignItems: "center", justifyContent: "center", marginTop: 4 },
+  primaryText: { color: "#fff", fontWeight: "800" },
+  form: { borderWidth: 1, borderRadius: radius.lg, padding: spacing.md, marginBottom: spacing.md },
+  input: { minHeight: 48, borderWidth: 1, borderRadius: radius.md, paddingHorizontal: 14, paddingVertical: 11, marginTop: 10 },
+  descriptionInput: { minHeight: 84, textAlignVertical: "top" },
+  visibilityRow: { flexDirection: "row", alignItems: "center", gap: 12, marginTop: 12 },
+  listCard: { minHeight: 96, borderWidth: 1, borderRadius: radius.lg, padding: 12, marginBottom: 10, flexDirection: "row", alignItems: "center", gap: 12 },
+  listCover: { width: 66, height: 66, borderRadius: radius.md, alignItems: "center", justifyContent: "center" },
+  quickAdd: { borderTopWidth: 1, marginTop: spacing.md, paddingTop: spacing.lg },
+  resultRow: { minHeight: 48, flexDirection: "row", alignItems: "center", borderBottomWidth: StyleSheet.hairlineWidth },
+  centerState: { flex: 1, padding: spacing.xl, alignItems: "center", justifyContent: "center" },
 });

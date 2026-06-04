@@ -13,8 +13,9 @@ import {
   View,
 } from "react-native";
 import { apiFetch } from "../api";
+import { useThemeColors } from "../context/ThemeContext";
 import type { RootStackParamList } from "../navigation/types";
-import { colors, radius, spacing } from "../theme";
+import { radius, spacing } from "../theme";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Title">;
 
@@ -37,6 +38,8 @@ type Comment = {
 type ListRow = { id: string; name: string };
 
 export function TitleScreen({ route, navigation }: Props) {
+  const { colors } = useThemeColors();
+  const s = makeStyles(colors);
   const { type, id, title } = route.params;
   const [rating, setRating] = useState(4);
   const [body, setBody] = useState("");
@@ -251,14 +254,14 @@ export function TitleScreen({ route, navigation }: Props) {
           {overview ? <Text style={s.sub}>{overview}</Text> : null}
           <Text style={s.section}>Informations</Text>
           <View style={s.facts}>
-            {(type === "tv" ? creators : directors).length > 0 && <Fact label={type === "tv" ? "Création" : "Réalisation"} value={(type === "tv" ? creators : directors).map((person) => person.name).join(", ")} />}
-            {writers.length > 0 && <Fact label="Scénario" value={writers.map((person) => person.name).join(", ")} />}
-            {releaseDate ? <Fact label="Sortie" value={releaseDate} /> : null}
-            {countries.length > 0 && <Fact label="Pays" value={countries.join(", ")} />}
-            {status ? <Fact label="Statut" value={status} /> : null}
-            {seasons ? <Fact label="Saisons" value={String(seasons)} /> : null}
-            {episodes ? <Fact label="Épisodes" value={String(episodes)} /> : null}
-            {voteAverage ? <Fact label="Note TMDB" value={`${voteAverage.toFixed(1)}/10 · ${voteCount ?? 0} votes`} /> : null}
+            {(type === "tv" ? creators : directors).length > 0 && <Fact styles={s} label={type === "tv" ? "Création" : "Réalisation"} value={(type === "tv" ? creators : directors).map((person) => person.name).join(", ")} />}
+            {writers.length > 0 && <Fact styles={s} label="Scénario" value={writers.map((person) => person.name).join(", ")} />}
+            {releaseDate ? <Fact styles={s} label="Sortie" value={releaseDate} /> : null}
+            {countries.length > 0 && <Fact styles={s} label="Pays" value={countries.join(", ")} />}
+            {status ? <Fact styles={s} label="Statut" value={status} /> : null}
+            {seasons ? <Fact styles={s} label="Saisons" value={String(seasons)} /> : null}
+            {episodes ? <Fact styles={s} label="Épisodes" value={String(episodes)} /> : null}
+            {voteAverage ? <Fact styles={s} label="Note TMDB" value={`${voteAverage.toFixed(1)}/10 · ${voteCount ?? 0} votes`} /> : null}
           </View>
           {cast.length > 0 && (
             <>
@@ -415,7 +418,7 @@ export function TitleScreen({ route, navigation }: Props) {
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = (colors: ReturnType<typeof useThemeColors>["colors"]) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.ink },
   overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)" },
   eyebrow: {
@@ -485,11 +488,11 @@ const s = StyleSheet.create({
   deleteComment: { color: "#fca5a5", fontSize: 11, marginTop: 8 },
 });
 
-function Fact({ label, value }: { label: string; value: string }) {
+function Fact({ label, value, styles }: { label: string; value: string; styles: ReturnType<typeof makeStyles> }) {
   return (
-    <View style={s.fact}>
-      <Text style={s.factLabel}>{label}</Text>
-      <Text style={s.factValue}>{value}</Text>
+    <View style={styles.fact}>
+      <Text style={styles.factLabel}>{label}</Text>
+      <Text style={styles.factValue}>{value}</Text>
     </View>
   );
 }

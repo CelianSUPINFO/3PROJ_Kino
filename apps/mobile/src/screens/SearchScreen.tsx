@@ -12,8 +12,9 @@ import {
 } from "react-native";
 import { apiFetch } from "../api";
 import { PosterCard, type PosterItem } from "../components/PosterCard";
+import { useThemeColors } from "../context/ThemeContext";
 import type { RootStackParamList } from "../navigation/types";
-import { colors, radius, spacing } from "../theme";
+import { radius, spacing } from "../theme";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Search">;
 
@@ -28,6 +29,8 @@ function initials(name: string) {
 }
 
 export function SearchScreen({ navigation }: Props) {
+  const { colors } = useThemeColors();
+  const s = makeStyles(colors);
   const [q, setQ] = useState("");
   const [type, setType] = useState<"all" | "movie" | "tv" | "users" | "lists">("all");
   const [year, setYear] = useState("");
@@ -221,7 +224,7 @@ export function SearchScreen({ navigation }: Props) {
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = (colors: ReturnType<typeof useThemeColors>["colors"]) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.ink },
   eyebrow: {
     fontSize: 11,

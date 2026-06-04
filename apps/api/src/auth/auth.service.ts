@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -12,9 +13,13 @@ import { PrismaService } from '../prisma/prisma.service';
 import { JwtPayload } from './jwt.strategy';
 
 const SALT_ROUNDS = 12;
+const PASSWORD_RESET = 'PASSWORD_RESET';
+const EMAIL_VERIFY = 'EMAIL_VERIFY';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
@@ -23,6 +28,70 @@ export class AuthService {
 
   private hashRefresh(raw: string) {
     return crypto.createHash('sha256').update(raw).digest('hex');
+  }
+
+  private async createAuthToken(userId: string, type: string, hours: number) {
+    const raw = crypto.randomBytes(32).toString('hex');
+    await this.prisma.$transaction([
+      this.prisma.authToken.deleteMany({ where: { userId, type } }),
+      this.prisma.authToken.create({
+        data: {
+          userId,
+          type,
+          tokenHash: this.hashRefresh(raw),
+          expiresAt: new Date(Date.now() + hours * 3600000),
+        },
+      }),
+    ]);
+    return raw;
+  }
+
+  private async consumeAuthToken(raw: string, type: string) {
+    const row = await this.prisma.authToken.findUnique({
+      where: { tokenHash: this.hashRefresh(raw) },
+      include: { user: true },
+    });
+    if (!row || row.type !== type || row.expiresAt < new Date()) {
+      throw new BadRequestException('Lien invalide ou expiré');
+    }
+    await this.prisma.authToken.delete({ where: { id: row.id } });
+    return row.user;
+  }
+
+  private async sendActionEmail(
+    email: string,
+    subject: string,
+    path: string,
+    token: string,
+  ) {
+    const frontend = this.config.get<string>('FRONTEND_URL', 'http://localhost:3001');
+    const url = `${frontend}${path}?token=${encodeURIComponent(token)}`;
+    const apiKey = this.config.get<string>('RESEND_API_KEY');
+    if (!apiKey) {
+      if (this.config.get<string>('NODE_ENV') !== 'production') {
+        return { developmentToken: token, developmentUrl: url };
+      }
+      this.logger.warn(`Email not sent to ${email}: RESEND_API_KEY is missing`);
+      return {};
+    }
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: this.config.get<string>('EMAIL_FROM', 'Kino <onboarding@resend.dev>'),
+        to: [email],
+        subject,
+        html: `<p>${subject}</p><p><a href="${url}">Continuer sur Kino</a></p><p>Ce lien expire bientôt.</p>`,
+      }),
+    });
+    if (!response.ok) {
+      this.logger.error(`Email provider rejected request: ${await response.text()}`);
+      throw new BadRequestException("L'e-mail n'a pas pu être envoyé");
+    }
+    return {};
   }
 
   async register(email: string, password: string, displayName: string) {
@@ -34,7 +103,14 @@ export class AuthService {
     const user = await this.prisma.user.create({
       data: { email, passwordHash, displayName },
     });
-    return this.issueTokens(user.id, user.email, user.role);
+    const verificationToken = await this.createAuthToken(user.id, EMAIL_VERIFY, 24);
+    const emailResult = await this.sendActionEmail(
+      user.email,
+      'Validez votre adresse e-mail Kino',
+      '/verify-email',
+      verificationToken,
+    );
+    return { ...(await this.issueTokens(user.id, user.email, user.role)), ...emailResult };
   }
 
   async login(email: string, password: string) {
@@ -60,7 +136,7 @@ export class AuthService {
     };
     const accessToken = await this.jwt.signAsync(accessPayload, {
       secret: this.config.getOrThrow<string>('JWT_ACCESS_SECRET'),
-      expiresIn: this.config.get<string>('JWT_ACCESS_EXPIRES', '15m'),
+      expiresIn: this.config.get<string>('JWT_ACCESS_EXPIRES', '15m') as never,
     });
     const refreshRaw = crypto.randomBytes(48).toString('hex');
     const refreshHash = this.hashRefresh(refreshRaw);
@@ -98,6 +174,52 @@ export class AuthService {
     await this.prisma.refreshToken.deleteMany({ where: { tokenHash: hash } });
   }
 
+  async requestPasswordReset(email: string) {
+    const user = await this.prisma.user.findUnique({ where: { email } });
+    if (!user?.passwordHash) return { ok: true };
+    const token = await this.createAuthToken(user.id, PASSWORD_RESET, 1);
+    const result = await this.sendActionEmail(
+      user.email,
+      'Réinitialisez votre mot de passe Kino',
+      '/reset-password',
+      token,
+    );
+    return { ok: true, ...result };
+  }
+
+  async resetPassword(token: string, password: string) {
+    const user = await this.consumeAuthToken(token, PASSWORD_RESET);
+    const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+    await this.prisma.$transaction([
+      this.prisma.user.update({ where: { id: user.id }, data: { passwordHash } }),
+      this.prisma.refreshToken.deleteMany({ where: { userId: user.id } }),
+      this.prisma.authToken.deleteMany({ where: { userId: user.id, type: PASSWORD_RESET } }),
+    ]);
+    return { ok: true };
+  }
+
+  async requestEmailVerification(email: string) {
+    const user = await this.prisma.user.findUnique({ where: { email } });
+    if (!user || user.emailVerifiedAt) return { ok: true };
+    const token = await this.createAuthToken(user.id, EMAIL_VERIFY, 24);
+    const result = await this.sendActionEmail(
+      user.email,
+      'Validez votre adresse e-mail Kino',
+      '/verify-email',
+      token,
+    );
+    return { ok: true, ...result };
+  }
+
+  async verifyEmail(token: string) {
+    const user = await this.consumeAuthToken(token, EMAIL_VERIFY);
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { emailVerifiedAt: new Date() },
+    });
+    return { ok: true };
+  }
+
   async findOrCreateGoogleUser(
     providerUserId: string,
     email: string,
@@ -121,6 +243,12 @@ export class AuthService {
           userId: byEmail.id,
         },
       });
+      if (!byEmail.emailVerifiedAt) {
+        return this.prisma.user.update({
+          where: { id: byEmail.id },
+          data: { emailVerifiedAt: new Date() },
+        });
+      }
       return byEmail;
     }
     const user = await this.prisma.user.create({
@@ -128,6 +256,7 @@ export class AuthService {
         email,
         displayName: displayName || email.split('@')[0],
         passwordHash: null,
+        emailVerifiedAt: new Date(),
         oauthAccounts: {
           create: { provider: 'google', providerUserId },
         },

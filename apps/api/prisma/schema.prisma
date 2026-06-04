@@ -47,6 +47,7 @@ model User {
   id           String    @id @default(uuid())
   email        String    @unique
   passwordHash String?
+  emailVerifiedAt DateTime?
   displayName  String
   bio          String    @default("")
   website      String?
@@ -65,6 +66,7 @@ model User {
 
   oauthAccounts OAuthAccount[]
   refreshTokens RefreshToken[]
+  authTokens     AuthToken[]
 
   reviewsWritten Review[] @relation("ReviewAuthor")
   reviewLikes    ReviewLike[]
@@ -109,6 +111,18 @@ model RefreshToken {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   expiresAt DateTime
   createdAt DateTime @default(now())
+}
+
+model AuthToken {
+  id        String   @id @default(uuid())
+  tokenHash String   @unique
+  type      String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId, type])
 }
 
 /// Cache minimal TMDB + payload JSON pour affichage rapide

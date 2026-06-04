@@ -5,15 +5,12 @@
     "scheme": "kino",
     "version": "1.0.0",
     "orientation": "portrait",
-    "platforms": ["ios", "android"],
+    "platforms": [
+      "ios",
+      "android"
+    ],
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
-    "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#05060B"
-    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.cultureconnect.kino",
@@ -30,7 +27,6 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#05060B"
       },
-      "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.cultureconnect.kino",
       "versionCode": 2
@@ -54,7 +50,17 @@
           "microphonePermission": false
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-font",
+      "expo-status-bar",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#05060B"
+        }
+      ]
     ],
     "runtimeVersion": {
       "policy": "appVersion"

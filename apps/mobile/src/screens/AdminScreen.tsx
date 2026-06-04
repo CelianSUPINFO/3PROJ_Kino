@@ -9,8 +9,9 @@ import {
   View,
 } from "react-native";
 import { apiFetch } from "../api";
+import { useThemeColors } from "../context/ThemeContext";
 import type { RootStackParamList } from "../navigation/types";
-import { colors, radius, spacing } from "../theme";
+import { radius, spacing } from "../theme";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Admin">;
 
@@ -51,6 +52,8 @@ type AdminUser = {
 };
 
 export function AdminScreen({}: Props) {
+  const { colors } = useThemeColors();
+  const s = makeStyles(colors);
   const [role, setRole] = useState<string | null>(null);
   const [reports, setReports] = useState<ReportRow[]>([]);
   const [reviews, setReviews] = useState<ReviewRow[]>([]);
@@ -95,10 +98,10 @@ export function AdminScreen({}: Props) {
         {msg && <Text style={s.msg}>{msg}</Text>}
         {stats && (
           <View style={s.metrics}>
-            <Metric label="Utilisateurs" value={stats.totals.users} />
-            <Metric label="Actifs (5 min)" value={stats.totals.activeUsers} />
-            <Metric label="Critiques" value={stats.totals.reviews} />
-            <Metric label="Signalements" value={stats.totals.reportsOpen} />
+            <Metric styles={s} label="Utilisateurs" value={stats.totals.users} />
+            <Metric styles={s} label="Actifs (5 min)" value={stats.totals.activeUsers} />
+            <Metric styles={s} label="Critiques" value={stats.totals.reviews} />
+            <Metric styles={s} label="Signalements" value={stats.totals.reportsOpen} />
           </View>
         )}
         <Text style={s.section}>Signalements</Text>
@@ -207,7 +210,7 @@ export function AdminScreen({}: Props) {
   );
 }
 
-const s = StyleSheet.create({
+const makeStyles = (colors: ReturnType<typeof useThemeColors>["colors"]) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.ink },
   eyebrow: {
     fontSize: 11,
@@ -251,11 +254,11 @@ const s = StyleSheet.create({
   metricLabel: { color: colors.muted, fontSize: 10, textTransform: "uppercase" },
 });
 
-function Metric({ label, value }: { label: string; value: number }) {
+function Metric({ label, value, styles }: { label: string; value: number; styles: ReturnType<typeof makeStyles> }) {
   return (
-    <View style={s.metric}>
-      <Text style={s.metricValue}>{value}</Text>
-      <Text style={s.metricLabel}>{label}</Text>
+    <View style={styles.metric}>
+      <Text style={styles.metricValue}>{value}</Text>
+      <Text style={styles.metricLabel}>{label}</Text>
     </View>
   );
 }

@@ -1,5 +1,7 @@
 import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { Ionicons } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -49,6 +51,7 @@ WebBrowser.maybeCompleteAuthSession();
 type SearchResult = PosterItem;
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
+const Tabs = createBottomTabNavigator();
 
 function useNavTheme() {
   const { colors: c, theme } = useThemeColors();
@@ -1207,7 +1210,7 @@ function FeedScreen({
 // ------------ Messages ------------
 
 type Partner = { id: string; displayName: string; unreadCount?: number };
-type Msg = { id: string; body: string; createdAt: string; senderId?: string };
+type Msg = { id: string; body: string; createdAt: string; senderId?: string; recipientId?: string; readAt?: string | null };
 
 function MessagesScreen({ route }: { route: { params?: { userId?: string } } }) {
   const { t, locale } = useLocale();
@@ -1219,8 +1222,12 @@ function MessagesScreen({ route }: { route: { params?: { userId?: string } } }) 
   const [messages, setMessages] = useState<Msg[]>([]);
   const [body, setBody] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
+  const [meId, setMeId] = useState<string | null>(null);
+  const [typing, setTyping] = useState(false);
+  const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    apiFetch<{ id: string }>("/users/me").then((me) => setMeId(me.id)).catch(() => undefined);
     apiFetch<Partner[]>("/messages/partners")
       .then((rows) => {
         setPartners(rows);
@@ -1268,6 +1275,17 @@ function MessagesScreen({ route }: { route: { params?: { userId?: string } } }) 
         }
         void apiFetch<Partner[]>("/messages/partners").then(setPartners).catch(() => undefined);
       });
+      socket.on("message:deleted", ({ id }: { id: string }) => {
+        setMessages((rows) => rows.filter((row) => row.id !== id));
+      });
+      socket.on("message:read", ({ readerId }: { readerId: string }) => {
+        if (readerId === selectedId) {
+          setMessages((rows) => rows.map((row) => row.senderId === meId ? { ...row, readAt: new Date().toISOString() } : row));
+        }
+      });
+      socket.on("message:typing", ({ senderId, active }: { senderId: string; active: boolean }) => {
+        if (senderId === selectedId) setTyping(active);
+      });
       socket.on("notification:new", (notification: { type?: string; payload?: { senderId?: string } }) => {
         if (notification.type !== "NEW_MESSAGE") return;
         if (selectedId === notification.payload?.senderId) {
@@ -1279,7 +1297,41 @@ function MessagesScreen({ route }: { route: { params?: { userId?: string } } }) 
     return () => {
       socket?.disconnect();
     };
-  }, [selectedId]);
+  }, [selectedId, meId]);
+
+  function updateBody(value: string) {
+    setBody(value);
+    if (!selectedId) return;
+    void apiFetch(`/messages/${selectedId}/typing`, {
+      method: "POST",
+      body: JSON.stringify({ active: value.length > 0 }),
+    }).catch(() => undefined);
+    if (typingTimer.current) clearTimeout(typingTimer.current);
+    typingTimer.current = setTimeout(() => {
+      void apiFetch(`/messages/${selectedId}/typing`, {
+        method: "POST",
+        body: JSON.stringify({ active: false }),
+      }).catch(() => undefined);
+    }, 1200);
+  }
+
+  function messageActions(item: Msg) {
+    const mine = item.senderId === meId;
+    Alert.alert(
+      mine ? (locale === "fr" ? "Votre message" : "Your message") : (locale === "fr" ? "Message reçu" : "Received message"),
+      item.body,
+      mine
+        ? [
+            { text: t("common.cancel"), style: "cancel" },
+            { text: locale === "fr" ? "Supprimer" : "Delete", style: "destructive", onPress: () => void apiFetch(`/messages/${item.id}`, { method: "DELETE" }).then(() => setMessages((rows) => rows.filter((row) => row.id !== item.id))) },
+          ]
+        : [
+            { text: t("common.cancel"), style: "cancel" },
+            { text: locale === "fr" ? "Signaler" : "Report", onPress: () => void apiFetch(`/messages/${item.id}/report`, { method: "POST", body: JSON.stringify({ reason: "Message signalé depuis l'application" }) }) },
+            { text: locale === "fr" ? "Bloquer l'utilisateur" : "Block user", style: "destructive", onPress: () => selectedId && void apiFetch(`/users/${selectedId}/block`, { method: "POST" }).then(() => setSelectedId(null)) },
+          ],
+    );
+  }
 
   async function send() {
     if (!selectedId || !body.trim()) return;
@@ -1346,15 +1398,29 @@ function MessagesScreen({ route }: { route: { params?: { userId?: string } } }) 
         }}
         data={messages}
         keyExtractor={(m) => m.id}
-        renderItem={({ item }) => (
-          <View style={s.card}>
-            <Text style={{ color: colors.text }}>{item.body}</Text>
-            <Text style={[s.sub, { fontSize: 10, marginTop: 4 }]}>
-              {new Date(item.createdAt).toLocaleTimeString()}
-            </Text>
-          </View>
-        )}
+        renderItem={({ item, index }) => {
+          const mine = item.senderId === meId;
+          const date = new Date(item.createdAt);
+          const previous = index > 0 ? new Date(messages[index - 1].createdAt) : null;
+          const newDay = !previous || previous.toDateString() !== date.toDateString();
+          return <View>
+            {newDay && <Text style={[s.sub, { textAlign: "center", marginVertical: 10 }]}>{date.toLocaleDateString(locale === "fr" ? "fr-FR" : "en-US", { weekday: "short", day: "numeric", month: "short" })}</Text>}
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityHint={locale === "fr" ? "Appui long pour plus d'actions" : "Long press for more actions"}
+              activeOpacity={0.85}
+              onLongPress={() => messageActions(item)}
+              style={[s.card, { maxWidth: "82%", alignSelf: mine ? "flex-end" : "flex-start", backgroundColor: mine ? c.kinoDark : c.panel }]}
+            >
+              <Text style={{ color: c.text }}>{item.body}</Text>
+              <Text style={[s.sub, { fontSize: 10, marginTop: 4, color: mine ? "#fff" : c.muted }]}>
+                {date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}{mine ? ` · ${item.readAt ? (locale === "fr" ? "Lu" : "Read") : (locale === "fr" ? "Envoyé" : "Sent")}` : ""}
+              </Text>
+            </TouchableOpacity>
+          </View>;
+        }}
       />
+      {typing && <Text style={[s.sub, { marginHorizontal: spacing.lg, marginBottom: 4 }]}>{locale === "fr" ? "Écrit actuellement…" : "Typing…"}</Text>}
       <View
         style={{
           flexDirection: "row",
@@ -1370,7 +1436,7 @@ function MessagesScreen({ route }: { route: { params?: { userId?: string } } }) 
           placeholderTextColor={c.muted}
           style={[s.input, { flex: 1, marginBottom: 0 }]}
           value={body}
-          onChangeText={setBody}
+          onChangeText={updateBody}
         />
         <TouchableOpacity accessibilityRole="button" accessibilityLabel={t("common.send")} onPress={send} style={s.btnPrimary}>
           <Text style={s.btnPrimaryText}>{t("common.send")}</Text>
@@ -1691,6 +1757,58 @@ function NotificationsScreen({ navigation }: { navigation: any }) {
 
 // ------------ Root App ------------
 
+function ProfileTab({ navigation }: { navigation: any }) {
+  const { colors: c } = useThemeColors();
+  const { t } = useLocale();
+  const [userId, setUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    apiFetch<{ id: string }>("/users/me")
+      .then((me) => setUserId(me.id))
+      .catch(() => navigation.navigate("Login"));
+  }, [navigation]);
+
+  if (!userId) {
+    return (
+      <SafeAreaView style={[s.screen, { backgroundColor: c.ink, alignItems: "center", justifyContent: "center" }]}>
+        <ActivityIndicator color={c.kino} />
+        <Text style={{ color: c.muted, marginTop: 12 }}>{t("common.loading")}</Text>
+      </SafeAreaView>
+    );
+  }
+  return <ProfileScreen route={{ key: "profile-tab", name: "Profile", params: { userId } } as never} navigation={navigation} />;
+}
+
+function MainTabs() {
+  const { colors: c } = useThemeColors();
+  const { t } = useLocale();
+  const icons: Record<string, keyof typeof Ionicons.glyphMap> = {
+    HomeTab: "home-outline",
+    SearchTab: "search-outline",
+    LibraryTab: "library-outline",
+    NotificationsTab: "notifications-outline",
+    ProfileTab: "person-outline",
+  };
+  return (
+    <Tabs.Navigator
+      screenOptions={({ route }) => ({
+        headerShown: false,
+        tabBarActiveTintColor: c.kinoHot,
+        tabBarInactiveTintColor: c.muted,
+        tabBarStyle: { backgroundColor: c.panel, borderTopColor: c.border, minHeight: 64, paddingBottom: 8, paddingTop: 6 },
+        tabBarLabelStyle: { fontSize: 11, fontWeight: "600" },
+        tabBarIcon: ({ color, size }) => <Ionicons name={icons[route.name]} color={color} size={size} />,
+      })}
+    >
+      <Tabs.Screen name="HomeTab" component={HomeScreen} options={{ title: t("nav.home") }} />
+      <Tabs.Screen name="SearchTab" component={SearchScreen as React.ComponentType<any>} options={{ title: t("nav.search") }} />
+      <Tabs.Screen name="LibraryTab" component={LibraryScreen as React.ComponentType<any>} options={{ title: t("nav.library") }} />
+      <Tabs.Screen name="NotificationsTab" component={NotificationsScreen} options={{ title: t("nav.notifications") }} />
+      <Tabs.Screen name="ProfileTab" component={ProfileTab} options={{ title: t("nav.me") }} />
+    </Tabs.Navigator>
+  );
+}
+
 function AppNavigator() {
   const navTheme = useNavTheme();
   const { theme, colors: c } = useThemeColors();
@@ -1713,7 +1831,7 @@ function AppNavigator() {
       >
         <Stack.Screen
           name="Home"
-          component={HomeScreen}
+          component={MainTabs}
           options={{ headerShown: false }}
         />
         <Stack.Screen
@@ -1894,7 +2012,7 @@ const s = StyleSheet.create({
     backgroundColor: colors.panel,
   },
   heroOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: "rgba(10,7,16,0.55)",
   },
   heroContent: { padding: spacing.lg },
@@ -2029,7 +2147,7 @@ const s = StyleSheet.create({
     backgroundColor: colors.panel,
   },
   swipeOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: "rgba(10,7,16,0.4)",
   },
   swipeBadge: {

@@ -8,7 +8,7 @@ import { useLocale } from "../components/AppProviders";
 import { AuthShell } from "../components/AuthShell";
 
 export default function LoginPage() {
-  const { t } = useLocale();
+  const { locale, t } = useLocale();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -76,6 +76,11 @@ export default function LoginPage() {
           onChange={setPassword}
           required
         />
+        <div className="text-right">
+          <Link className="text-sm font-medium text-kino hover:text-kino-hot" href="/forgot-password">
+            {locale === "fr" ? "Mot de passe oublié ?" : "Forgot password?"}
+          </Link>
+        </div>
         {err && (
           <p className="rounded-xl border border-red-400/30 bg-red-500/10 px-3 py-2 text-sm text-red-200">
             {err}

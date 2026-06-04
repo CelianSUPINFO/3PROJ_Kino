@@ -16,6 +16,7 @@ import { LoginDto } from './dto/login.dto';
 import { RefreshDto } from './dto/refresh.dto';
 import { RegisterDto } from './dto/register.dto';
 import { User } from '@prisma/client';
+import { RequestEmailActionDto, ResetPasswordDto, VerifyTokenDto } from './dto/recovery.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -44,6 +45,26 @@ export class AuthController {
   @Post('logout')
   logout(@Body() dto: RefreshDto) {
     return this.auth.logout(dto.refreshToken);
+  }
+
+  @Post('password/request')
+  requestPasswordReset(@Body() dto: RequestEmailActionDto) {
+    return this.auth.requestPasswordReset(dto.email);
+  }
+
+  @Post('password/reset')
+  resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.auth.resetPassword(dto.token, dto.password);
+  }
+
+  @Post('email/request-verification')
+  requestVerification(@Body() dto: RequestEmailActionDto) {
+    return this.auth.requestEmailVerification(dto.email);
+  }
+
+  @Post('email/verify')
+  verifyEmail(@Body() dto: VerifyTokenDto) {
+    return this.auth.verifyEmail(dto.token);
   }
 
   @Get('google/mobile')

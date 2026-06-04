@@ -13,6 +13,7 @@ type Message = {
   createdAt: string;
   senderId: string;
   recipientId: string;
+  readAt?: string | null;
 };
 type Me = { id: string };
 
@@ -36,7 +37,9 @@ export default function MessagesPage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [available, setAvailable] = useState<Partner[]>([]);
   const [choosing, setChoosing] = useState(false);
+  const [typing, setTyping] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
+  const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     apiFetch<Me>("/users/me")
@@ -91,6 +94,17 @@ export default function MessagesPage() {
       }
       void apiFetch<Partner[]>("/messages/partners").then(setPartners).catch(() => undefined);
     });
+    socket.on("message:deleted", ({ id }: { id: string }) => {
+      setMessages((rows) => rows.filter((row) => row.id !== id));
+    });
+    socket.on("message:read", ({ readerId }: { readerId: string }) => {
+      if (readerId === selected?.id) {
+        setMessages((rows) => rows.map((row) => row.senderId === me?.id ? { ...row, readAt: new Date().toISOString() } : row));
+      }
+    });
+    socket.on("message:typing", ({ senderId, active }: { senderId: string; active: boolean }) => {
+      if (senderId === selected?.id) setTyping(active);
+    });
     socket.on("notification:new", (notification: { type?: string; payload?: { senderId?: string } }) => {
       if (notification.type !== "NEW_MESSAGE") return;
       const selectedId = selected?.id;
@@ -102,7 +116,7 @@ export default function MessagesPage() {
     return () => {
       socket.disconnect();
     };
-  }, [selected]);
+  }, [me?.id, selected]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -122,6 +136,36 @@ export default function MessagesPage() {
     } catch {
       setActionError("Message non envoyé. Vérifiez que vous vous suivez mutuellement.");
     }
+  }
+
+  function updateBody(value: string) {
+    setBody(value);
+    if (!selected) return;
+    void apiFetch(`/messages/${selected.id}/typing`, { method: "POST", body: JSON.stringify({ active: true }) }).catch(() => undefined);
+    if (typingTimer.current) clearTimeout(typingTimer.current);
+    typingTimer.current = setTimeout(() => {
+      void apiFetch(`/messages/${selected.id}/typing`, { method: "POST", body: JSON.stringify({ active: false }) }).catch(() => undefined);
+    }, 1200);
+  }
+
+  async function deleteMessage(id: string) {
+    if (!window.confirm(locale === "fr" ? "Supprimer ce message ?" : "Delete this message?")) return;
+    await apiFetch(`/messages/${id}`, { method: "DELETE" });
+    setMessages((rows) => rows.filter((row) => row.id !== id));
+  }
+
+  async function reportMessage(id: string) {
+    const reason = window.prompt(locale === "fr" ? "Pourquoi signalez-vous ce message ?" : "Why are you reporting this message?");
+    if (!reason?.trim()) return;
+    await apiFetch(`/messages/${id}/report`, { method: "POST", body: JSON.stringify({ reason: reason.trim() }) });
+  }
+
+  async function blockSelected() {
+    if (!selected || !window.confirm(locale === "fr" ? `Bloquer ${selected.displayName} ?` : `Block ${selected.displayName}?`)) return;
+    await apiFetch(`/users/${selected.id}/block`, { method: "POST" });
+    setPartners((rows) => rows.filter((row) => row.id !== selected.id));
+    setSelected(null);
+    setMessages([]);
   }
 
   if (err) {
@@ -196,6 +240,9 @@ export default function MessagesPage() {
               <h2 className="text-display text-lg font-semibold text-white">
                 {selected.displayName}
               </h2>
+              <button type="button" className="chip ml-auto min-h-11 text-xs" onClick={() => void blockSelected()}>
+                {locale === "fr" ? "Bloquer" : "Block"}
+              </button>
             </>
           ) : (
             <h2 className="text-display text-lg font-semibold text-white">
@@ -205,33 +252,31 @@ export default function MessagesPage() {
         </header>
         <div className="flex-1 space-y-2 overflow-y-auto p-4">
           {actionError && <p className="rounded-xl border border-red-300/30 bg-red-500/10 p-3 text-sm text-red-200">{actionError}</p>}
-          {messages.map((m) => {
+          {messages.map((m, index) => {
             const mine = me?.id === m.senderId;
+            const day = new Date(m.createdAt).toDateString();
+            const previousDay = index > 0 ? new Date(messages[index - 1].createdAt).toDateString() : null;
             return (
-              <div
-                key={m.id}
-                className={`flex ${mine ? "justify-end" : "justify-start"}`}
-              >
-                <div
-                  className={`max-w-[75%] rounded-2xl px-4 py-2 text-sm ${
-                    mine
-                      ? "bg-gradient-to-r from-kino to-kino-hot text-white shadow-kino"
-                      : "border border-white/10 bg-white/5 text-white"
-                  }`}
-                >
-                  <p>{m.body}</p>
-                  <p
-                    className={`mt-1 text-[10px] ${mine ? "text-white/75" : "text-kino-muted"}`}
-                  >
-                    {new Date(m.createdAt).toLocaleTimeString(
-                      locale === "fr" ? "fr-FR" : "en-US",
-                      { hour: "2-digit", minute: "2-digit" },
-                    )}
-                  </p>
+              <div key={m.id}>
+                {day !== previousDay && <p className="my-4 text-center text-xs font-medium text-kino-muted">{new Date(m.createdAt).toLocaleDateString(locale === "fr" ? "fr-FR" : "en-US", { dateStyle: "medium" })}</p>}
+                <div className={`group flex ${mine ? "justify-end" : "justify-start"}`}>
+                  <div className="max-w-[80%]">
+                    <div className={`rounded-2xl px-4 py-2 text-sm ${mine ? "bg-gradient-to-r from-kino to-kino-hot text-white shadow-kino" : "border border-white/10 bg-white/5 text-white"}`}>
+                      <p>{m.body}</p>
+                      <p className={`mt-1 text-[10px] ${mine ? "text-white/75" : "text-kino-muted"}`}>
+                        {new Date(m.createdAt).toLocaleTimeString(locale === "fr" ? "fr-FR" : "en-US", { hour: "2-digit", minute: "2-digit" })}
+                        {mine ? ` · ${m.readAt ? (locale === "fr" ? "Lu" : "Read") : (locale === "fr" ? "Envoyé" : "Sent")}` : ""}
+                      </p>
+                    </div>
+                    <button type="button" className="mt-1 min-h-11 px-2 text-[11px] text-kino-muted opacity-0 transition group-hover:opacity-100 focus:opacity-100" onClick={() => void (mine ? deleteMessage(m.id) : reportMessage(m.id))}>
+                      {mine ? (locale === "fr" ? "Supprimer" : "Delete") : (locale === "fr" ? "Signaler" : "Report")}
+                    </button>
+                  </div>
                 </div>
               </div>
             );
           })}
+          {typing && <p className="text-sm text-kino-muted">{selected?.displayName} {locale === "fr" ? "écrit…" : "is typing…"}</p>}
           {selected && messages.length === 0 && (
             <div className="flex h-full items-center justify-center text-center">
               <p className="max-w-xs text-sm text-kino-muted">{t("messages.empty")}</p>
@@ -244,7 +289,7 @@ export default function MessagesPage() {
             <input
               className="flex-1 rounded-full border border-white/10 bg-black/30 px-4 py-2 text-sm text-white placeholder:text-white/40 focus:border-kino/60 focus:outline-none"
               value={body}
-              onChange={(e) => setBody(e.target.value)}
+              onChange={(e) => updateBody(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
@@ -254,7 +299,7 @@ export default function MessagesPage() {
               placeholder={t("messages.placeholder")}
             />
             <button
-              className="rounded-full bg-gradient-to-r from-kino to-kino-hot px-5 py-2 text-sm font-semibold text-white shadow-kino"
+              className="min-h-11 rounded-full bg-gradient-to-r from-kino to-kino-hot px-5 py-2 text-sm font-semibold text-white shadow-kino"
               onClick={send}
             >
               {t("common.send")}

@@ -20,7 +20,7 @@ async function bootstrap() {
     exclude: [{ path: 'healthz', method: RequestMethod.GET }],
   });
   app.enableCors({
-    origin(origin, callback) {
+    origin(origin: string | undefined, callback: (error: Error | null, allow?: boolean) => void) {
       if (!origin || configuredOrigins.includes(origin)) {
         callback(null, true);
         return;
