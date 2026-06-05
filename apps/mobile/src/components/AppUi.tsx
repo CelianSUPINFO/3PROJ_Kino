@@ -210,7 +210,7 @@ export const s = StyleSheet.create({
     backgroundColor: colors.panel,
   },
   heroOverlay: {
-    ...StyleSheet.absoluteFill,
+    ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(10,7,16,0.55)",
   },
   heroContent: { padding: spacing.lg },
@@ -352,7 +352,7 @@ export const s = StyleSheet.create({
     backgroundColor: colors.panel,
   },
   swipeOverlay: {
-    ...StyleSheet.absoluteFill,
+    ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(10,7,16,0.4)",
   },
   swipeBadge: {

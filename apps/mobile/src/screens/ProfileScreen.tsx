@@ -571,7 +571,7 @@ const s = StyleSheet.create({
   bannerWrap: { height: 140 },
   bannerWrapEmpty: { height: 72 },
   banner: { flex: 1 },
-  bannerOverlay: { ...StyleSheet.absoluteFill, backgroundColor: "rgba(0,0,0,0.35)" },
+  bannerOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.35)" },
   body: { padding: spacing.lg, marginTop: -36 },
   avatarRow: { flexDirection: "row", alignItems: "flex-end", gap: spacing.md },
   avatar: { width: 72, height: 72, borderRadius: 36, borderWidth: 3, borderColor: "#fff" },
