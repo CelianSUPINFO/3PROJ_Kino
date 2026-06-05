@@ -44,7 +44,6 @@ export function PosterCard({
       <div className="poster-tilt relative overflow-hidden rounded-2xl border border-white/10 bg-kino-panel shadow-card">
         <div className="image-text-surface relative aspect-[2/3] w-full bg-black/40">
           {item.poster_path ? (
-            // eslint-disable-next-line @next/next/no-img-element
             <img
               alt={title}
               loading="lazy"

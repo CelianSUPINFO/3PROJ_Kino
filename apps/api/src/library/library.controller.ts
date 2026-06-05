@@ -129,7 +129,6 @@ export class LibraryController {
     return this.library.myLists(user.sub);
   }
 
-  /** Après routes statiques `lists/mine` pour éviter que `mine` soit pris pour un :id */
   @Get('lists/:id')
   @UseGuards(OptionalJwtAuthGuard)
   oneList(@Param('id') id: string, @CurrentUser() user?: JwtUser) {

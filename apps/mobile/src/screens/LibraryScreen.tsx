@@ -49,6 +49,12 @@ const STATUS_I18N: Record<(typeof STATUS_ORDER)[number], I18nKey> = {
   COMPLETED: "library.completed",
   DROPPED: "library.dropped",
 };
+const STATUS_COLORS: Record<(typeof STATUS_ORDER)[number], string> = {
+  WATCHLIST: "#38bdf8",
+  IN_PROGRESS: "#f59e0b",
+  COMPLETED: "#10b981",
+  DROPPED: "#fb7185",
+};
 
 function toPoster(row: LibraryRow): PosterItem {
   return {
@@ -214,7 +220,7 @@ export function LibraryScreen({ navigation }: Props) {
           return (
             <View key={status} style={s.mediaSection}>
               <View style={s.sectionHead}>
-                <Text style={[s.section, { color: colors.text }]}>{t(STATUS_I18N[status])}</Text>
+                <Text style={[s.section, { color: STATUS_COLORS[status] }]}>{t(STATUS_I18N[status])}</Text>
                 <Pressable accessibilityRole="button" onPress={() => navigation.navigate("LibraryStatus", { status, title: t(STATUS_I18N[status]) })}>
                   <Text style={{ color: colors.kinoHot, fontWeight: "700" }}>{t("common.seeAll")} →</Text>
                 </Pressable>

@@ -106,5 +106,4 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }
 
-/** @deprecated use useApp().setTheme */
 export { useTheme as useThemeLegacy };

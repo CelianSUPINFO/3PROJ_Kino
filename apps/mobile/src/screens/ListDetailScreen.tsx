@@ -219,7 +219,7 @@ export function ListDetailScreen({ route, navigation }: Props) {
           </View>
         }
         renderItem={({ item, index }) => (
-          <View style={[s.row, { borderBottomColor: colors.border }]}>
+          <View style={[s.row, { backgroundColor: colors.panel, borderColor: colors.border }]}>
             <Text style={{ width: 24, color: colors.muted, fontWeight: "700" }}>{index + 1}</Text>
             <Pressable accessibilityRole="button" style={s.titleLink} onPress={() => navigation.navigate("Title", { type: item.mediaType === "TV" ? "tv" : "movie", id: item.tmdbId, title: item.title })}>
               {item.posterPath ? <Image source={{ uri: `https://image.tmdb.org/t/p/w92${item.posterPath}` }} style={s.poster} /> : <View style={[s.poster, { backgroundColor: colors.panel }]} />}
@@ -253,9 +253,9 @@ const s = StyleSheet.create({
   primary: { minHeight: 44, borderRadius: radius.pill, paddingHorizontal: 18, alignItems: "center", justifyContent: "center" },
   primaryText: { color: "#fff", fontWeight: "800" },
   result: { minHeight: 48, flexDirection: "row", alignItems: "center", borderBottomWidth: StyleSheet.hairlineWidth },
-  row: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: spacing.lg, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth },
+  row: { flexDirection: "row", alignItems: "center", gap: 8, marginHorizontal: spacing.lg, marginBottom: spacing.md, padding: spacing.md, borderWidth: 1, borderRadius: radius.lg },
   titleLink: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 12 },
-  poster: { width: 44, height: 66, borderRadius: radius.sm },
+  poster: { width: 78, height: 117, borderRadius: radius.md },
   title: { flex: 1, fontWeight: "700" },
   itemActions: { flexDirection: "row", alignItems: "center" },
   smallAction: { minWidth: 40, minHeight: 44, alignItems: "center", justifyContent: "center" },

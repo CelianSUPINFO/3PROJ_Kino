@@ -65,9 +65,18 @@ async function main() {
 
   for (const [tmdbId, mediaType, title] of works) {
     await prisma.cachedWork.upsert({
-      where: { tmdbId_mediaType: { tmdbId, mediaType } },
+      where: {
+        tmdbId_mediaType_language: { tmdbId, mediaType, language: 'fr-FR' },
+      },
       update: { title },
-      create: { tmdbId, mediaType, title, payload: {}, overview: '' },
+      create: {
+        tmdbId,
+        mediaType,
+        language: 'fr-FR',
+        title,
+        payload: {},
+        overview: '',
+      },
     });
   }
 

@@ -1,12 +1,10 @@
 # syntax=docker/dockerfile:1.7
 
-# ---------- Dependencies ----------
 FROM node:22-alpine AS deps
 WORKDIR /app
 COPY package*.json ./
 RUN npm install --no-audit --no-fund
 
-# ---------- Builder ----------
 FROM node:22-alpine AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
@@ -16,7 +14,6 @@ ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
-# ---------- Runner ----------
 FROM node:22-alpine AS runner
 WORKDIR /app
 RUN apk add --no-cache curl

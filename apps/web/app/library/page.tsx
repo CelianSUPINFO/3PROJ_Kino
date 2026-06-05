@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -47,6 +47,13 @@ const STATUS_I18N: Record<(typeof STATUS_ORDER)[number], I18nKey> = {
   DROPPED: "library.dropped",
 };
 
+const STATUS_CLASS: Record<(typeof STATUS_ORDER)[number], string> = {
+  WATCHLIST: "text-sky-200",
+  IN_PROGRESS: "text-amber-200",
+  COMPLETED: "text-emerald-200",
+  DROPPED: "text-rose-200",
+};
+
 function toPoster(row: StatusRow): PosterCardData {
   const type = row.mediaType === "TV" ? "tv" : "movie";
   return {
@@ -90,7 +97,6 @@ export default function LibraryPage() {
 
   useEffect(() => {
     loadData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -197,7 +203,7 @@ export default function LibraryPage() {
         return (
           <MediaCarousel
             key={status}
-            title={t(STATUS_I18N[status])}
+            title={<span className={STATUS_CLASS[status]}>{t(STATUS_I18N[status])}</span>}
             type="movie"
             items={items.slice(0, 10)}
             seeAllHref={`/library/${STATUS_PATH[status]}`}

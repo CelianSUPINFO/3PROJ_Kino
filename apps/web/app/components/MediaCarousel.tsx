@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useRef, useState } from "react";
+import { type ReactNode, useCallback, useRef, useState } from "react";
 import { useLocale } from "./AppProviders";
 import { PosterCard, type PosterCardData } from "./PosterCard";
 
@@ -14,7 +14,7 @@ export function MediaCarousel({
   seeAllHref,
   seeAllLabel,
 }: {
-  title: string;
+  title: ReactNode;
   type: "movie" | "tv";
   items: CarouselItem[];
   seeAllHref?: string;

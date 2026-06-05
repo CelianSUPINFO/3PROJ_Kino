@@ -12,7 +12,7 @@ export class TmdbService {
   private readonly key?: string;
   private readonly readAccessToken?: string;
   private readonly genreMap = new Map<
-    MediaType,
+    string,
     { cachedAt: number; values: Record<number, string> }
   >();
 
@@ -58,8 +58,68 @@ export class TmdbService {
     if (creator) {
       return this.searchByCreator(creator, query, page, year, minVote, mediaType, language);
     }
+    if (!query.trim() && mediaType) {
+      return this.discover(
+        mediaType === 'tv' ? MediaType.TV : MediaType.MOVIE,
+        page,
+        'popularity.desc',
+        year,
+        genreId,
+        minVote,
+        language,
+      );
+    }
     const c = this.client(language);
-    const { data } = await c.get('/search/multi', {
+    const path = mediaType ? `/search/${mediaType}` : '/search/multi';
+    const filterResult = (result: Record<string, unknown>) => {
+      if (genreId) {
+        const ids = (result.genre_ids as number[] | undefined) ?? [];
+        if (!ids.includes(genreId)) return false;
+      }
+      if (
+        typeof minVote === 'number' &&
+        Number(result.vote_average ?? 0) < minVote
+      ) {
+        return false;
+      }
+      return true;
+    };
+    if (genreId || typeof minVote === 'number') {
+      const pageSize = 20;
+      const required = page * pageSize + 1;
+      const matches: Record<string, unknown>[] = [];
+      let sourcePage = 1;
+      let sourcePages = 1;
+      while (sourcePage <= sourcePages && matches.length < required) {
+        const response = await c.get(path, {
+          params: {
+            query,
+            page: sourcePage,
+            include_adult: false,
+            year: year || undefined,
+          },
+        });
+        sourcePages = Math.min(Number(response.data.total_pages ?? 1), 500);
+        const rows = (response.data.results ?? []) as Record<string, unknown>[];
+        matches.push(
+          ...rows
+            .map((result) =>
+              mediaType ? { ...result, media_type: mediaType } : result,
+            )
+            .filter(filterResult),
+        );
+        sourcePage += 1;
+      }
+      const start = (page - 1) * pageSize;
+      const hasMore = matches.length > page * pageSize || sourcePage <= sourcePages;
+      return {
+        page,
+        total_pages: hasMore ? page + 1 : page,
+        total_results: matches.length,
+        results: matches.slice(start, start + pageSize),
+      };
+    }
+    const { data } = await c.get(path, {
       params: {
         query,
         page,
@@ -67,22 +127,9 @@ export class TmdbService {
         year: year || undefined,
       },
     });
-    let results = (data.results ?? []) as Record<string, unknown>[];
-    if (mediaType) {
-      results = results.filter((r) => r.media_type === mediaType);
-    }
-    if (genreId) {
-      results = results.filter((r) => {
-        const ids = (r.genre_ids as number[] | undefined) ?? [];
-        return ids.includes(genreId);
-      });
-    }
-    if (typeof minVote === 'number') {
-      results = results.filter((r) => {
-        const vote = Number(r.vote_average ?? 0);
-        return vote >= minVote;
-      });
-    }
+    const results = ((data.results ?? []) as Record<string, unknown>[]).map(
+      (result) => (mediaType ? { ...result, media_type: mediaType } : result),
+    );
     return {
       page: data.page,
       total_pages: data.total_pages,
@@ -161,20 +208,25 @@ export class TmdbService {
     return data;
   }
 
-  async resolveGenres(mediaType: MediaType, ids: number[] | undefined) {
+  async resolveGenres(
+    mediaType: MediaType,
+    ids: number[] | undefined,
+    language = 'fr-FR',
+  ) {
     if (!ids?.length) return [];
-    const mapping = await this.getGenreMap(mediaType);
+    const mapping = await this.getGenreMap(mediaType, language);
     return ids.map((id) => mapping[id]).filter(Boolean);
   }
 
-  private async getGenreMap(mediaType: MediaType) {
-    const cached = this.genreMap.get(mediaType);
+  private async getGenreMap(mediaType: MediaType, language: string) {
+    const cacheKey = `${mediaType}:${language}`;
+    const cached = this.genreMap.get(cacheKey);
     if (cached && Date.now() - cached.cachedAt < 24 * 60 * 60 * 1000) {
       return cached.values;
     }
     const path =
       mediaType === MediaType.MOVIE ? '/genre/movie/list' : '/genre/tv/list';
-    const c = this.client();
+    const c = this.client(language);
     const { data } = await c.get(path);
     const values = Object.fromEntries(
       ((data.genres as { id: number; name: string }[]) ?? []).map((g) => [
@@ -182,18 +234,18 @@ export class TmdbService {
         g.name,
       ]),
     );
-    this.genreMap.set(mediaType, { cachedAt: Date.now(), values });
+    this.genreMap.set(cacheKey, { cachedAt: Date.now(), values });
     return values;
   }
 
   async getDetails(mediaType: MediaType, tmdbId: number, language = 'fr-FR') {
     const cached = await this.prisma.cachedWork.findUnique({
       where: {
-        tmdbId_mediaType: { tmdbId, mediaType },
+        tmdbId_mediaType_language: { tmdbId, mediaType, language },
       },
     });
     const now = Date.now();
-    if (language.startsWith('fr') && cached && now - cached.cachedAt.getTime() < CACHE_MS) {
+    if (cached && now - cached.cachedAt.getTime() < CACHE_MS) {
       return { source: 'cache' as const, data: cached.payload };
     }
     const path =
@@ -217,11 +269,14 @@ export class TmdbService {
       mediaType === MediaType.MOVIE
         ? (data.runtime as number | null)
         : ((data.episode_run_time?.[0] as number | undefined) ?? null);
-    if (language.startsWith('fr')) await this.prisma.cachedWork.upsert({
-      where: { tmdbId_mediaType: { tmdbId, mediaType } },
+    await this.prisma.cachedWork.upsert({
+      where: {
+        tmdbId_mediaType_language: { tmdbId, mediaType, language },
+      },
       create: {
         tmdbId,
         mediaType,
+        language,
         title,
         posterPath: (data.poster_path as string | null) ?? null,
         overview: (data.overview as string) ?? '',
@@ -247,7 +302,6 @@ export class TmdbService {
     return `https://image.tmdb.org/t/p/w500${path}`;
   }
 
-  /** Résout les titres depuis le cache TMDB (ou fetch si absent). */
   async resolveTitles(
     works: { tmdbId: number; mediaType: MediaType }[],
   ): Promise<Record<string, string>> {
@@ -262,6 +316,7 @@ export class TmdbService {
         OR: unique.map((w) => ({
           tmdbId: w.tmdbId,
           mediaType: w.mediaType,
+          language: 'fr-FR',
         })),
       },
       select: { tmdbId: true, mediaType: true, title: true },

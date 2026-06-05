@@ -125,11 +125,11 @@ model AuthToken {
   @@index([userId, type])
 }
 
-/// Cache minimal TMDB + payload JSON pour affichage rapide
 model CachedWork {
   id        String    @id @default(uuid())
   tmdbId    Int
   mediaType MediaType
+  language  String    @default("fr-FR")
   title     String
   posterPath String?
   overview  String    @default("")
@@ -138,7 +138,7 @@ model CachedWork {
   payload   Json
   cachedAt  DateTime  @default(now())
 
-  @@unique([tmdbId, mediaType])
+  @@unique([tmdbId, mediaType, language])
 }
 
 model UserWorkStatus {
@@ -215,6 +215,8 @@ model Comment {
   createdAt DateTime @default(now())
   review    Review   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([reviewId, parentId])
 }
 
 model Follow {

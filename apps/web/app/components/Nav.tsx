@@ -130,7 +130,6 @@ export function Nav() {
         <div className="flex items-center gap-2 overflow-visible px-2 py-2 sm:gap-3 sm:px-3 md:px-4">
           <Link href="/" className="flex shrink-0 items-center gap-2 pl-0.5">
             <span className="inline-flex h-8 w-8 items-center justify-center overflow-hidden rounded-xl shadow-kino sm:h-9 sm:w-9">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/kino-logo.png" alt="" className="h-full w-full object-cover" />
             </span>
             <span className="text-display hidden text-lg font-bold tracking-tight text-white min-[420px]:inline sm:text-xl">
@@ -201,7 +200,6 @@ export function Nav() {
                     >
                       <div className="h-12 w-9 shrink-0 overflow-hidden rounded bg-white/10">
                         {s.poster_path && (
-                          // eslint-disable-next-line @next/next/no-img-element
                           <img
                             src={`https://image.tmdb.org/t/p/w92${s.poster_path}`}
                             alt=""
@@ -261,7 +259,6 @@ export function Nav() {
               aria-label={me.displayName}
             >
               {me.avatarUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
                 <img src={me.avatarUrl} alt="" className="h-full w-full object-cover" />
               ) : (
                 <span className="text-xs font-bold text-white">
@@ -302,7 +299,6 @@ export function Nav() {
                     title={me.displayName}
                   >
                     {me.avatarUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={me.avatarUrl}
                         alt=""
@@ -397,7 +393,6 @@ export function Nav() {
                       className="flex flex-1 items-center justify-center gap-2 rounded-full border border-white/15 py-2 text-sm text-white"
                     >
                       {me.avatarUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
                         <img src={me.avatarUrl} alt="" className="h-6 w-6 rounded-full object-cover" />
                       ) : (
                         <span className="flex h-6 w-6 items-center justify-center rounded-full bg-kino/30 text-[10px] font-bold">

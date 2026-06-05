@@ -53,7 +53,6 @@ export class NotificationsGateway implements OnGatewayConnection {
     }
   }
 
-  /** Appelé depuis les services pour pousser une notif au bon salon */
   pushToUser(userId: string, event: string, payload: unknown) {
     this.server.to(`user:${userId}`).emit(event, payload);
   }

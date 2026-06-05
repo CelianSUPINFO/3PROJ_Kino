@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { Dispatch, SetStateAction, useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { statusLabel } from "@/lib/i18n";
@@ -27,6 +27,7 @@ type CommentRow = {
   body: string;
   createdAt: string;
   user: { id: string; displayName: string };
+  replies: CommentRow[];
 };
 
 export default function TitlePage() {
@@ -271,15 +272,16 @@ export default function TitlePage() {
     setCommentsByReview((prev) => ({ ...prev, [reviewId]: rows }));
   }
 
-  async function postComment(reviewId: string) {
-    const body = commentInputs[reviewId]?.trim();
+  async function postComment(reviewId: string, parentId?: string) {
+    const inputKey = parentId ?? reviewId;
+    const body = commentInputs[inputKey]?.trim();
     if (!body) return;
     try {
       await apiFetch(`/reviews/${reviewId}/comments`, {
         method: "POST",
-        body: JSON.stringify({ body }),
+        body: JSON.stringify({ body, parentId }),
       });
-      setCommentInputs((prev) => ({ ...prev, [reviewId]: "" }));
+      setCommentInputs((prev) => ({ ...prev, [inputKey]: "" }));
       await loadComments(reviewId);
     } catch {
       setMsg(t("title.signInComment"));
@@ -321,7 +323,6 @@ export default function TitlePage() {
       <section className="relative -mx-4 -mt-6 overflow-hidden md:-mx-6">
         <div className="image-text-surface relative h-[360px] md:h-[480px]">
           {backdrop && (
-            // eslint-disable-next-line @next/next/no-img-element
             <img
               src={`https://image.tmdb.org/t/p/original${backdrop}`}
               alt=""
@@ -333,7 +334,6 @@ export default function TitlePage() {
             <div className="flex flex-wrap items-end gap-6">
               {poster && (
                 <div className="hidden w-[180px] shrink-0 overflow-hidden rounded-2xl border border-white/10 shadow-card md:block">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={`https://image.tmdb.org/t/p/w500${poster}`}
                     alt={title}
@@ -384,7 +384,6 @@ export default function TitlePage() {
         <aside className="hidden space-y-4 md:block">
           {poster && (
             <div className="poster-tilt overflow-hidden rounded-2xl border border-white/10 shadow-card">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={`https://image.tmdb.org/t/p/w500${poster}`}
                 alt={title}
@@ -400,7 +399,7 @@ export default function TitlePage() {
               {(["WATCHLIST", "IN_PROGRESS", "COMPLETED", "DROPPED"] as const).map((s) => (
                 <button
                   key={s}
-                  className="chip"
+                  className={`chip status-${s.toLowerCase().replace("_", "-")}`}
                   onClick={() => setStatus(s)}
                 >
                   {statusLabel(locale, s)}
@@ -470,7 +469,6 @@ export default function TitlePage() {
                 {cast.map((person) => (
                   <article key={person.id} className="min-w-0 overflow-hidden rounded-xl border border-white/10 bg-white/[0.03]">
                     {person.profile_path ? (
-                      // eslint-disable-next-line @next/next/no-img-element
                       <img src={`https://image.tmdb.org/t/p/w185${person.profile_path}`} alt="" className="aspect-[2/3] w-full object-cover" />
                     ) : <div className="aspect-[2/3] bg-white/5" />}
                     <div className="p-2">
@@ -487,7 +485,7 @@ export default function TitlePage() {
             <div className="glass space-y-3 rounded-2xl p-4">
               <div className="flex flex-wrap gap-2">
                 {(["WATCHLIST", "IN_PROGRESS", "COMPLETED", "DROPPED"] as const).map((s) => (
-                  <button key={s} className="chip" onClick={() => setStatus(s)}>
+                  <button key={s} className={`chip status-${s.toLowerCase().replace("_", "-")}`} onClick={() => setStatus(s)}>
                     {statusLabel(locale, s)}
                   </button>
                 ))}
@@ -646,22 +644,20 @@ export default function TitlePage() {
                     <div className="mt-3 rounded-xl border border-white/10 bg-black/20 p-3">
                       <ul className="space-y-2">
                         {commentsByReview[r.id].map((c) => (
-                          <li key={c.id} className="flex items-start justify-between gap-3 text-sm text-kino-muted">
-                            <span>
-                              <span className="font-medium text-white">
-                                {c.user.displayName}:
-                              </span>{" "}
-                              {c.body}
-                            </span>
-                            {(meId === c.user.id || meRole === "ADMIN") && (
-                              <button
-                                className="shrink-0 text-xs text-red-300 hover:text-red-200"
-                                onClick={() => removeComment(r.id, c.id)}
-                              >
-                                {t("title.delete")}
-                              </button>
-                            )}
-                          </li>
+                          <CommentThread
+                            key={c.id}
+                            comment={c}
+                            reviewId={r.id}
+                            meId={meId}
+                            meRole={meRole}
+                            inputs={commentInputs}
+                            setInputs={setCommentInputs}
+                            onReply={postComment}
+                            onDelete={removeComment}
+                            deleteLabel={t("title.delete")}
+                            replyPlaceholder={t("title.commentPlaceholder")}
+                            sendLabel={t("title.send")}
+                          />
                         ))}
                         {commentsByReview[r.id].length === 0 && (
                           <li className="text-sm text-kino-muted">{t("title.noComments")}</li>
@@ -704,5 +700,86 @@ function DetailFact({ label, value }: { label: string; value: string }) {
       <dt className="text-[11px] font-semibold uppercase tracking-wider text-kino-muted">{label}</dt>
       <dd className="mt-1 break-words text-sm font-medium text-white">{value}</dd>
     </div>
+  );
+}
+
+function CommentThread({
+  comment,
+  reviewId,
+  meId,
+  meRole,
+  inputs,
+  setInputs,
+  onReply,
+  onDelete,
+  deleteLabel,
+  replyPlaceholder,
+  sendLabel,
+}: {
+  comment: CommentRow;
+  reviewId: string;
+  meId: string | null;
+  meRole: string | null;
+  inputs: Record<string, string>;
+  setInputs: Dispatch<SetStateAction<Record<string, string>>>;
+  onReply: (reviewId: string, parentId?: string) => Promise<void>;
+  onDelete: (reviewId: string, commentId: string) => Promise<void>;
+  deleteLabel: string;
+  replyPlaceholder: string;
+  sendLabel: string;
+}) {
+  return (
+    <li className="rounded-lg border border-white/5 bg-white/[0.02] p-2 text-sm text-kino-muted">
+      <div className="flex items-start justify-between gap-3">
+        <span>
+          <span className="font-medium text-white">{comment.user.displayName}:</span>{" "}
+          {comment.body}
+        </span>
+        {(meId === comment.user.id || meRole === "ADMIN") && (
+          <button
+            className="shrink-0 text-xs text-red-300 hover:text-red-200"
+            onClick={() => onDelete(reviewId, comment.id)}
+          >
+            {deleteLabel}
+          </button>
+        )}
+      </div>
+      <div className="mt-2 flex gap-2">
+        <input
+          className="min-w-0 flex-1 rounded-full border border-white/10 bg-black/30 px-3 py-1.5 text-xs text-white"
+          placeholder={replyPlaceholder}
+          value={inputs[comment.id] ?? ""}
+          onChange={(event) =>
+            setInputs((previous) => ({
+              ...previous,
+              [comment.id]: event.target.value,
+            }))
+          }
+        />
+        <button className="chip !py-1 text-xs" onClick={() => onReply(reviewId, comment.id)}>
+          {sendLabel}
+        </button>
+      </div>
+      {comment.replies.length > 0 && (
+        <ul className="mt-2 space-y-2 border-l border-kino/30 pl-3">
+          {comment.replies.map((reply) => (
+            <CommentThread
+              key={reply.id}
+              comment={reply}
+              reviewId={reviewId}
+              meId={meId}
+              meRole={meRole}
+              inputs={inputs}
+              setInputs={setInputs}
+              onReply={onReply}
+              onDelete={onDelete}
+              deleteLabel={deleteLabel}
+              replyPlaceholder={replyPlaceholder}
+              sendLabel={sendLabel}
+            />
+          ))}
+        </ul>
+      )}
+    </li>
   );
 }

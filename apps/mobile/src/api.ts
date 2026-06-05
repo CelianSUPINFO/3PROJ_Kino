@@ -10,6 +10,7 @@ const base =
 
 const ACCESS = "kino_access";
 const REFRESH = "kino_refresh";
+let refreshPromise: Promise<string | null> | null = null;
 
 export async function getAccessToken() {
   return SecureStore.getItemAsync(ACCESS);
@@ -49,6 +50,36 @@ export async function logoutSession() {
   }
 }
 
+async function refreshAccessToken() {
+  if (refreshPromise) return refreshPromise;
+
+  refreshPromise = (async () => {
+    const refresh = await SecureStore.getItemAsync(REFRESH);
+    if (!refresh) return null;
+    const response = await fetch(`${base}/auth/refresh`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refreshToken: refresh }),
+    });
+    if (response.ok) {
+      const data = (await response.json()) as {
+        accessToken: string;
+        refreshToken: string;
+      };
+      await setTokens(data.accessToken, data.refreshToken);
+      return data.accessToken;
+    }
+    const currentRefresh = await SecureStore.getItemAsync(REFRESH);
+    const currentAccess = await SecureStore.getItemAsync(ACCESS);
+    if (currentRefresh !== refresh && currentAccess) return currentAccess;
+    await clearTokens();
+    return null;
+  })().finally(() => {
+    refreshPromise = null;
+  });
+  return refreshPromise;
+}
+
 export async function apiFetch<T>(
   path: string,
   init: RequestInit & { auth?: boolean } = {},
@@ -63,24 +94,10 @@ export async function apiFetch<T>(
   }
   let res = await fetch(`${base}${path}`, { ...init, headers });
   if (res.status === 401 && init.auth !== false) {
-    const refresh = await SecureStore.getItemAsync(REFRESH);
-    if (refresh) {
-      const r2 = await fetch(`${base}/auth/refresh`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ refreshToken: refresh }),
-      });
-      if (r2.ok) {
-        const data = (await r2.json()) as {
-          accessToken: string;
-          refreshToken: string;
-        };
-        await setTokens(data.accessToken, data.refreshToken);
-        headers.set("Authorization", `Bearer ${data.accessToken}`);
-        res = await fetch(`${base}${path}`, { ...init, headers });
-      } else {
-        await clearTokens();
-      }
+    const access = await refreshAccessToken();
+    if (access) {
+      headers.set("Authorization", `Bearer ${access}`);
+      res = await fetch(`${base}${path}`, { ...init, headers });
     }
   }
   if (!res.ok) {

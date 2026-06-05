@@ -1,5 +1,5 @@
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { useEffect, useState } from "react";
+import { Dispatch, SetStateAction, useEffect, useState } from "react";
 import {
   Image,
   ImageBackground,
@@ -33,9 +33,17 @@ type Comment = {
   id: string;
   body: string;
   user: { id: string; displayName: string };
+  replies: Comment[];
 };
 
 type ListRow = { id: string; name: string };
+
+const STATUS_COLORS = {
+  WATCHLIST: { borderColor: "#38bdf8", backgroundColor: "rgba(56,189,248,0.16)", color: "#bae6fd" },
+  IN_PROGRESS: { borderColor: "#f59e0b", backgroundColor: "rgba(245,158,11,0.16)", color: "#fde68a" },
+  COMPLETED: { borderColor: "#10b981", backgroundColor: "rgba(16,185,129,0.16)", color: "#a7f3d0" },
+  DROPPED: { borderColor: "#fb7185", backgroundColor: "rgba(251,113,133,0.16)", color: "#fecdd3" },
+} as const;
 
 export function TitleScreen({ route, navigation }: Props) {
   const { colors } = useThemeColors();
@@ -157,15 +165,16 @@ export function TitleScreen({ route, navigation }: Props) {
     setComments((p) => ({ ...p, [reviewId]: rows }));
   }
 
-  async function postComment(reviewId: string) {
-    const text = commentDraft[reviewId]?.trim();
+  async function postComment(reviewId: string, parentId?: string) {
+    const inputKey = parentId ?? reviewId;
+    const text = commentDraft[inputKey]?.trim();
     if (!text) return;
     try {
       await apiFetch(`/reviews/${reviewId}/comments`, {
         method: "POST",
-        body: JSON.stringify({ body: text }),
+        body: JSON.stringify({ body: text, parentId }),
       });
-      setCommentDraft((p) => ({ ...p, [reviewId]: "" }));
+      setCommentDraft((p) => ({ ...p, [inputKey]: "" }));
       await loadCommentsFor(reviewId);
       await loadReviews();
     } catch {
@@ -278,8 +287,8 @@ export function TitleScreen({ route, navigation }: Props) {
                 ["DROPPED", "Abandonné"],
               ] as const
             ).map(([st, label]) => (
-              <Pressable key={st} style={[s.chip, selectedStatus === st && s.chipActive]} onPress={() => setStatus(st)}>
-                <Text style={[s.chipText, selectedStatus === st && s.chipActiveText]}>{label}</Text>
+              <Pressable key={st} style={[s.chip, STATUS_COLORS[st], selectedStatus === st && s.chipActive]} onPress={() => setStatus(st)}>
+                <Text style={[s.chipText, { color: STATUS_COLORS[st].color }, selectedStatus === st && s.chipActiveText]}>{label}</Text>
               </Pressable>
             ))}
           </View>
@@ -379,19 +388,19 @@ export function TitleScreen({ route, navigation }: Props) {
               {comments[r.id] && (
                 <View style={{ marginTop: 8 }}>
                   {comments[r.id].map((c) => (
-                    <View key={c.id} style={s.commentRow}>
-                      <Text style={[s.sub, { flex: 1 }]}>
-                        <Text style={{ fontWeight: "700", color: colors.text }}>
-                          {c.user.displayName}:
-                        </Text>{" "}
-                        {c.body}
-                      </Text>
-                      {(meId === c.user.id || meRole === "ADMIN") && (
-                        <Pressable onPress={() => deleteComment(r.id, c.id)}>
-                          <Text style={s.deleteComment}>Supprimer</Text>
-                        </Pressable>
-                      )}
-                    </View>
+                    <CommentThread
+                      key={c.id}
+                      comment={c}
+                      reviewId={r.id}
+                      meId={meId}
+                      meRole={meRole}
+                      drafts={commentDraft}
+                      setDrafts={setCommentDraft}
+                      onReply={postComment}
+                      onDelete={deleteComment}
+                      styles={s}
+                      colors={colors}
+                    />
                   ))}
                   <TextInput
                     style={[s.input, { marginTop: 8 }]}
@@ -485,6 +494,17 @@ const makeStyles = (colors: ReturnType<typeof useThemeColors>["colors"]) => Styl
   author: { color: colors.text, fontWeight: "700" },
   body: { color: colors.muted, marginTop: 6, lineHeight: 20 },
   commentRow: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
+  commentThread: { marginTop: 8 },
+  replyRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 6 },
+  replyInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: radius.pill,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    fontSize: 12,
+  },
+  replies: { marginLeft: 14, paddingLeft: 10, borderLeftWidth: 1, borderLeftColor: colors.kino },
   deleteComment: { color: "#fca5a5", fontSize: 11, marginTop: 8 },
 });
 
@@ -493,6 +513,81 @@ function Fact({ label, value, styles }: { label: string; value: string; styles: 
     <View style={styles.fact}>
       <Text style={styles.factLabel}>{label}</Text>
       <Text style={styles.factValue}>{value}</Text>
+    </View>
+  );
+}
+
+function CommentThread({
+  comment,
+  reviewId,
+  meId,
+  meRole,
+  drafts,
+  setDrafts,
+  onReply,
+  onDelete,
+  styles,
+  colors,
+}: {
+  comment: Comment;
+  reviewId: string;
+  meId: string | null;
+  meRole: string | null;
+  drafts: Record<string, string>;
+  setDrafts: Dispatch<SetStateAction<Record<string, string>>>;
+  onReply: (reviewId: string, parentId?: string) => Promise<void>;
+  onDelete: (reviewId: string, commentId: string) => Promise<void>;
+  styles: ReturnType<typeof makeStyles>;
+  colors: ReturnType<typeof useThemeColors>["colors"];
+}) {
+  return (
+    <View style={styles.commentThread}>
+      <View style={styles.commentRow}>
+        <Text style={[styles.sub, { flex: 1 }]}>
+          <Text style={{ fontWeight: "700", color: colors.text }}>
+            {comment.user.displayName}:
+          </Text>{" "}
+          {comment.body}
+        </Text>
+        {(meId === comment.user.id || meRole === "ADMIN") && (
+          <Pressable onPress={() => onDelete(reviewId, comment.id)}>
+            <Text style={styles.deleteComment}>Supprimer</Text>
+          </Pressable>
+        )}
+      </View>
+      <View style={styles.replyRow}>
+        <TextInput
+          style={[styles.replyInput, { borderColor: colors.border, color: colors.text }]}
+          placeholder="Répondre..."
+          placeholderTextColor={colors.muted}
+          value={drafts[comment.id] ?? ""}
+          onChangeText={(text) =>
+            setDrafts((previous) => ({ ...previous, [comment.id]: text }))
+          }
+        />
+        <Pressable style={styles.chip} onPress={() => onReply(reviewId, comment.id)}>
+          <Text style={styles.chipText}>Envoyer</Text>
+        </Pressable>
+      </View>
+      {comment.replies.length > 0 && (
+        <View style={styles.replies}>
+          {comment.replies.map((reply) => (
+            <CommentThread
+              key={reply.id}
+              comment={reply}
+              reviewId={reviewId}
+              meId={meId}
+              meRole={meRole}
+              drafts={drafts}
+              setDrafts={setDrafts}
+              onReply={onReply}
+              onDelete={onDelete}
+              styles={styles}
+              colors={colors}
+            />
+          ))}
+        </View>
+      )}
     </View>
   );
 }

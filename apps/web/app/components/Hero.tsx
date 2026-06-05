@@ -57,7 +57,6 @@ export function Hero({
     <section className="relative min-w-0 overflow-hidden rounded-3xl border border-white/10 bg-kino-panel shadow-card">
       <div className="image-text-surface relative min-h-[430px] w-full overflow-hidden sm:min-h-[400px] md:h-[480px] md:min-h-0">
         {backdrop && (
-          // eslint-disable-next-line @next/next/no-img-element
           <img
             src={backdrop}
             alt=""
@@ -71,7 +70,6 @@ export function Hero({
           {poster && (
             <div className="float-slow hidden w-[180px] shrink-0 md:block">
               <div className="poster-tilt overflow-hidden rounded-2xl border border-white/10 shadow-card">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={poster} alt={title} className="h-full w-full object-cover" />
               </div>
             </div>

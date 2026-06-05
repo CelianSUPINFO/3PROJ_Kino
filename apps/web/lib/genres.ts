@@ -1,4 +1,3 @@
-/** TMDB genre ids — movies and TV differ for some labels */
 export const MOVIE_GENRES = [
   { id: "", slug: "all" },
   { id: "28", slug: "action" },

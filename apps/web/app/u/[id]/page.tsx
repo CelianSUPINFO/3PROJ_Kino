@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -93,7 +93,6 @@ export default function UserPage() {
 
   useEffect(() => {
     loadProfile();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params]);
 
   useEffect(() => {
@@ -226,7 +225,6 @@ export default function UserPage() {
       <section className="overflow-hidden rounded-3xl border border-white/10 bg-kino-panel/40">
         <div className="relative h-36 md:h-48">
           {p.bannerUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
             <img src={p.bannerUrl} alt="" className="h-full w-full object-cover" />
           ) : (
             <div className="h-full w-full bg-gradient-to-r from-kino/40 via-purple-900/30 to-kino-hot/30" />
@@ -236,7 +234,6 @@ export default function UserPage() {
         <div className="relative px-5 pb-6 md:px-8">
           <div className="-mt-12 flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end">
             {p.avatarUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={p.avatarUrl}
                 alt=""
@@ -346,7 +343,6 @@ export default function UserPage() {
                   {(draft.favoriteFilms ?? []).map((f) => (
                     <div key={`${f.mediaType}-${f.tmdbId}`} className="relative">
                       {f.posterPath ? (
-                        // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={`https://image.tmdb.org/t/p/w92${f.posterPath}`}
                           alt=""
@@ -402,7 +398,6 @@ export default function UserPage() {
                   className="group min-w-0 sm:w-24 sm:shrink-0"
                 >
                   {f.posterPath ? (
-                    // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={`https://image.tmdb.org/t/p/w185${f.posterPath}`}
                       alt=""
@@ -426,7 +421,6 @@ export default function UserPage() {
               {favoriteSeries.map((f) => (
                 <Link key={`TV-${f.tmdbId}`} href={`/title/tv/${f.tmdbId}`} className="group min-w-0 sm:w-24 sm:shrink-0">
                   {f.posterPath ? (
-                    // eslint-disable-next-line @next/next/no-img-element
                     <img src={`https://image.tmdb.org/t/p/w185${f.posterPath}`} alt="" className="aspect-[2/3] w-full rounded-xl object-cover transition group-hover:ring-2 group-hover:ring-kino" />
                   ) : <div className="flex aspect-[2/3] items-center justify-center rounded-xl bg-white/10 text-xs text-white">#{f.tmdbId}</div>}
                   <p className="mt-1 truncate text-xs text-kino-muted">{f.title}</p>
@@ -449,7 +443,6 @@ export default function UserPage() {
                 className="flex gap-3 border border-white/10 bg-white/[0.03] p-3 transition hover:border-kino/40"
               >
                 {review.posterPath && (
-                  // eslint-disable-next-line @next/next/no-img-element
                   <img src={`https://image.tmdb.org/t/p/w185${review.posterPath}`} alt="" className="h-24 w-16 shrink-0 object-cover" />
                 )}
                 <div className="min-w-0">
@@ -494,7 +487,6 @@ function ImageUploadField({
       </span>
       <div className="mt-1 flex flex-wrap items-center gap-3">
         {previewUrl && (
-          // eslint-disable-next-line @next/next/no-img-element
           <img
             src={previewUrl}
             alt=""
@@ -560,7 +552,6 @@ function SocialList({ title, users, empty }: { title: string; users: PublicUser[
             <li key={u.id}>
               <Link href={`/u/${u.id}`} className="flex items-center gap-3 text-sm text-white hover:text-kino-hot">
                 {u.avatarUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
                   <img src={u.avatarUrl} alt="" className="h-8 w-8 rounded-full object-cover" />
                 ) : (
                   <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-xs font-bold">

@@ -112,6 +112,15 @@ export class ReviewsService {
       where: { id: reviewId },
     });
     if (!review) throw new NotFoundException();
+    if (parentId) {
+      const parent = await this.prisma.comment.findUnique({
+        where: { id: parentId },
+        select: { reviewId: true },
+      });
+      if (!parent || parent.reviewId !== reviewId) {
+        throw new NotFoundException();
+      }
+    }
     const c = await this.prisma.comment.create({
       data: { reviewId, userId, body, parentId },
     });
@@ -128,14 +137,27 @@ export class ReviewsService {
   }
 
   async listComments(reviewId: string) {
-    return this.prisma.comment.findMany({
-      where: { reviewId, parentId: null },
+    const comments = await this.prisma.comment.findMany({
+      where: { reviewId },
       include: {
         user: { select: { id: true, displayName: true, avatarUrl: true } },
-        // replies shallow
       },
       orderBy: { createdAt: 'asc' },
     });
+    type CommentNode = (typeof comments)[number] & { replies: CommentNode[] };
+    const nodes = new Map<string, CommentNode>(
+      comments.map((comment) => [comment.id, { ...comment, replies: [] }]),
+    );
+    const roots: CommentNode[] = [];
+    for (const comment of nodes.values()) {
+      const parent = comment.parentId ? nodes.get(comment.parentId) : undefined;
+      if (parent) {
+        parent.replies.push(comment);
+      } else {
+        roots.push(comment);
+      }
+    }
+    return roots;
   }
 
   async deleteComment(userId: string, role: string, commentId: string) {

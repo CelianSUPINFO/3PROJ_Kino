@@ -1,6 +1,5 @@
 "use client";
 
-/** Rendu léger Markdown : gras, italique, retours ligne. */
 export function FormattedBody({ text }: { text: string }) {
   const lines = text.split("\n");
   return (

@@ -49,7 +49,11 @@ export class LibraryService {
       rows.map(async (row) => {
         const cached = await this.prisma.cachedWork.findUnique({
           where: {
-            tmdbId_mediaType: { tmdbId: row.tmdbId, mediaType: row.mediaType },
+            tmdbId_mediaType_language: {
+              tmdbId: row.tmdbId,
+              mediaType: row.mediaType,
+              language: 'fr-FR',
+            },
           },
           select: { title: true, posterPath: true },
         });
@@ -80,7 +84,11 @@ export class LibraryService {
     for (const row of completed) {
       const cached = await this.prisma.cachedWork.findUnique({
         where: {
-          tmdbId_mediaType: { tmdbId: row.tmdbId, mediaType: row.mediaType },
+          tmdbId_mediaType_language: {
+            tmdbId: row.tmdbId,
+            mediaType: row.mediaType,
+            language: 'fr-FR',
+          },
         },
         select: { runtime: true },
       });

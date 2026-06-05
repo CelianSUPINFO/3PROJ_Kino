@@ -73,7 +73,6 @@ export default function CeSoirPage() {
         ),
       )
       .catch(() => setEngagement(null));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [type]);
 
   const current = items[idx];
@@ -246,7 +245,6 @@ function SwipeCard({
     >
       <div className="image-text-surface relative h-full w-full overflow-hidden rounded-3xl border border-white/10 bg-kino-panel shadow-card">
         {backdrop && (
-          // eslint-disable-next-line @next/next/no-img-element
           <img
             src={backdrop}
             alt=""

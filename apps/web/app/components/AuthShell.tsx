@@ -22,7 +22,6 @@ export function AuthShell({
   return (
     <div className="relative -mx-4 grid min-h-[70vh] overflow-hidden rounded-3xl border border-white/10 bg-kino-panel shadow-card md:-mx-6 md:grid-cols-2">
       <div className="relative hidden md:block">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src="https://image.tmdb.org/t/p/original/8b8R8l88Qje9dn9OE8PY05Nxl1X.jpg"
           alt=""
@@ -32,7 +31,6 @@ export function AuthShell({
         <div className="relative z-10 flex h-full flex-col justify-between p-10">
           <Link href="/" className="flex items-center gap-2 text-white">
             <span className="inline-flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl shadow-kino">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/kino-logo.png" alt="" className="h-full w-full object-cover" />
             </span>
             <span className="text-display text-2xl font-bold">kino</span>
