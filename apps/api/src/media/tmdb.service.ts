@@ -304,6 +304,7 @@ export class TmdbService {
 
   async resolveTitles(
     works: { tmdbId: number; mediaType: MediaType }[],
+    language = 'fr-FR',
   ): Promise<Record<string, string>> {
     if (!works.length) return {};
     const unique = [
@@ -316,7 +317,7 @@ export class TmdbService {
         OR: unique.map((w) => ({
           tmdbId: w.tmdbId,
           mediaType: w.mediaType,
-          language: 'fr-FR',
+          language,
         })),
       },
       select: { tmdbId: true, mediaType: true, title: true },
@@ -329,7 +330,7 @@ export class TmdbService {
     await Promise.all(
       missing.map(async (w) => {
         try {
-          const res = await this.getDetails(w.mediaType, w.tmdbId);
+          const res = await this.getDetails(w.mediaType, w.tmdbId, language);
           const data = res.data as { title?: string; name?: string };
           out[`${w.mediaType}:${w.tmdbId}`] =
             w.mediaType === MediaType.MOVIE

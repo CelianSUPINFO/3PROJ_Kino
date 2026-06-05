@@ -16,7 +16,7 @@ type ListDetail = {
 };
 
 export default function ListPage() {
-  const { t } = useLocale();
+  const { locale, t } = useLocale();
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const [list, setList] = useState<ListDetail | null>(null);
@@ -34,7 +34,7 @@ export default function ListPage() {
       const items = await Promise.all(data.items.map(async (item) => {
         const type = item.mediaType === "TV" ? "tv" : "movie";
         try {
-          const result = await apiFetch<{ data: PosterCardData }>(`/media/${type}/${item.tmdbId}`, { auth: false });
+          const result = await apiFetch<{ data: PosterCardData }>(`/media/${type}/${item.tmdbId}?language=${locale === "fr" ? "fr-FR" : "en-US"}`, { auth: false });
           return { ...item, ...result.data, id: item.tmdbId, media_type: type, title: result.data.title ?? result.data.name ?? `#${item.tmdbId}` };
         } catch {
           return { ...item, id: item.tmdbId, media_type: type, title: `#${item.tmdbId}` };
@@ -51,7 +51,7 @@ export default function ListPage() {
   useEffect(() => {
     void load();
     apiFetch<{ id: string }>("/users/me").then((me) => setMeId(me.id)).catch(() => setMeId(null));
-  }, [params?.id]);
+  }, [locale, params?.id]);
 
   useEffect(() => {
     if (!list || meId !== list.userId || addQ.trim().length < 2) {

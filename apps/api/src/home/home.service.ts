@@ -11,7 +11,7 @@ export class HomeService {
     private readonly prisma: PrismaService,
   ) {}
 
-  async getHome(user: JwtUser | undefined) {
+  async getHome(user: JwtUser | undefined, language = 'fr-FR') {
     const [trending, topTv, latestRatings, recentWatched] = await Promise.all([
       this.tmdb.discover(
         MediaType.MOVIE,
@@ -20,6 +20,7 @@ export class HomeService {
         undefined,
         undefined,
         6.2,
+        language,
       ),
       this.tmdb.discover(
         MediaType.TV,
@@ -28,6 +29,7 @@ export class HomeService {
         undefined,
         undefined,
         6.2,
+        language,
       ),
       this.prisma.review.findMany({
         orderBy: { updatedAt: 'desc' },
@@ -53,6 +55,7 @@ export class HomeService {
         undefined,
         undefined,
         7.2,
+        language,
       ),
       this.tmdb.discover(
         MediaType.MOVIE,
@@ -61,6 +64,7 @@ export class HomeService {
         undefined,
         undefined,
         6.0,
+        language,
       ),
       this.tmdb.discover(
         MediaType.TV,
@@ -69,6 +73,7 @@ export class HomeService {
         undefined,
         undefined,
         7.0,
+        language,
       ),
     ]);
 
@@ -81,7 +86,7 @@ export class HomeService {
         tmdbId: w.tmdbId,
         mediaType: w.mediaType,
       })),
-    ]);
+    ], language);
 
     const key = (tmdbId: number, mediaType: MediaType) =>
       `${mediaType}:${tmdbId}`;

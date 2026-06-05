@@ -244,6 +244,13 @@ export const s = StyleSheet.create({
     letterSpacing: 1.5,
     marginTop: 2,
   },
+  engDescription: {
+    color: "rgba(255,255,255,0.78)",
+    fontSize: 10,
+    lineHeight: 13,
+    marginTop: 4,
+    textAlign: "center",
+  },
 
   tonightBanner: {
     marginHorizontal: spacing.lg,

@@ -71,11 +71,11 @@ export function HomeScreen({
 
   async function reload() {
     try {
-      const h = await apiFetch<HomePayload>("/home", { auth: true });
+      const h = await apiFetch<HomePayload>(`/home?language=${locale === "fr" ? "fr-FR" : "en-US"}`, { auth: true });
       setHome(h);
     } catch {
       try {
-        const h = await apiFetch<HomePayload>("/home", { auth: false });
+        const h = await apiFetch<HomePayload>(`/home?language=${locale === "fr" ? "fr-FR" : "en-US"}`, { auth: false });
         setHome(h);
       } catch {
         setHome(null);
@@ -103,7 +103,7 @@ export function HomeScreen({
 
   useEffect(() => {
     reload();
-  }, []);
+  }, [locale]);
 
   const featured = home?.trending?.movies?.[0] ?? home?.trending?.tv?.[0];
 
@@ -237,13 +237,15 @@ export function HomeScreen({
           <View style={s.engagementRow}>
             <View style={[s.engBadge, { backgroundColor: "#ff7a1a" }]}>
               <Text style={s.engValue}>{engagement.streakDays}</Text>
-              <Text style={s.engLabel}>{t("engagement.days")}</Text>
+              <Text style={s.engLabel}>{t("engagement.streak")}</Text>
+              <Text style={s.engDescription}>{t("engagement.streakDescription")}</Text>
             </View>
             <View style={[s.engBadge, { backgroundColor: colors.kino }]}>
               <Text style={s.engValue}>
                 {engagement.weekly.reviews}/{engagement.weekly.targetReviews}
               </Text>
               <Text style={s.engLabel}>{t("engagement.reviewsWeek")}</Text>
+              <Text style={s.engDescription}>{t("engagement.reviewsDescription")}</Text>
             </View>
             <View style={[s.engBadge, { backgroundColor: "#6b5bff" }]}>
               <Text style={s.engValue}>
@@ -251,6 +253,7 @@ export function HomeScreen({
                 {engagement.weekly.targetCompleted}
               </Text>
               <Text style={s.engLabel}>{t("engagement.completedWeek")}</Text>
+              <Text style={s.engDescription}>{t("engagement.completedDescription")}</Text>
             </View>
           </View>
         )}

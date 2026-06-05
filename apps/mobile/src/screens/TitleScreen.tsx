@@ -13,6 +13,8 @@ import {
   View,
 } from "react-native";
 import { apiFetch } from "../api";
+import { useLocale } from "../context/LocaleContext";
+import { statusLabel } from "../lib/i18n";
 import { useThemeColors } from "../context/ThemeContext";
 import type { RootStackParamList } from "../navigation/types";
 import { radius, spacing } from "../theme";
@@ -47,6 +49,7 @@ const STATUS_COLORS = {
 
 export function TitleScreen({ route, navigation }: Props) {
   const { colors } = useThemeColors();
+  const { locale, t } = useLocale();
   const s = makeStyles(colors);
   const { type, id, title } = route.params;
   const [rating, setRating] = useState(4);
@@ -74,7 +77,7 @@ export function TitleScreen({ route, navigation }: Props) {
   }
 
   useEffect(() => {
-    apiFetch<{ data: Record<string, unknown> }>(`/media/${type}/${id}`, {
+    apiFetch<{ data: Record<string, unknown> }>(`/media/${type}/${id}?language=${locale === "fr" ? "fr-FR" : "en-US"}`, {
       auth: false,
     })
       .then((r) => setDetail(r.data))
@@ -95,7 +98,7 @@ export function TitleScreen({ route, navigation }: Props) {
     apiFetch<{ tmdbId: number; mediaType: string; status: string }[]>("/library/me")
       .then((rows) => setSelectedStatus(rows.find((row) => row.tmdbId === id && row.mediaType === mediaType)?.status ?? null))
       .catch(() => setSelectedStatus(null));
-  }, [type, id]);
+  }, [type, id, locale]);
 
   const myReview = meId ? reviews.find((r) => r.userId === meId) : undefined;
 
@@ -288,7 +291,7 @@ export function TitleScreen({ route, navigation }: Props) {
               ] as const
             ).map(([st, label]) => (
               <Pressable key={st} style={[s.chip, STATUS_COLORS[st], selectedStatus === st && s.chipActive]} onPress={() => setStatus(st)}>
-                <Text style={[s.chipText, { color: STATUS_COLORS[st].color }, selectedStatus === st && s.chipActiveText]}>{label}</Text>
+                <Text style={[s.chipText, { color: STATUS_COLORS[st].color }, selectedStatus === st && s.chipActiveText]}>{statusLabel(locale, st === "WATCHLIST" ? "TO_WATCH" : st)}</Text>
               </Pressable>
             ))}
           </View>

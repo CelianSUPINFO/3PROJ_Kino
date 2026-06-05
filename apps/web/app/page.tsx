@@ -51,14 +51,14 @@ export default function Home() {
   const loadHome = useCallback(async () => {
     setLoading(true);
     setError(null);
-    apiFetch<HomePayload>("/home", { auth: true })
+    apiFetch<HomePayload>(`/home?language=${locale === "fr" ? "fr-FR" : "en-US"}`, { auth: true })
       .then(setData)
       .catch(() => setError(t("home.loadError")))
       .finally(() => setLoading(false));
     apiFetch<EngagementPayload>("/engagement/summary", { auth: true })
       .then(setEngagement)
       .catch(() => undefined);
-  }, [t]);
+  }, [locale, t]);
 
   useEffect(() => {
     loadHome();

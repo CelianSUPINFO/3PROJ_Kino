@@ -1,4 +1,4 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import {
   CurrentUser,
   JwtUser,
@@ -12,7 +12,7 @@ export class HomeController {
 
   @Get()
   @UseGuards(OptionalJwtAuthGuard)
-  getHome(@CurrentUser() user?: JwtUser) {
-    return this.home.getHome(user);
+  getHome(@CurrentUser() user?: JwtUser, @Query('language') language = 'fr-FR') {
+    return this.home.getHome(user, language === 'en' || language === 'en-US' ? 'en-US' : 'fr-FR');
   }
 }

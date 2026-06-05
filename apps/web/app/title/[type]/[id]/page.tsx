@@ -53,7 +53,7 @@ export default function TitlePage() {
     if (!params?.type || !params?.id) return;
     setLoading(true);
     setLoadError(null);
-    await apiFetch<Detail>(`/media/${params.type}/${params.id}`, { auth: false })
+    await apiFetch<Detail>(`/media/${params.type}/${params.id}?language=${locale === "fr" ? "fr-FR" : "en-US"}`, { auth: false })
       .then(setDetail)
       .catch(() => {
         setDetail(null);
@@ -77,7 +77,7 @@ export default function TitlePage() {
         setMeRole(null);
       });
     setLoading(false);
-  }, [params, t]);
+  }, [locale, params, t]);
 
   useEffect(() => {
     loadAll();

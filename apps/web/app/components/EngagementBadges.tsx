@@ -23,13 +23,14 @@ export function EngagementBadges({ data }: { data: Engagement | null }) {
 
   return (
     <div className="grid gap-3 sm:grid-cols-3">
-      <StreakCard days={data.streakDays} label={t("engagement.streak")} daysLabel={t("engagement.days")} />
+      <StreakCard days={data.streakDays} label={t("engagement.streak")} daysLabel={t("engagement.days")} description={t("engagement.streakDescription")} />
       <RingCard
         title={t("engagement.reviewsWeek")}
         value={data.weekly.reviews}
         target={data.weekly.targetReviews}
         color="#ff2e7e"
         icon="pen"
+        description={t("engagement.reviewsDescription")}
       />
       <RingCard
         title={t("engagement.completedWeek")}
@@ -37,6 +38,7 @@ export function EngagementBadges({ data }: { data: Engagement | null }) {
         target={data.weekly.targetCompleted}
         color="#f5c76a"
         icon="check"
+        description={t("engagement.completedDescription")}
         footer={t("engagement.nextPicks", { time: next })}
       />
     </div>
@@ -47,10 +49,12 @@ function StreakCard({
   days,
   label,
   daysLabel,
+  description,
 }: {
   days: number;
   label: string;
   daysLabel: string;
+  description: string;
 }) {
   return (
     <div className="glass flex items-center gap-4 rounded-2xl p-4">
@@ -62,6 +66,7 @@ function StreakCard({
         <p className="text-xl font-bold text-white">
           {days} <span className="text-sm font-medium text-kino-muted">{daysLabel}</span>
         </p>
+        <p className="mt-1 text-xs leading-snug text-kino-muted">{description}</p>
       </div>
     </div>
   );
@@ -74,6 +79,7 @@ function RingCard({
   color,
   icon,
   footer,
+  description,
 }: {
   title: string;
   value: number;
@@ -81,6 +87,7 @@ function RingCard({
   color: string;
   icon: "pen" | "check";
   footer?: string;
+  description: string;
 }) {
   const pct = target > 0 ? Math.min(1, value / target) : 0;
   const radius = 22;
@@ -121,6 +128,7 @@ function RingCard({
         <p className="truncate text-lg font-semibold text-white">
           {value} / {target}
         </p>
+        <p className="text-xs leading-snug text-kino-muted">{description}</p>
         {footer && <p className="text-xs text-kino-muted">{footer}</p>}
       </div>
     </div>
