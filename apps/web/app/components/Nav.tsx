@@ -8,6 +8,7 @@ import { browseHref, MOVIE_GENRES, TV_GENRES } from "@/lib/genres";
 import { genreLabel } from "@/lib/i18n";
 import { useApp } from "./AppProviders";
 import { NavDropdown, NavLink } from "./NavDropdown";
+import { UserAvatar } from "./UserAvatar";
 
 type Suggestion = {
   id: number;
@@ -25,15 +26,6 @@ type MeNav = {
   avatarUrl?: string | null;
   role?: string;
 };
-
-function initials(name: string) {
-  return name
-    .split(" ")
-    .map((s) => s[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
-}
 
 export function Nav() {
   const { locale, t } = useApp();
@@ -286,13 +278,7 @@ export function Nav() {
               title={me.displayName}
               aria-label={me.displayName}
             >
-              {me.avatarUrl ? (
-                <img src={me.avatarUrl} alt="" className="h-full w-full object-cover" />
-              ) : (
-                <span className="text-xs font-bold text-white">
-                  {initials(me.displayName)}
-                </span>
-              )}
+              <UserAvatar name={me.displayName} avatarUrl={me.avatarUrl} className="h-full w-full text-xs" />
             </Link>
           )}
 
@@ -326,17 +312,7 @@ export function Nav() {
                     className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full border border-white/15 bg-white/10 ring-2 ring-transparent transition hover:ring-kino/50"
                     title={me.displayName}
                   >
-                    {me.avatarUrl ? (
-                      <img
-                        src={me.avatarUrl}
-                        alt=""
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <span className="text-xs font-bold text-white">
-                        {initials(me.displayName)}
-                      </span>
-                    )}
+                    <UserAvatar name={me.displayName} avatarUrl={me.avatarUrl} className="h-full w-full text-xs" />
                   </Link>
                 )}
                 <button
@@ -420,13 +396,7 @@ export function Nav() {
                       href={`/u/${me.id}`}
                       className="flex flex-1 items-center justify-center gap-2 rounded-full border border-white/15 py-2 text-sm text-white"
                     >
-                      {me.avatarUrl ? (
-                        <img src={me.avatarUrl} alt="" className="h-6 w-6 rounded-full object-cover" />
-                      ) : (
-                        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-kino/30 text-[10px] font-bold">
-                          {initials(me.displayName)}
-                        </span>
-                      )}
+                      <UserAvatar name={me.displayName} avatarUrl={me.avatarUrl} className="h-6 w-6 text-[10px]" />
                       {me.displayName}
                     </Link>
                   )}

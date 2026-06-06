@@ -1,19 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Alert, Animated, Dimensions, FlatList, Image, ImageBackground, PanResponder, Pressable, SafeAreaView, ScrollView, Switch, Text, TextInput, TouchableOpacity, View } from "react-native";
-import * as Linking from "expo-linking";
-import * as WebBrowser from "expo-web-browser";
+import { useEffect, useRef, useState } from "react";
+import { Alert, FlatList, SafeAreaView, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { io, Socket } from "socket.io-client";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { apiFetch, clearTokens, getAccessToken, getApiRoot, logoutSession, setTokens } from "../api";
-import { PosterCard, type PosterItem } from "../components/PosterCard";
-import { Chip, Eyebrow, GhostButton, H1, Label, Logo, PrimaryButton, Section, s } from "../components/AppUi";
+import { apiFetch, getAccessToken, getApiRoot } from "../api";
+import { Chip, Eyebrow, H1, s } from "../components/AppUi";
 import { useLocale } from "../context/LocaleContext";
 import { useThemeColors } from "../context/ThemeContext";
-import { categoryLabel, notificationLabel } from "../lib/i18n";
-import type { RootStackParamList } from "../navigation/types";
 import { colors, spacing } from "../theme";
-import { registerPushNotifications, unregisterPushNotifications } from "../pushNotifications";
 type Partner = { id: string; displayName: string; unreadCount?: number };
 type Msg = { id: string; body: string; createdAt: string; senderId?: string; recipientId?: string; readAt?: string | null };
 

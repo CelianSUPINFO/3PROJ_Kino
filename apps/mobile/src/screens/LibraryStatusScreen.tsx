@@ -2,7 +2,6 @@ import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useEffect, useState } from "react";
 import {
   FlatList,
-  Pressable,
   SafeAreaView,
   StyleSheet,
   Text,
@@ -26,7 +25,7 @@ type LibraryRow = {
 };
 
 export function LibraryStatusScreen({ route, navigation }: Props) {
-  const { status, title } = route.params;
+  const { status } = route.params;
   const { t } = useLocale();
   const { colors } = useThemeColors();
   const [rows, setRows] = useState<LibraryRow[]>([]);

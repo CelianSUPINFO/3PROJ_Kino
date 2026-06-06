@@ -14,7 +14,6 @@ import {
   View,
 } from "react-native";
 import { apiFetch } from "../api";
-import { PosterCard, type PosterItem } from "../components/PosterCard";
 import { UserAvatar } from "../components/UserAvatar";
 import { useLocale } from "../context/LocaleContext";
 import { useThemeColors } from "../context/ThemeContext";
@@ -52,6 +51,13 @@ type ProfileReview = {
   spoiler: boolean;
   _count: { likes: number; comments: number };
 };
+type ProfileList = {
+  id: string;
+  name: string;
+  description?: string;
+  isPublic: boolean;
+  _count?: { items: number };
+};
 
 function initials(name: string) {
   return name
@@ -70,6 +76,7 @@ export function ProfileScreen({ route, navigation }: Props) {
   const [followers, setFollowers] = useState<PublicUser[]>([]);
   const [following, setFollowing] = useState<PublicUser[]>([]);
   const [reviews, setReviews] = useState<ProfileReview[]>([]);
+  const [lists, setLists] = useState<ProfileList[]>([]);
   const [meId, setMeId] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
@@ -84,11 +91,12 @@ export function ProfileScreen({ route, navigation }: Props) {
 
   const load = useCallback(async () => {
     try {
-      const [p, fol, fing, reviewRows, me] = await Promise.all([
+      const [p, fol, fing, reviewRows, listRows, me] = await Promise.all([
         apiFetch<Profile>(`/users/${userId}`, { auth: false }),
         apiFetch<PublicUser[]>(`/users/${userId}/followers`, { auth: false }),
         apiFetch<PublicUser[]>(`/users/${userId}/following`, { auth: false }),
         apiFetch<ProfileReview[]>(`/users/${userId}/reviews`, { auth: false }),
+        apiFetch<ProfileList[]>(`/users/${userId}/lists`),
         apiFetch<{ id: string }>("/users/me").catch(() => null),
       ]);
       setProfile(p);
@@ -96,6 +104,7 @@ export function ProfileScreen({ route, navigation }: Props) {
       setFollowers(fol);
       setFollowing(fing);
       setReviews(reviewRows);
+      setLists(listRows);
       setMeId(me?.id ?? null);
       setMsg(null);
     } catch {
@@ -443,6 +452,26 @@ export function ProfileScreen({ route, navigation }: Props) {
 
           {!editing && (
             <>
+              <Text style={[s.section, { color: colors.text, marginTop: spacing.lg }]}>
+                Listes ({lists.length})
+              </Text>
+              {lists.map((list) => (
+                <Pressable
+                  key={list.id}
+                  style={[s.reviewCard, { borderColor: colors.border, backgroundColor: colors.panel }]}
+                  onPress={() => navigation.navigate("ListDetail", { listId: list.id, listName: list.name })}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: colors.text, fontWeight: "800" }}>{list.name}</Text>
+                    {!!list.description && <Text style={{ color: colors.muted, marginTop: 5 }} numberOfLines={2}>{list.description}</Text>}
+                    <Text style={{ color: colors.muted, fontSize: 11, marginTop: 6 }}>
+                      {list._count?.items ?? 0} œuvre(s) · {list.isPublic ? t("common.public") : t("common.private")}
+                    </Text>
+                  </View>
+                </Pressable>
+              ))}
+              {lists.length === 0 && <Text style={[s.sub, { color: colors.muted }]}>{isOwn ? "Aucune liste." : "Aucune liste publique."}</Text>}
+
               <Text style={[s.section, { color: colors.text, marginTop: spacing.lg }]}>
                 {t("profile.reviews")} ({reviews.length})
               </Text>

@@ -29,6 +29,18 @@ export default function RegisterPage() {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setErr(null);
+    if (displayName.trim().length < 2) {
+      setErr(t("auth.invalidDisplayName"));
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setErr(t("auth.invalidEmail"));
+      return;
+    }
+    if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/.test(password)) {
+      setErr(t("auth.invalidPassword"));
+      return;
+    }
     setLoading(true);
     try {
       const res = await apiFetch<{ accessToken: string; refreshToken: string }>(
@@ -41,8 +53,8 @@ export default function RegisterPage() {
       );
       setTokens(res.accessToken, res.refreshToken);
       router.push("/feed");
-    } catch {
-      setErr(t("auth.registerFailed"));
+    } catch (error) {
+      setErr(error instanceof Error ? error.message : t("auth.registerFailed"));
     } finally {
       setLoading(false);
     }

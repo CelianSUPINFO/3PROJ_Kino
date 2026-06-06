@@ -159,6 +159,17 @@ export class UsersService {
     return u;
   }
 
+  async profileLists(profileId: string, viewerId?: string) {
+    return this.prisma.customList.findMany({
+      where: {
+        userId: profileId,
+        ...(viewerId === profileId ? {} : { isPublic: true }),
+      },
+      orderBy: { updatedAt: 'desc' },
+      include: { _count: { select: { items: true } } },
+    });
+  }
+
   async followers(id: string) {
     const rows = await this.prisma.follow.findMany({
       where: { followingId: id },

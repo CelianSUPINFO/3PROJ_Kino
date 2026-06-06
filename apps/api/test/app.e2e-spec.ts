@@ -88,6 +88,9 @@ describe('Targeted API e2e', () => {
             exportData: jest.fn(async () => ({ ok: true })),
             exportCsv: jest.fn(async () => 'kind,id,tmdbId\nstatus,s1,1'),
             publicProfile: jest.fn(),
+            profileLists: jest.fn(async () => [
+              { id: 'list-public', name: 'Public picks', isPublic: true },
+            ]),
             followers: jest.fn(),
             following: jest.fn(),
             follow: jest.fn(),
@@ -202,6 +205,18 @@ describe('Targeted API e2e', () => {
       .expect(400);
   });
 
+  it('POST /v1/auth/register rejects invalid email with an explicit message', async () => {
+    const res = await request(app.getHttpServer())
+      .post('/v1/auth/register')
+      .send({
+        email: 'not-an-email',
+        displayName: 'User',
+        password: 'StrongP4ssword',
+      })
+      .expect(400);
+    expect(res.body.message).toContain('Adresse e-mail invalide');
+  });
+
   it('POST /v1/auth/register returns token payload when valid', async () => {
     const body: RegisterDto = {
       email: 'u@x.com',
@@ -239,6 +254,15 @@ describe('Targeted API e2e', () => {
       .set('Authorization', 'Bearer any')
       .expect(200);
     expect(res.body.ok).toBe(true);
+  });
+
+  it('GET /v1/users/:id/lists returns profile-visible lists', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/v1/users/user-test/lists')
+      .expect(200);
+    expect(res.body).toEqual([
+      { id: 'list-public', name: 'Public picks', isPublic: true },
+    ]);
   });
 
   it('GET /v1/reco/tonight returns recommendation payload', async () => {

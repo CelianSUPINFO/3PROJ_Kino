@@ -15,6 +15,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Response } from 'express';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { OptionalJwtAuthGuard } from '../common/guards/optional-jwt.guard';
 import {
   CurrentUser,
   JwtUser,
@@ -96,6 +97,12 @@ export class UsersController {
   @Get(':id/reviews')
   reviews(@Param('id') id: string) {
     return this.users.reviews(id);
+  }
+
+  @Get(':id/lists')
+  @UseGuards(OptionalJwtAuthGuard)
+  lists(@Param('id') id: string, @CurrentUser() user?: JwtUser) {
+    return this.users.profileLists(id, user?.sub);
   }
 
   @Post(':id/follow')

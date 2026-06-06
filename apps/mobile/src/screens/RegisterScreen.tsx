@@ -21,8 +21,20 @@ export function RegisterScreen({
   const [loading, setLoading] = useState(false);
 
   async function submit() {
-    setLoading(true);
     setErr(null);
+    if (displayName.trim().length < 2) {
+      setErr(t("auth.invalidDisplayName"));
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setErr(t("auth.invalidEmail"));
+      return;
+    }
+    if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/.test(password)) {
+      setErr(t("auth.invalidPassword"));
+      return;
+    }
+    setLoading(true);
     try {
       const res = await apiFetch<{ accessToken: string; refreshToken: string }>(
         "/auth/register",
@@ -35,8 +47,8 @@ export function RegisterScreen({
       await setTokens(res.accessToken, res.refreshToken);
       await registerPushNotifications().catch(() => undefined);
       navigation.navigate("Home");
-    } catch {
-      setErr(t("auth.registerFailed"));
+    } catch (error) {
+      setErr(error instanceof Error ? error.message : t("auth.registerFailed"));
     } finally {
       setLoading(false);
     }

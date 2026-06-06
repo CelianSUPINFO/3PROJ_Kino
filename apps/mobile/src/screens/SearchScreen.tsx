@@ -2,7 +2,6 @@ import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useCallback, useEffect, useState } from "react";
 import {
   FlatList,
-  Image,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -13,6 +12,7 @@ import {
 } from "react-native";
 import { apiFetch } from "../api";
 import { PosterCard, type PosterItem } from "../components/PosterCard";
+import { UserAvatar } from "../components/UserAvatar";
 import { useThemeColors } from "../context/ThemeContext";
 import type { RootStackParamList } from "../navigation/types";
 import { radius, spacing } from "../theme";
@@ -24,10 +24,6 @@ type Unified = {
   lists: { id: string; name: string; user: { displayName: string } }[];
   works: { results: PosterItem[]; total_pages?: number };
 };
-
-function initials(name: string) {
-  return name.split(" ").map((part) => part[0]).slice(0, 2).join("").toUpperCase();
-}
 
 export function SearchScreen({ navigation }: Props) {
   const { colors } = useThemeColors();
@@ -155,11 +151,7 @@ export function SearchScreen({ navigation }: Props) {
           {users.filter((user) => user.id !== meId).map((u) => (
             <View key={u.id} style={s.userRow}>
               <Pressable style={s.userLink} onPress={() => navigation.navigate("Profile", { userId: u.id })}>
-                {u.avatarUrl ? (
-                  <Image source={{ uri: u.avatarUrl }} style={s.avatar} />
-                ) : (
-                  <View style={s.avatar}><Text style={s.avatarText}>{initials(u.displayName)}</Text></View>
-                )}
+                <UserAvatar name={u.displayName} avatarUrl={u.avatarUrl} size={38} />
                 <Text style={s.userName} numberOfLines={1}>{u.displayName}</Text>
               </Pressable>
               {meId && meId !== u.id && (
@@ -268,8 +260,6 @@ const makeStyles = (colors: ReturnType<typeof useThemeColors>["colors"]) => Styl
   link: { color: colors.kinoHot, paddingVertical: 6, fontWeight: "600" },
   userRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
   userLink: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 10 },
-  avatar: { width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center", backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.border },
-  avatarText: { color: colors.kinoHot, fontWeight: "800", fontSize: 12 },
   userName: { flex: 1, color: colors.text, fontWeight: "700" },
   followBtn: { minWidth: 76, alignItems: "center", backgroundColor: colors.kino, borderRadius: radius.pill, paddingHorizontal: 14, paddingVertical: 8 },
   followedText: { color: colors.muted, fontWeight: "700" },

@@ -1,7 +1,6 @@
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
 import {
-  Image,
   ImageBackground,
   Pressable,
   SafeAreaView,
@@ -227,7 +226,6 @@ export function TitleScreen({ route, navigation }: Props) {
   }
 
   const backdrop = detail?.backdrop_path as string | undefined;
-  const poster = detail?.poster_path as string | undefined;
   const overview = (detail?.overview as string) ?? "";
   const releaseDate = ((detail?.release_date ?? detail?.first_air_date) as string | undefined) ?? "";
   const runtime = (detail?.runtime as number | undefined) ?? ((detail?.episode_run_time as number[] | undefined)?.[0]);

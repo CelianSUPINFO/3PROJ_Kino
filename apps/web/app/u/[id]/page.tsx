@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { useLocale } from "../../components/AppProviders";
+import { UserAvatar } from "../../components/UserAvatar";
 
 type FavoriteFilm = {
   tmdbId: number;
@@ -34,6 +35,13 @@ type ProfileReview = {
   body: string;
   spoiler: boolean;
 };
+type ProfileList = {
+  id: string;
+  name: string;
+  description?: string;
+  isPublic: boolean;
+  _count?: { items: number };
+};
 
 function initials(name: string) {
   return name
@@ -51,6 +59,7 @@ export default function UserPage() {
   const [followers, setFollowers] = useState<PublicUser[]>([]);
   const [following, setFollowing] = useState<PublicUser[]>([]);
   const [reviews, setReviews] = useState<ProfileReview[]>([]);
+  const [lists, setLists] = useState<ProfileList[]>([]);
   const [meId, setMeId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -70,11 +79,12 @@ export default function UserPage() {
     setLoading(true);
     setError(null);
     try {
-      const [profile, followerRows, followingRows, reviewRows, me] = await Promise.all([
+      const [profile, followerRows, followingRows, reviewRows, listRows, me] = await Promise.all([
         apiFetch<Profile>(`/users/${params.id}`, { auth: false }),
         apiFetch<PublicUser[]>(`/users/${params.id}/followers`, { auth: false }),
         apiFetch<PublicUser[]>(`/users/${params.id}/following`, { auth: false }),
         apiFetch<ProfileReview[]>(`/users/${params.id}/reviews`, { auth: false }),
+        apiFetch<ProfileList[]>(`/users/${params.id}/lists`),
         apiFetch<{ id: string }>("/users/me").catch(() => null),
       ]);
       setP(profile);
@@ -82,6 +92,7 @@ export default function UserPage() {
       setFollowers(followerRows);
       setFollowing(followingRows);
       setReviews(reviewRows);
+      setLists(listRows);
       setMeId(me?.id ?? null);
     } catch {
       setP(null);
@@ -388,6 +399,27 @@ export default function UserPage() {
 
       {!editing && (
         <section className="glass rounded-2xl p-5">
+          <h2 className="text-display text-lg font-semibold text-white">
+            Listes <span className="text-kino-muted">({lists.length})</span>
+          </h2>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {lists.map((list) => (
+              <Link key={list.id} href={`/list/${list.id}`} className="rounded-xl border border-white/10 bg-white/[0.03] p-4 transition hover:border-kino/40">
+                <div className="flex items-center justify-between gap-3">
+                  <strong className="truncate text-white">{list.name}</strong>
+                  <span className="chip">{list.isPublic ? t("common.public") : t("common.private")}</span>
+                </div>
+                {!!list.description && <p className="mt-2 line-clamp-2 text-sm text-kino-muted">{list.description}</p>}
+                <p className="mt-3 text-xs text-kino-muted">{list._count?.items ?? 0} œuvre(s)</p>
+              </Link>
+            ))}
+            {lists.length === 0 && <p className="text-sm text-kino-muted">{isOwnProfile ? "Aucune liste." : "Aucune liste publique."}</p>}
+          </div>
+        </section>
+      )}
+
+      {!editing && (
+        <section className="glass rounded-2xl p-5">
           <h2 className="text-display text-lg font-semibold text-white">Films préférés</h2>
           {favorites.length > 0 ? (
             <div className="mt-4 grid grid-cols-3 gap-3 min-[420px]:grid-cols-4 sm:flex sm:flex-wrap">
@@ -551,13 +583,7 @@ function SocialList({ title, users, empty }: { title: string; users: PublicUser[
           {users.slice(0, 8).map((u) => (
             <li key={u.id}>
               <Link href={`/u/${u.id}`} className="flex items-center gap-3 text-sm text-white hover:text-kino-hot">
-                {u.avatarUrl ? (
-                  <img src={u.avatarUrl} alt="" className="h-8 w-8 rounded-full object-cover" />
-                ) : (
-                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-xs font-bold">
-                    {initials(u.displayName)}
-                  </span>
-                )}
+                <UserAvatar name={u.displayName} avatarUrl={u.avatarUrl} className="h-8 w-8 text-xs" />
                 {u.displayName}
               </Link>
             </li>
