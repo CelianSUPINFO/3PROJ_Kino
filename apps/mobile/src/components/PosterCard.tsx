@@ -48,7 +48,6 @@ export function PosterCard({
             <Text style={[styles.badgeText, { color: colors.gold }]}>★ {item.vote_average.toFixed(1)}</Text>
           </View>
         )}
-        <View style={styles.gradient} />
       </View>
       <Text numberOfLines={2} style={[styles.label, { color: colors.text }]}>
         {label}
@@ -72,14 +71,6 @@ const styles = StyleSheet.create({
   posterPlaceholder: {
     alignItems: "center",
     justifyContent: "center",
-  },
-  gradient: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: 50,
-    backgroundColor: "rgba(10,7,16,0.75)",
   },
   badge: {
     position: "absolute",

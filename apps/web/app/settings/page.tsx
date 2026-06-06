@@ -15,6 +15,7 @@ type Me = {
   theme: string;
   locale: string;
   notifyPush: boolean;
+  notifyEmail: boolean;
 };
 
 export default function SettingsPage() {
@@ -44,6 +45,7 @@ export default function SettingsPage() {
           theme: me.theme,
           locale: me.locale,
           notifyPush: me.notifyPush,
+          notifyEmail: me.notifyEmail,
         }),
       });
       setMe(updated);
@@ -199,6 +201,15 @@ export default function SettingsPage() {
                 className="accent-[#ff2e7e]"
               />
               {t("settings.notifyPush")}
+            </label>
+            <label className="flex items-center gap-2 text-sm text-kino-muted">
+              <input
+                type="checkbox"
+                checked={me.notifyEmail}
+                onChange={(e) => setMe({ ...me, notifyEmail: e.target.checked })}
+                className="accent-[#ff2e7e]"
+              />
+              {t("settings.notifyEmail")}
             </label>
           </section>
 

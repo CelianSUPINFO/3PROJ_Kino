@@ -21,6 +21,27 @@ type User = {
   createdAt: string;
   _count: { reviewsWritten: number; followers: number; reportsFiled: number };
 };
+type AdminReview = {
+  id: string;
+  body: string;
+  rating: number;
+  featured: boolean;
+  tmdbId: number;
+  mediaType: string;
+  user: { id: string; displayName: string };
+  _count: { likes: number; comments: number };
+};
+type MessageReport = {
+  id: string;
+  reason: string;
+  status: "OPEN" | "RESOLVED" | "DISMISSED";
+  reporter: { id: string; displayName: string };
+  message: {
+    id: string;
+    body: string;
+    sender: { id: string; displayName: string };
+  };
+};
 type WorkStat = {
   tmdbId: number;
   mediaType: string;
@@ -46,21 +67,27 @@ export default function AdminPage() {
   const [role, setRole] = useState<string | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
   const [reports, setReports] = useState<Report[]>([]);
+  const [messageReports, setMessageReports] = useState<MessageReport[]>([]);
+  const [adminReviews, setAdminReviews] = useState<AdminReview[]>([]);
   const [users, setUsers] = useState<User[]>([]);
-  const [tab, setTab] = useState<"dashboard" | "reports" | "users">("dashboard");
+  const [tab, setTab] = useState<"dashboard" | "reports" | "messages" | "reviews" | "users">("dashboard");
   const [message, setMessage] = useState("");
 
   async function load() {
     const me = await apiFetch<{ role: string }>("/users/me");
     setRole(me.role);
     if (me.role !== "ADMIN") return;
-    const [nextStats, nextReports, nextUsers] = await Promise.all([
+    const [nextStats, nextReports, nextMessageReports, nextReviews, nextUsers] = await Promise.all([
       apiFetch<Stats>("/admin/stats"),
       apiFetch<Report[]>("/admin/reports"),
+      apiFetch<MessageReport[]>("/admin/message-reports").catch(() => [] as MessageReport[]),
+      apiFetch<AdminReview[]>("/admin/reviews").catch(() => [] as AdminReview[]),
       apiFetch<User[]>("/admin/users"),
     ]);
     setStats(nextStats);
     setReports(nextReports);
+    setMessageReports(nextMessageReports);
+    setAdminReviews(nextReviews);
     setUsers(nextUsers);
   }
 
@@ -96,9 +123,17 @@ export default function AdminPage() {
       </header>
 
       <div className="flex flex-wrap gap-2">
-        {(["dashboard", "reports", "users"] as const).map((item) => (
+        {(["dashboard", "reports", "messages", "reviews", "users"] as const).map((item) => (
           <button key={item} className={`chip ${tab === item ? "border-kino bg-kino/20 text-white" : ""}`} onClick={() => setTab(item)}>
-            {item === "dashboard" ? "Statistiques" : item === "reports" ? "Signalements" : "Comptes"}
+            {item === "dashboard"
+              ? "Statistiques"
+              : item === "reports"
+                ? "Signalements"
+                : item === "messages"
+                  ? "Messages signalés"
+                  : item === "reviews"
+                    ? "Coups de cœur"
+                    : "Comptes"}
           </button>
         ))}
       </div>
@@ -140,6 +175,64 @@ export default function AdminPage() {
             </article>
           ))}
           {reports.length === 0 && <p className="text-sm text-kino-muted">Aucun signalement.</p>}
+        </section>
+      )}
+
+      {tab === "messages" && (
+        <section className="space-y-3">
+          {messageReports.map((report) => (
+            <article key={report.id} className="glass p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-semibold text-white">{report.reason}</p>
+                <span className="text-xs uppercase tracking-wider text-kino-hot">{report.status}</span>
+              </div>
+              <p className="mt-2 text-sm text-kino-muted">
+                Signalé par {report.reporter.displayName} · Message de {report.message.sender.displayName}
+              </p>
+              <p className="mt-3 border-l-2 border-white/10 pl-3 text-sm text-white/80">{report.message.body}</p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <button className="chip" onClick={async () => { await apiFetch(`/admin/message-reports/${report.id}`, { method: "PATCH", body: JSON.stringify({ status: "RESOLVED" }) }); await load(); }}>Résoudre</button>
+                <button className="chip" onClick={async () => { await apiFetch(`/admin/message-reports/${report.id}`, { method: "PATCH", body: JSON.stringify({ status: "DISMISSED" }) }); await load(); }}>Ignorer</button>
+                <button className="chip text-red-300" onClick={async () => { await apiFetch(`/admin/messages/${report.message.id}`, { method: "DELETE" }); setMessage("Message supprimé."); await load(); }}>Supprimer le message</button>
+              </div>
+            </article>
+          ))}
+          {messageReports.length === 0 && <p className="text-sm text-kino-muted">Aucun message signalé.</p>}
+        </section>
+      )}
+
+      {tab === "reviews" && (
+        <section className="space-y-3">
+          <p className="text-sm text-kino-muted">Mettez en avant les meilleures critiques : elles s&apos;affichent avec un badge « Coup de cœur » sur les fiches œuvres.</p>
+          {adminReviews.map((review) => (
+            <article key={review.id} className="glass p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-semibold text-white">
+                  {review.user.displayName} · {review.rating}/5
+                  {review.featured && <span className="ml-2 text-xs uppercase tracking-wider text-kino-gold">★ Coup de cœur</span>}
+                </p>
+                <span className="text-xs text-kino-muted">{review._count.likes} j&apos;aime · {review._count.comments} commentaires</span>
+              </div>
+              <p className="mt-3 border-l-2 border-white/10 pl-3 text-sm text-white/80">{review.body}</p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <button
+                  className={`chip ${review.featured ? "border-kino-gold/60 text-kino-gold" : ""}`}
+                  onClick={async () => {
+                    await apiFetch(`/reviews/admin/${review.id}/featured`, {
+                      method: "POST",
+                      body: JSON.stringify({ featured: !review.featured }),
+                    });
+                    setMessage(review.featured ? "Coup de cœur retiré." : "Critique mise en avant.");
+                    await load();
+                  }}
+                >
+                  {review.featured ? "Retirer le coup de cœur" : "Mettre en avant"}
+                </button>
+                <button className="chip text-red-300" onClick={async () => { await apiFetch(`/admin/reviews/${review.id}`, { method: "DELETE" }); setMessage("Critique supprimée."); await load(); }}>Supprimer</button>
+              </div>
+            </article>
+          ))}
+          {adminReviews.length === 0 && <p className="text-sm text-kino-muted">Aucune critique.</p>}
         </section>
       )}
 

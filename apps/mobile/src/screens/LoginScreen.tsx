@@ -1,28 +1,24 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Alert, Animated, Dimensions, FlatList, Image, ImageBackground, PanResponder, Pressable, SafeAreaView, ScrollView, Switch, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { useEffect, useState } from "react";
+import { ActivityIndicator, SafeAreaView, Text, TextInput, TouchableOpacity, View } from "react-native";
 import * as Linking from "expo-linking";
-import * as WebBrowser from "expo-web-browser";
-import { io, Socket } from "socket.io-client";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { apiFetch, clearTokens, getApiRoot, logoutSession, setTokens } from "../api";
-import { PosterCard, type PosterItem } from "../components/PosterCard";
-import { Chip, Eyebrow, GhostButton, H1, Label, Logo, PrimaryButton, Section, s } from "../components/AppUi";
+import { apiFetch, setTokens } from "../api";
+import { Eyebrow, H1, Label, PrimaryButton, s } from "../components/AppUi";
 import { useLocale } from "../context/LocaleContext";
-import { useThemeColors } from "../context/ThemeContext";
-import { categoryLabel, notificationLabel } from "../lib/i18n";
 import type { RootStackParamList } from "../navigation/types";
 import { colors, spacing } from "../theme";
-import { registerPushNotifications, unregisterPushNotifications } from "../pushNotifications";
+import { registerPushNotifications } from "../pushNotifications";
 import { runGoogleOAuth } from "../auth/googleOAuth";
+
 export function LoginScreen({
   navigation,
 }: {
   navigation: { navigate: (name: keyof RootStackParamList) => void };
 }) {
+  const { t } = useLocale();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [err, setErr] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -49,10 +45,11 @@ export function LoginScreen({
   async function googleLogin() {
     setLoading(true);
     setErr(null);
+    setInfo(null);
     try {
       await runGoogleOAuth(navigation);
     } catch {
-      setErr("Connexion Google annulee ou echouee.");
+      setErr(t("auth.googleFailed"));
     } finally {
       setLoading(false);
     }
@@ -61,6 +58,7 @@ export function LoginScreen({
   async function submit() {
     setLoading(true);
     setErr(null);
+    setInfo(null);
     try {
       const res = await apiFetch<{ accessToken: string; refreshToken: string }>(
         "/auth/login",
@@ -74,21 +72,40 @@ export function LoginScreen({
       await registerPushNotifications().catch(() => undefined);
       navigation.navigate("Home");
     } catch {
-      setErr("Invalid credentials");
+      setErr(t("auth.invalidCredentials"));
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function requestPasswordReset() {
+    setErr(null);
+    setInfo(null);
+    if (!email.trim()) {
+      setErr(t("auth.enterEmailFirst"));
+      return;
+    }
+    try {
+      await apiFetch("/auth/password/request", {
+        method: "POST",
+        body: JSON.stringify({ email: email.trim() }),
+        auth: false,
+      });
+      setInfo(t("auth.resetSent"));
+    } catch {
+      setErr(t("auth.resetFailed"));
     }
   }
 
   return (
     <SafeAreaView style={s.screen}>
       <View style={{ padding: spacing.lg, flex: 1 }}>
-        <Eyebrow>WELCOME BACK</Eyebrow>
-        <H1>Log in</H1>
+        <Eyebrow>{t("auth.welcomeBack").toUpperCase()}</Eyebrow>
+        <H1>{t("auth.loginTitle")}</H1>
         <Text style={[s.sub, { marginBottom: spacing.lg }]}>
-          Continue your cinematic journey.
+          {t("auth.loginSubtitle")}
         </Text>
-        <Label>Email</Label>
+        <Label>{t("common.email")}</Label>
         <TextInput
           placeholder="you@example.com"
           placeholderTextColor={colors.muted}
@@ -98,7 +115,7 @@ export function LoginScreen({
           value={email}
           onChangeText={setEmail}
         />
-        <Label>Password</Label>
+        <Label>{t("common.password")}</Label>
         <TextInput
           placeholder="••••••••"
           placeholderTextColor={colors.muted}
@@ -107,20 +124,42 @@ export function LoginScreen({
           value={password}
           onChangeText={setPassword}
         />
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel={t("auth.forgotPassword")}
+          onPress={requestPasswordReset}
+          style={{ alignSelf: "flex-end", paddingVertical: 6 }}
+        >
+          <Text style={{ color: colors.kinoHot, fontSize: 13, fontWeight: "600" }}>
+            {t("auth.forgotPassword")}
+          </Text>
+        </TouchableOpacity>
         {err && <Text style={s.err}>{err}</Text>}
+        {info && <Text style={{ color: colors.gold, marginBottom: 8 }}>{info}</Text>}
         <View style={{ marginTop: 8 }}>
           {loading ? (
             <ActivityIndicator color={colors.kino} />
           ) : (
             <>
-              <PrimaryButton label="Log in" onPress={submit} />
+              <PrimaryButton label={t("auth.loginTitle")} onPress={submit} />
               <View style={{ height: 10 }} />
-              <PrimaryButton label="Continuer avec Google" onPress={googleLogin} />
+              <PrimaryButton label={t("auth.google")} onPress={googleLogin} />
             </>
           )}
+        </View>
+        <View style={{ flexDirection: "row", justifyContent: "center", gap: 6, marginTop: spacing.lg }}>
+          <Text style={s.sub}>{t("auth.newToKino")}</Text>
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={t("auth.createAccount")}
+            onPress={() => navigation.navigate("Register")}
+          >
+            <Text style={{ color: colors.kinoHot, fontSize: 13, fontWeight: "700" }}>
+              {t("auth.createAccount")}
+            </Text>
+          </TouchableOpacity>
         </View>
       </View>
     </SafeAreaView>
   );
 }
-

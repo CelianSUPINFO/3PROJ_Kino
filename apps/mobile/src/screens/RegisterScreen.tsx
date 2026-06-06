@@ -1,25 +1,19 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Alert, Animated, Dimensions, FlatList, Image, ImageBackground, PanResponder, Pressable, SafeAreaView, ScrollView, Switch, Text, TextInput, TouchableOpacity, View } from "react-native";
-import * as Linking from "expo-linking";
-import * as WebBrowser from "expo-web-browser";
-import { io, Socket } from "socket.io-client";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { apiFetch, clearTokens, getApiRoot, logoutSession, setTokens } from "../api";
-import { PosterCard, type PosterItem } from "../components/PosterCard";
-import { Chip, Eyebrow, GhostButton, H1, Label, Logo, PrimaryButton, Section, s } from "../components/AppUi";
+import { useState } from "react";
+import { ActivityIndicator, SafeAreaView, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { apiFetch, setTokens } from "../api";
+import { Eyebrow, H1, Label, PrimaryButton, s } from "../components/AppUi";
 import { useLocale } from "../context/LocaleContext";
-import { useThemeColors } from "../context/ThemeContext";
-import { categoryLabel, notificationLabel } from "../lib/i18n";
 import type { RootStackParamList } from "../navigation/types";
 import { colors, spacing } from "../theme";
-import { registerPushNotifications, unregisterPushNotifications } from "../pushNotifications";
+import { registerPushNotifications } from "../pushNotifications";
 import { runGoogleOAuth } from "../auth/googleOAuth";
+
 export function RegisterScreen({
   navigation,
 }: {
-  navigation: { navigate: (name: "Home") => void };
+  navigation: { navigate: (name: keyof RootStackParamList) => void };
 }) {
+  const { t } = useLocale();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -42,7 +36,7 @@ export function RegisterScreen({
       await registerPushNotifications().catch(() => undefined);
       navigation.navigate("Home");
     } catch {
-      setErr("Sign-up failed");
+      setErr(t("auth.registerFailed"));
     } finally {
       setLoading(false);
     }
@@ -54,7 +48,7 @@ export function RegisterScreen({
     try {
       await runGoogleOAuth(navigation);
     } catch {
-      setErr("Connexion Google annulee ou echouee.");
+      setErr(t("auth.googleFailed"));
     } finally {
       setLoading(false);
     }
@@ -63,20 +57,20 @@ export function RegisterScreen({
   return (
     <SafeAreaView style={s.screen}>
       <View style={{ padding: spacing.lg, flex: 1 }}>
-        <Eyebrow>JOIN KINO</Eyebrow>
-        <H1>Create your account</H1>
+        <Eyebrow>{t("auth.registerEyebrow").toUpperCase()}</Eyebrow>
+        <H1>{t("auth.registerTitle")}</H1>
         <Text style={[s.sub, { marginBottom: spacing.lg }]}>
-          Password: 8+ chars with upper, lower and a number.
+          {t("auth.registerPasswordHint")}
         </Text>
-        <Label>Display name</Label>
+        <Label>{t("auth.displayName")}</Label>
         <TextInput
-          placeholder="Your name"
+          placeholder={t("auth.displayName")}
           placeholderTextColor={colors.muted}
           style={s.input}
           value={displayName}
           onChangeText={setDisplayName}
         />
-        <Label>Email</Label>
+        <Label>{t("common.email")}</Label>
         <TextInput
           placeholder="you@example.com"
           placeholderTextColor={colors.muted}
@@ -86,7 +80,7 @@ export function RegisterScreen({
           value={email}
           onChangeText={setEmail}
         />
-        <Label>Password</Label>
+        <Label>{t("common.password")}</Label>
         <TextInput
           placeholder="••••••••"
           placeholderTextColor={colors.muted}
@@ -101,14 +95,25 @@ export function RegisterScreen({
             <ActivityIndicator color={colors.kino} />
           ) : (
             <>
-              <PrimaryButton label="Create account" onPress={submit} />
+              <PrimaryButton label={t("auth.createAccount")} onPress={submit} />
               <View style={{ height: 10 }} />
-              <PrimaryButton label="Continuer avec Google" onPress={googleSignup} />
+              <PrimaryButton label={t("auth.google")} onPress={googleSignup} />
             </>
           )}
+        </View>
+        <View style={{ flexDirection: "row", justifyContent: "center", gap: 6, marginTop: spacing.lg }}>
+          <Text style={s.sub}>{t("auth.hasAccount")}</Text>
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={t("auth.signInLink")}
+            onPress={() => navigation.navigate("Login")}
+          >
+            <Text style={{ color: colors.kinoHot, fontSize: 13, fontWeight: "700" }}>
+              {t("auth.signInLink")}
+            </Text>
+          </TouchableOpacity>
         </View>
       </View>
     </SafeAreaView>
   );
 }
-

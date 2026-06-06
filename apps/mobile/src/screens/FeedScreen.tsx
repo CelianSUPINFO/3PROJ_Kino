@@ -1,23 +1,19 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Alert, Animated, Dimensions, FlatList, Image, ImageBackground, PanResponder, Pressable, SafeAreaView, ScrollView, Switch, Text, TextInput, TouchableOpacity, View } from "react-native";
-import * as Linking from "expo-linking";
-import * as WebBrowser from "expo-web-browser";
-import { io, Socket } from "socket.io-client";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { apiFetch, clearTokens, getApiRoot, logoutSession, setTokens } from "../api";
-import { PosterCard, type PosterItem } from "../components/PosterCard";
-import { Chip, Eyebrow, GhostButton, H1, Label, Logo, PrimaryButton, Section, s } from "../components/AppUi";
+import { useCallback, useEffect, useState } from "react";
+import { FlatList, Pressable, SafeAreaView, Text, View } from "react-native";
+import { apiFetch } from "../api";
+import { Eyebrow, H1, s } from "../components/AppUi";
+import { UserAvatar } from "../components/UserAvatar";
 import { useLocale } from "../context/LocaleContext";
 import { useThemeColors } from "../context/ThemeContext";
-import { categoryLabel, notificationLabel } from "../lib/i18n";
+import { statusLabel } from "../lib/i18n";
 import type { RootStackParamList } from "../navigation/types";
-import { colors, spacing } from "../theme";
-import { registerPushNotifications, unregisterPushNotifications } from "../pushNotifications";
+import { spacing } from "../theme";
+
 type Act = {
   id: string;
   type: string;
-  user: { displayName: string; id?: string };
+  payload?: Record<string, unknown>;
+  user: { displayName: string; id?: string; avatarUrl?: string | null };
   createdAt: string;
 };
 
@@ -26,51 +22,125 @@ export function FeedScreen({
 }: {
   navigation: { navigate: (name: keyof RootStackParamList, params?: object) => void };
 }) {
+  const { locale, t } = useLocale();
+  const { colors: c } = useThemeColors();
   const [items, setItems] = useState<Act[]>([]);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
-    apiFetch<{ items: Act[] }>("/feed")
-      .then((r) => setItems(r.items))
-      .catch(() => setErr("Connectez-vous pour voir le fil."));
-  }, []);
+    apiFetch<{ items: Act[]; nextCursor: string | null }>("/feed")
+      .then((r) => {
+        setItems(r.items);
+        setNextCursor(r.nextCursor);
+      })
+      .catch(() => setErr(t("feed.signIn")));
+  }, [t]);
+
+  const loadMore = useCallback(async () => {
+    if (!nextCursor || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const r = await apiFetch<{ items: Act[]; nextCursor: string | null }>(
+        `/feed?cursor=${encodeURIComponent(nextCursor)}`,
+      );
+      setItems((prev) => [...prev, ...r.items]);
+      setNextCursor(r.nextCursor);
+    } catch {
+      setNextCursor(null);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [nextCursor, loadingMore]);
+
+  function workTitle(payload?: Record<string, unknown>) {
+    return String(payload?.title ?? `#${payload?.tmdbId ?? "?"}`);
+  }
+
+  function activityLabel(item: Act) {
+    const payload = item.payload ?? {};
+    switch (item.type) {
+      case "FOLLOW":
+        return t("activity.follow");
+      case "RATED":
+        return t("activity.rated", {
+          title: workTitle(payload),
+          rating: String(payload.rating ?? "?"),
+        });
+      case "REVIEWED":
+        return t("activity.reviewed", { title: workTitle(payload) });
+      case "LIST_ADDED":
+        return t("activity.listAdded", { title: workTitle(payload) });
+      case "STATUS_CHANGED":
+        return t("activity.statusChanged", {
+          title: workTitle(payload),
+          status: statusLabel(locale, String(payload.status ?? "")).toLowerCase(),
+        });
+      default:
+        return item.type.toLowerCase().replace(/_/g, " ");
+    }
+  }
+
+  function openActivity(item: Act) {
+    const payload = item.payload ?? {};
+    if (typeof payload.tmdbId === "number") {
+      navigation.navigate("Title", {
+        type: payload.mediaType === "TV" ? "tv" : "movie",
+        id: payload.tmdbId,
+        title: workTitle(payload),
+      });
+    } else if (item.user.id) {
+      navigation.navigate("Profile", { userId: item.user.id });
+    }
+  }
 
   return (
     <SafeAreaView style={s.screen}>
       <View style={{ padding: spacing.lg }}>
-        <Eyebrow>FIL D'ACTUALITE</Eyebrow>
-        <H1>Activite</H1>
+        <Eyebrow>{t("feed.social").toUpperCase()}</Eyebrow>
+        <H1>{t("feed.title")}</H1>
+        <Text style={s.sub}>{t("feed.subtitle")}</Text>
       </View>
       {err && <Text style={[s.err, { marginLeft: spacing.lg }]}>{err}</Text>}
       <FlatList
         contentContainerStyle={{ padding: spacing.lg, paddingBottom: 40 }}
         data={items}
         keyExtractor={(i) => i.id}
+        onEndReachedThreshold={0.4}
+        onEndReached={() => void loadMore()}
         renderItem={({ item }) => (
-          <Pressable
-            style={s.card}
-            onPress={() => {
-              if (item.user.id) {
-                navigation.navigate("Profile", { userId: item.user.id });
-              }
-            }}
-          >
-            <Text style={s.sub}>
-              {item.user.displayName} · {new Date(item.createdAt).toLocaleString()}
-            </Text>
-            <Text style={{ color: colors.text, marginTop: 4 }}>
-              {item.type.toLowerCase().replace(/_/g, " ")}
-            </Text>
+          <Pressable style={s.card} onPress={() => openActivity(item)}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+              <Pressable
+                onPress={() => {
+                  if (item.user.id) navigation.navigate("Profile", { userId: item.user.id });
+                }}
+              >
+                <UserAvatar name={item.user.displayName} avatarUrl={item.user.avatarUrl} size={32} />
+              </Pressable>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={s.sub} numberOfLines={1}>
+                  <Text style={{ fontWeight: "700", color: c.text }}>{item.user.displayName}</Text>
+                  {" · "}
+                  {new Date(item.createdAt).toLocaleString(locale === "fr" ? "fr-FR" : "en-US")}
+                </Text>
+                <Text style={{ color: c.text, marginTop: 4 }}>{activityLabel(item)}</Text>
+              </View>
+            </View>
           </Pressable>
         )}
-        ListEmptyComponent={
-          !err ? (
-            <Text style={s.sub}>Suivez des membres pour voir leur activite.</Text>
+        ListFooterComponent={
+          loadingMore ? (
+            <Text style={[s.sub, { textAlign: "center", marginTop: 8 }]}>
+              {t("common.loading")}
+            </Text>
           ) : null
+        }
+        ListEmptyComponent={
+          !err ? <Text style={s.sub}>{t("feed.emptyFollow")}</Text> : null
         }
       />
     </SafeAreaView>
   );
 }
-
-

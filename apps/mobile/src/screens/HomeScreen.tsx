@@ -14,7 +14,7 @@ import { categoryLabel, notificationLabel } from "../lib/i18n";
 import type { RootStackParamList } from "../navigation/types";
 import { colors, spacing } from "../theme";
 import { registerPushNotifications, unregisterPushNotifications } from "../pushNotifications";
-type SearchResult = PosterItem;
+type SearchResult = PosterItem & { overview?: string };
 type HomePayload = {
   trending?: { movies: SearchResult[]; tv: SearchResult[] };
   latestRatings?: {
@@ -23,7 +23,7 @@ type HomePayload = {
     tmdbId: number;
     mediaType: "MOVIE" | "TV";
     title: string;
-    user: { id: string; displayName: string };
+    user: { id: string; displayName: string; avatarUrl?: string | null };
   }[];
   recentWatched?: {
     tmdbId: number;
@@ -203,6 +203,14 @@ export function HomeScreen({
                       ★ {featured.vote_average.toFixed(1)}
                     </Text>
                   )}
+                  {featured.overview ? (
+                    <Text
+                      numberOfLines={3}
+                      style={{ color: "rgba(255,255,255,0.85)", fontSize: 13, lineHeight: 18, marginTop: 6 }}
+                    >
+                      {featured.overview}
+                    </Text>
+                  ) : null}
                   <View style={{ flexDirection: "row", gap: 8, marginTop: 10 }}>
                     <PrimaryButton
                       label={t("hero.details")}
@@ -335,11 +343,15 @@ export function HomeScreen({
             <View style={s.card}>
               {home.latestRatings.slice(0, 5).map((r) => (
                 <Pressable key={r.id} style={s.ratingRow} onPress={() => navigation.navigate("Profile", { userId: r.user.id })}>
-                  <View style={s.avatar}>
-                    <Text style={s.avatarText}>
-                      {(r.user.displayName ?? "??").slice(0, 2).toUpperCase()}
-                    </Text>
-                  </View>
+                  {r.user.avatarUrl ? (
+                    <Image source={{ uri: r.user.avatarUrl }} style={[s.avatar, { backgroundColor: "transparent" }]} />
+                  ) : (
+                    <View style={s.avatar}>
+                      <Text style={s.avatarText}>
+                        {(r.user.displayName ?? "??").slice(0, 2).toUpperCase()}
+                      </Text>
+                    </View>
+                  )}
                   <Text style={{ color: colors.text, flex: 1 }} numberOfLines={2}>
                     {r.user.displayName}
                     {" · "}

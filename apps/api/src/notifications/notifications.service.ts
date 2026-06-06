@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -21,6 +22,7 @@ export class NotificationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly gateway: NotificationsGateway,
+    private readonly config: ConfigService,
   ) {}
 
   async list(userId: string) {
@@ -37,14 +39,46 @@ export class NotificationsService {
     });
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { notifyPush: true },
+      select: { notifyPush: true, notifyEmail: true, email: true },
     });
     if (!user) return notification;
     this.gateway.pushToUser(userId, 'notification:new', notification);
     if (user.notifyPush) {
       void this.sendExpoPush(userId, type, payload);
     }
+    if (user.notifyEmail) {
+      void this.sendEmail(user.email, type);
+    }
     return notification;
+  }
+
+  private async sendEmail(email: string, type: string) {
+    const apiKey = this.config.get<string>('RESEND_API_KEY');
+    if (!apiKey) return;
+    const frontend = this.config.get<string>('FRONTEND_URL', 'http://localhost:3001');
+    const subject = labels[type] ?? 'Vous avez une nouvelle notification Kino.';
+    try {
+      const response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: this.config.get<string>('EMAIL_FROM', 'Kino <onboarding@resend.dev>'),
+          to: [email],
+          subject: `Kino · ${subject}`,
+          html: `<p>${subject}</p><p><a href="${frontend}/notifications">Voir mes notifications sur Kino</a></p><p style="color:#888;font-size:12px">Vous pouvez désactiver les notifications e-mail dans vos paramètres Kino.</p>`,
+        }),
+      });
+      if (!response.ok) {
+        this.logger.warn(`Notification email rejected: ${await response.text()}`);
+      }
+    } catch (error) {
+      this.logger.warn(
+        `Notification email failed: ${error instanceof Error ? error.message : 'unknown error'}`,
+      );
+    }
   }
 
   async registerPushToken(userId: string, token: string, platform: string) {

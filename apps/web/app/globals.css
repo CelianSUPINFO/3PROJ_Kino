@@ -234,18 +234,6 @@ a[aria-disabled="true"] {
   .chip-active {
     @apply border-kino/70 bg-kino/20 text-white;
   }
-  .status-watchlist {
-    @apply !border-sky-400/70 !bg-sky-500/25 !text-sky-100;
-  }
-  .status-in-progress {
-    @apply !border-amber-400/70 !bg-amber-500/25 !text-amber-100;
-  }
-  .status-completed {
-    @apply !border-emerald-400/70 !bg-emerald-500/25 !text-emerald-100;
-  }
-  .status-dropped {
-    @apply !border-rose-400/70 !bg-rose-500/25 !text-rose-100;
-  }
   .btn-primary {
     @apply inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-kino to-kino-hot px-6 py-3 font-semibold text-white shadow-kino transition hover:brightness-110 active:scale-[0.98];
   }
@@ -345,4 +333,39 @@ a[aria-disabled="true"] {
 
 .pulse-glow {
   animation: pulseGlow 2.8s ease-in-out infinite;
+}
+
+/* Couleurs des statuts de bibliothèque — hors @layer car les classes sont
+   construites dynamiquement côté TSX (Tailwind ne peut pas les détecter). */
+.status-watchlist {
+  border-color: rgba(56, 189, 248, 0.7);
+  background-color: rgba(14, 165, 233, 0.25);
+  color: #e0f2fe;
+}
+.status-in-progress {
+  border-color: rgba(251, 191, 36, 0.7);
+  background-color: rgba(245, 158, 11, 0.25);
+  color: #fef3c7;
+}
+.status-completed {
+  border-color: rgba(52, 211, 153, 0.7);
+  background-color: rgba(16, 185, 129, 0.25);
+  color: #d1fae5;
+}
+.status-dropped {
+  border-color: rgba(251, 113, 133, 0.7);
+  background-color: rgba(244, 63, 94, 0.25);
+  color: #ffe4e6;
+}
+html.light .status-watchlist {
+  color: #075985;
+}
+html.light .status-in-progress {
+  color: #92400e;
+}
+html.light .status-completed {
+  color: #065f46;
+}
+html.light .status-dropped {
+  color: #9f1239;
 }

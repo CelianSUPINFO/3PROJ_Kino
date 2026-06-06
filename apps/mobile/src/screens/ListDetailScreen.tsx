@@ -220,6 +220,16 @@ export function ListDetailScreen({ route, navigation }: Props) {
         }
         renderItem={({ item, index }) => (
           <View style={[s.row, { backgroundColor: colors.panel, borderColor: colors.border }]}>
+            {owner && (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Retirer ${item.title}`}
+                style={[s.removeBadge, { backgroundColor: colors.ink, borderColor: colors.danger }]}
+                onPress={() => remove(item)}
+              >
+                <Text style={{ color: colors.danger, fontWeight: "800", fontSize: 16, lineHeight: 18 }}>×</Text>
+              </Pressable>
+            )}
             <Text style={{ width: 24, color: colors.muted, fontWeight: "700" }}>{index + 1}</Text>
             <Pressable accessibilityRole="button" style={s.titleLink} onPress={() => navigation.navigate("Title", { type: item.mediaType === "TV" ? "tv" : "movie", id: item.tmdbId, title: item.title })}>
               {item.posterPath ? <Image source={{ uri: `https://image.tmdb.org/t/p/w92${item.posterPath}` }} style={s.poster} /> : <View style={[s.poster, { backgroundColor: colors.panel }]} />}
@@ -228,7 +238,6 @@ export function ListDetailScreen({ route, navigation }: Props) {
             {owner && <View style={s.itemActions}>
               <Pressable accessibilityRole="button" accessibilityLabel={`Monter ${item.title}`} style={s.smallAction} onPress={() => move(item.id, -1)}><Text style={{ color: colors.text }}>↑</Text></Pressable>
               <Pressable accessibilityRole="button" accessibilityLabel={`Descendre ${item.title}`} style={s.smallAction} onPress={() => move(item.id, 1)}><Text style={{ color: colors.text }}>↓</Text></Pressable>
-              <Pressable accessibilityRole="button" accessibilityLabel={`Retirer ${item.title}`} style={s.smallAction} onPress={() => remove(item)}><Text style={{ color: colors.danger }}>×</Text></Pressable>
             </View>}
           </View>
         )}
@@ -259,4 +268,16 @@ const s = StyleSheet.create({
   title: { flex: 1, fontWeight: "700" },
   itemActions: { flexDirection: "row", alignItems: "center" },
   smallAction: { minWidth: 40, minHeight: 44, alignItems: "center", justifyContent: "center" },
+  removeBadge: {
+    position: "absolute",
+    top: 6,
+    left: 6,
+    zIndex: 2,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
 });

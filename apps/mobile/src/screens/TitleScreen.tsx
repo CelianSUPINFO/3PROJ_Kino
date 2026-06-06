@@ -13,6 +13,8 @@ import {
   View,
 } from "react-native";
 import { apiFetch } from "../api";
+import { FormattedText } from "../components/FormattedText";
+import { UserAvatar } from "../components/UserAvatar";
 import { useLocale } from "../context/LocaleContext";
 import { statusLabel } from "../lib/i18n";
 import { useThemeColors } from "../context/ThemeContext";
@@ -26,15 +28,16 @@ type Review = {
   rating: number;
   body: string;
   spoiler: boolean;
+  featured?: boolean;
   userId: string;
-  user: { id: string; displayName: string };
+  user: { id: string; displayName: string; avatarUrl?: string | null };
   _count?: { likes: number; comments: number };
 };
 
 type Comment = {
   id: string;
   body: string;
-  user: { id: string; displayName: string };
+  user: { id: string; displayName: string; avatarUrl?: string | null };
   replies: Comment[];
 };
 
@@ -66,6 +69,7 @@ export function TitleScreen({ route, navigation }: Props) {
   const [reportDraft, setReportDraft] = useState<Record<string, string>>({});
   const [showReport, setShowReport] = useState<Record<string, boolean>>({});
   const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
+  const [revealedSpoilers, setRevealedSpoilers] = useState<Record<string, boolean>>({});
 
   const mediaType = type === "tv" ? "TV" : "MOVIE";
 
@@ -240,6 +244,10 @@ export function TitleScreen({ route, navigation }: Props) {
   const episodes = detail?.number_of_episodes as number | undefined;
   const voteAverage = detail?.vote_average as number | undefined;
   const voteCount = detail?.vote_count as number | undefined;
+  const kinoAverage =
+    reviews.length > 0
+      ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
+      : null;
 
   return (
     <SafeAreaView style={s.screen}>
@@ -274,6 +282,15 @@ export function TitleScreen({ route, navigation }: Props) {
             {seasons ? <Fact styles={s} label="Saisons" value={String(seasons)} /> : null}
             {episodes ? <Fact styles={s} label="Épisodes" value={String(episodes)} /> : null}
             {voteAverage ? <Fact styles={s} label="Note TMDB" value={`${voteAverage.toFixed(1)}/10 · ${voteCount ?? 0} votes`} /> : null}
+            <Fact
+              styles={s}
+              label={t("title.kinoAverage")}
+              value={
+                kinoAverage !== null
+                  ? `★ ${kinoAverage.toFixed(1)}/5 · ${reviews.length}`
+                  : t("title.noKinoRatings")
+              }
+            />
           </View>
           {cast.length > 0 && (
             <>
@@ -338,20 +355,48 @@ export function TitleScreen({ route, navigation }: Props) {
             </Pressable>
           )}
           {msg && <Text style={s.msg}>{msg}</Text>}
-          <Text style={[s.section, { marginTop: spacing.lg }]}>Communauté</Text>
+          <Text style={[s.section, { marginTop: spacing.lg }]}>
+            Communauté
+            {kinoAverage !== null ? ` · ★ ${kinoAverage.toFixed(1)}/5` : ""}
+          </Text>
           {reviews.map((r) => (
             <View key={r.id} style={s.card}>
               <Pressable
                 onPress={() => navigation.navigate("Profile", { userId: r.user.id })}
+                style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
               >
-                <Text style={s.author}>
+                <UserAvatar name={r.user.displayName} avatarUrl={r.user.avatarUrl} size={28} />
+                <Text style={[s.author, { flex: 1 }]}>
                   {r.user.displayName} · {r.rating}/5
+                  {r.featured ? (
+                    <Text style={{ color: colors.gold }}> {t("admin.featuredBadge")}</Text>
+                  ) : null}
                 </Text>
               </Pressable>
-              <Text style={s.body}>
-                {r.spoiler ? "[Spoiler] " : ""}
-                {r.body}
-              </Text>
+              {r.spoiler && !revealedSpoilers[r.id] ? (
+                <Pressable
+                  style={[s.chip, { alignSelf: "flex-start", marginTop: 8, borderColor: colors.gold }]}
+                  onPress={() => setRevealedSpoilers((p) => ({ ...p, [r.id]: true }))}
+                >
+                  <Text style={[s.chipText, { color: colors.gold }]}>
+                    ⚠ {t("review.spoiler")} · {t("review.showSpoiler")}
+                  </Text>
+                </Pressable>
+              ) : (
+                <>
+                  {r.spoiler && (
+                    <Pressable
+                      style={{ alignSelf: "flex-start", marginTop: 6 }}
+                      onPress={() => setRevealedSpoilers((p) => ({ ...p, [r.id]: false }))}
+                    >
+                      <Text style={{ color: colors.gold, fontSize: 11 }}>
+                        {t("review.hideSpoiler")}
+                      </Text>
+                    </Pressable>
+                  )}
+                  <FormattedText text={r.body} style={s.body} />
+                </>
+              )}
               <View style={s.actions}>
                 <Pressable style={s.chip} onPress={() => toggleLike(r.id)}>
                   <Text style={s.chipText}>J'aime ({r._count?.likes ?? 0})</Text>
@@ -546,7 +591,12 @@ function CommentThread({
   return (
     <View style={styles.commentThread}>
       <View style={styles.commentRow}>
-        <Text style={[styles.sub, { flex: 1 }]}>
+        <UserAvatar
+          name={comment.user.displayName}
+          avatarUrl={comment.user.avatarUrl}
+          size={22}
+        />
+        <Text style={[styles.sub, { flex: 1, marginTop: 0 }]}>
           <Text style={{ fontWeight: "700", color: colors.text }}>
             {comment.user.displayName}:
           </Text>{" "}

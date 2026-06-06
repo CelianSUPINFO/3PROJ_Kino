@@ -6,7 +6,8 @@ import { apiFetch } from "@/lib/api";
 import { useLocale } from "../../components/AppProviders";
 import { PosterCard, type PosterCardData } from "../../components/PosterCard";
 
-type ListItem = { tmdbId: number; mediaType: string } & PosterCardData;
+type ListItem = { itemId: string; tmdbId: number; mediaType: string } & PosterCardData;
+type ApiListItem = { id: string; tmdbId: number; mediaType: string };
 type ListDetail = {
   id: string;
   userId: string;
@@ -30,14 +31,14 @@ export default function ListPage() {
   async function load() {
     if (!params?.id) return;
     try {
-      const data = await apiFetch<ListDetail>(`/library/lists/${params.id}`);
+      const data = await apiFetch<Omit<ListDetail, "items"> & { items: ApiListItem[] }>(`/library/lists/${params.id}`);
       const items = await Promise.all(data.items.map(async (item) => {
         const type = item.mediaType === "TV" ? "tv" : "movie";
         try {
           const result = await apiFetch<{ data: PosterCardData }>(`/media/${type}/${item.tmdbId}?language=${locale === "fr" ? "fr-FR" : "en-US"}`, { auth: false });
-          return { ...item, ...result.data, id: item.tmdbId, media_type: type, title: result.data.title ?? result.data.name ?? `#${item.tmdbId}` };
+          return { ...item, ...result.data, itemId: item.id, id: item.tmdbId, media_type: type, title: result.data.title ?? result.data.name ?? `#${item.tmdbId}` };
         } catch {
-          return { ...item, id: item.tmdbId, media_type: type, title: `#${item.tmdbId}` };
+          return { ...item, itemId: item.id, id: item.tmdbId, media_type: type, title: `#${item.tmdbId}` };
         }
       }));
       setList({ ...data, items });
@@ -75,6 +76,17 @@ export default function ListPage() {
   async function removeItem(mediaType: string, tmdbId: number) {
     if (!list) return;
     await apiFetch(`/library/lists/${list.id}/items/${mediaType === "TV" ? "tv" : "movie"}/${tmdbId}`, { method: "DELETE" });
+    await load();
+  }
+
+  async function moveItem(itemId: string, direction: -1 | 1) {
+    if (!list) return;
+    const ids = list.items.map((item) => item.itemId);
+    const index = ids.indexOf(itemId);
+    const target = index + direction;
+    if (index < 0 || target < 0 || target >= ids.length) return;
+    [ids[index], ids[target]] = [ids[target], ids[index]];
+    await apiFetch(`/library/lists/${list.id}/reorder`, { method: "PATCH", body: JSON.stringify({ itemIds: ids }) });
     await load();
   }
 
@@ -126,7 +138,17 @@ export default function ListPage() {
         {list.items.map((item, index) => (
           <li key={`${item.mediaType}-${item.tmdbId}`} className="relative min-w-0">
             <PosterCard item={item} type={item.mediaType === "TV" ? "tv" : "movie"} width={0} index={index} className="w-full" />
-            {owner && <button type="button" aria-label="Retirer" className="chip absolute right-2 top-2 z-10 !border-red-300/40 !bg-black/80 !text-red-200" onClick={() => void removeItem(item.mediaType, item.tmdbId)}>&times;</button>}
+            {owner && <button type="button" aria-label="Retirer" className="chip absolute left-2 top-2 z-10 !border-red-300/40 !bg-black/80 !text-red-200" onClick={() => void removeItem(item.mediaType, item.tmdbId)}>&times;</button>}
+            {owner && (
+              <span className="absolute bottom-2 right-2 z-10 flex gap-1">
+                {index > 0 && (
+                  <button type="button" aria-label="Monter" className="chip !bg-black/80 !px-2" onClick={() => void moveItem(item.itemId, -1)}>↑</button>
+                )}
+                {index < list.items.length - 1 && (
+                  <button type="button" aria-label="Descendre" className="chip !bg-black/80 !px-2" onClick={() => void moveItem(item.itemId, 1)}>↓</button>
+                )}
+              </span>
+            )}
           </li>
         ))}
         {list.items.length === 0 && <li className="col-span-full text-kino-muted">{t("list.empty")}</li>}

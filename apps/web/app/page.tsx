@@ -10,6 +10,7 @@ import { Hero, type HeroItem } from "./components/Hero";
 import { MediaCarousel } from "./components/MediaCarousel";
 import { PosterRowSkeleton } from "./components/Skeleton";
 import { StarRating } from "./components/StarRating";
+import { UserAvatar } from "./components/UserAvatar";
 
 type HomeWork = HeroItem & {
   id: number;
@@ -24,7 +25,7 @@ type HomePayload = {
     tmdbId: number;
     mediaType: "MOVIE" | "TV";
     title: string;
-    user: { id: string; displayName: string };
+    user: { id: string; displayName: string; avatarUrl?: string | null };
   }[];
   recentWatched: {
     tmdbId: number;
@@ -142,7 +143,11 @@ export default function Home() {
                 {data.latestRatings.map((r) => (
                   <li key={r.id} className="flex items-center justify-between gap-3">
                     <div className="flex min-w-0 items-center gap-3">
-                      <Avatar name={r.user.displayName} />
+                      <UserAvatar
+                        name={r.user.displayName}
+                        avatarUrl={r.user.avatarUrl}
+                        className="h-9 w-9 text-xs shadow-kino"
+                      />
                       <div className="min-w-0">
                         <Link href={`/u/${r.user.id}`} className="block truncate text-sm font-medium text-white hover:text-kino-hot">
                           {r.user.displayName}
@@ -193,18 +198,3 @@ export default function Home() {
     </div>
   );
 }
-
-function Avatar({ name }: { name: string }) {
-  const initials = name
-    .split(" ")
-    .map((s) => s[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
-  return (
-    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-kino to-kino-hot text-xs font-bold text-white shadow-kino">
-      {initials || "?"}
-    </span>
-  );
-}
-

@@ -2,6 +2,7 @@ import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useCallback, useEffect, useState } from "react";
 import {
   FlatList,
+  Image,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -19,7 +20,7 @@ import { radius, spacing } from "../theme";
 type Props = NativeStackScreenProps<RootStackParamList, "Search">;
 
 type Unified = {
-  users: { id: string; displayName: string }[];
+  users: { id: string; displayName: string; avatarUrl?: string | null }[];
   lists: { id: string; name: string; user: { displayName: string } }[];
   works: { results: PosterItem[]; total_pages?: number };
 };
@@ -154,7 +155,11 @@ export function SearchScreen({ navigation }: Props) {
           {users.filter((user) => user.id !== meId).map((u) => (
             <View key={u.id} style={s.userRow}>
               <Pressable style={s.userLink} onPress={() => navigation.navigate("Profile", { userId: u.id })}>
-                <View style={s.avatar}><Text style={s.avatarText}>{initials(u.displayName)}</Text></View>
+                {u.avatarUrl ? (
+                  <Image source={{ uri: u.avatarUrl }} style={s.avatar} />
+                ) : (
+                  <View style={s.avatar}><Text style={s.avatarText}>{initials(u.displayName)}</Text></View>
+                )}
                 <Text style={s.userName} numberOfLines={1}>{u.displayName}</Text>
               </Pressable>
               {meId && meId !== u.id && (

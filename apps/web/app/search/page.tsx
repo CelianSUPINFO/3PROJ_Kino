@@ -8,6 +8,7 @@ import { Chip } from "../components/Chip";
 import { PosterCard, type PosterCardData } from "../components/PosterCard";
 import { ScrollToTop } from "../components/ScrollToTop";
 import { Skeleton } from "../components/Skeleton";
+import { UserAvatar } from "../components/UserAvatar";
 
 type Unified = {
   users: { id: string; displayName: string; avatarUrl: string | null }[];
@@ -328,9 +329,10 @@ export default function SearchPage() {
                   <li key={u.id} className="flex items-center gap-2 rounded-xl border border-white/5 bg-white/[0.02] p-1">
                     <Link
                       href={`/u/${u.id}`}
-                      className="min-w-0 flex-1 truncate rounded-lg px-3 py-2 text-white transition hover:bg-white/5"
+                      className="flex min-w-0 flex-1 items-center gap-2 truncate rounded-lg px-3 py-2 text-white transition hover:bg-white/5"
                     >
-                      {u.displayName}
+                      <UserAvatar name={u.displayName} avatarUrl={u.avatarUrl} className="h-7 w-7 text-[10px]" />
+                      <span className="truncate">{u.displayName}</span>
                     </Link>
                     {meId && meId !== u.id && (
                       <button type="button" className="chip shrink-0" disabled={followed[u.id]} onClick={() => void follow(u.id)}>

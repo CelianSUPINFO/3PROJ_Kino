@@ -157,6 +157,36 @@ export class AdminService {
     });
   }
 
+  async messageReports() {
+    return this.prisma.messageReport.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: {
+        reporter: { select: { id: true, displayName: true, avatarUrl: true } },
+        message: {
+          include: {
+            sender: { select: { id: true, displayName: true, avatarUrl: true } },
+          },
+        },
+      },
+    });
+  }
+
+  async resolveMessageReport(id: string, status: ReportStatus) {
+    const report = await this.prisma.messageReport.findUnique({ where: { id } });
+    if (!report) throw new NotFoundException();
+    return this.prisma.messageReport.update({
+      where: { id },
+      data: { status },
+    });
+  }
+
+  async deleteMessage(messageId: string) {
+    const message = await this.prisma.message.findUnique({ where: { id: messageId } });
+    if (!message) throw new NotFoundException();
+    await this.prisma.message.delete({ where: { id: messageId } });
+    return { ok: true };
+  }
+
   async banUser(userId: string, until: Date | null) {
     return this.prisma.user.update({
       where: { id: userId },
@@ -176,7 +206,7 @@ export class AdminService {
       take: limit,
       orderBy: { createdAt: 'desc' },
       include: {
-        user: { select: { id: true, displayName: true } },
+        user: { select: { id: true, displayName: true, avatarUrl: true } },
         _count: { select: { likes: true, comments: true } },
       },
     });

@@ -39,6 +39,7 @@ export function Nav() {
   const { locale, t } = useApp();
   const [isAuthed, setIsAuthed] = useState(false);
   const [me, setMe] = useState<MeNav | null>(null);
+  const [unread, setUnread] = useState(0);
   const [q, setQ] = useState("");
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -61,6 +62,28 @@ export function Nav() {
         setMe(null);
       });
   }, [pathname]);
+
+  useEffect(() => {
+    if (!isAuthed) {
+      setUnread(0);
+      return;
+    }
+    let cancelled = false;
+    const load = () =>
+      apiFetch<{ read: boolean }[]>("/notifications")
+        .then((rows) => {
+          if (!cancelled) setUnread(rows.filter((n) => !n.read).length);
+        })
+        .catch(() => {
+          if (!cancelled) setUnread(0);
+        });
+    void load();
+    const timer = setInterval(() => void load(), 20000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [isAuthed, pathname]);
 
   useEffect(() => {
     if (q.trim().length < 2) {
@@ -232,11 +255,16 @@ export function Nav() {
           {isAuthed && (
             <Link
               href="/notifications"
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white transition hover:bg-white/10"
+              className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white transition hover:bg-white/10"
               aria-label={t("nav.notifications")}
               title={t("nav.notifications")}
             >
               <BellIcon />
+              {unread > 0 && (
+                <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+                  {unread > 99 ? "99+" : unread}
+                </span>
+              )}
             </Link>
           )}
 

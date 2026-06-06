@@ -1,27 +1,19 @@
 ﻿"use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { useLocale } from "../components/AppProviders";
 import { statusLabel } from "@/lib/i18n";
+import { UserAvatar } from "../components/UserAvatar";
 
 type Activity = {
   id: string;
   type: string;
   payload: Record<string, unknown>;
   createdAt: string;
-  user: { displayName: string; id?: string };
+  user: { displayName: string; id?: string; avatarUrl?: string | null };
 };
-
-function initials(name: string) {
-  return name
-    .split(" ")
-    .map((s) => s[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
-}
 
 function workTitle(p: Record<string, unknown>) {
   return String(p.title ?? `#${p.tmdbId ?? "?"}`);
@@ -30,6 +22,8 @@ function workTitle(p: Record<string, unknown>) {
 export default function FeedPage() {
   const { locale, t } = useLocale();
   const [items, setItems] = useState<Activity[]>([]);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
   const activityMeta = useMemo(
@@ -66,10 +60,29 @@ export default function FeedPage() {
   );
 
   useEffect(() => {
-    apiFetch<{ items: Activity[] }>("/feed")
-      .then((r) => setItems(r.items))
+    apiFetch<{ items: Activity[]; nextCursor: string | null }>("/feed")
+      .then((r) => {
+        setItems(r.items);
+        setNextCursor(r.nextCursor);
+      })
       .catch(() => setErr(t("feed.signIn")));
   }, [t]);
+
+  const loadMore = useCallback(async () => {
+    if (!nextCursor || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const r = await apiFetch<{ items: Activity[]; nextCursor: string | null }>(
+        `/feed?cursor=${encodeURIComponent(nextCursor)}`,
+      );
+      setItems((prev) => [...prev, ...r.items]);
+      setNextCursor(r.nextCursor);
+    } catch {
+      setNextCursor(null);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [nextCursor, loadingMore]);
 
   return (
     <div className="space-y-6">
@@ -112,9 +125,11 @@ export default function FeedPage() {
               className="glass card-animate flex items-start gap-3 rounded-2xl p-4"
               style={{ animationDelay: `${Math.min(idx * 30, 240)}ms` }}
             >
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-kino to-kino-hot text-sm font-bold text-white shadow-kino">
-                {initials(a.user.displayName)}
-              </span>
+              <UserAvatar
+                name={a.user.displayName}
+                avatarUrl={a.user.avatarUrl}
+                className="h-10 w-10 text-sm shadow-kino"
+              />
               <div className="min-w-0 flex-1">
                 <p className="text-sm text-kino-muted">
                   <span className="font-semibold text-white">{a.user.displayName}</span>{" "}
@@ -146,6 +161,17 @@ export default function FeedPage() {
           </li>
         )}
       </ul>
+      {nextCursor && (
+        <div className="flex justify-center">
+          <button
+            className="btn-ghost !py-2 text-sm disabled:opacity-50"
+            disabled={loadingMore}
+            onClick={() => void loadMore()}
+          >
+            {loadingMore ? t("common.loading") : t("feed.loadMore")}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

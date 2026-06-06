@@ -5,8 +5,14 @@ import { useEffect, useRef, useState } from "react";
 import { io, Socket } from "socket.io-client";
 import { apiFetch, getAccessToken } from "@/lib/api";
 import { useLocale } from "../components/AppProviders";
+import { UserAvatar } from "../components/UserAvatar";
 
-type Partner = { id: string; displayName: string; unreadCount?: number };
+type Partner = {
+  id: string;
+  displayName: string;
+  avatarUrl?: string | null;
+  unreadCount?: number;
+};
 type Message = {
   id: string;
   body: string;
@@ -16,15 +22,6 @@ type Message = {
   readAt?: string | null;
 };
 type Me = { id: string };
-
-function initials(name: string) {
-  return name
-    .split(" ")
-    .map((s) => s[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
-}
 
 export default function MessagesPage() {
   const { locale, t } = useLocale();
@@ -209,9 +206,7 @@ export default function MessagesPage() {
                 }`}
                 onClick={() => setSelected(p)}
               >
-                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-kino to-kino-hot text-xs font-bold text-white">
-                  {initials(p.displayName)}
-                </span>
+                <UserAvatar name={p.displayName} avatarUrl={p.avatarUrl} className="h-9 w-9 text-xs" />
                 <span className="truncate text-sm font-medium">
                   {p.displayName}
                 </span>
@@ -234,9 +229,7 @@ export default function MessagesPage() {
         <header className="flex items-center gap-3 border-b border-white/10 p-4">
           {selected ? (
             <>
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-kino to-kino-hot text-xs font-bold text-white">
-                {initials(selected.displayName)}
-              </span>
+              <UserAvatar name={selected.displayName} avatarUrl={selected.avatarUrl} className="h-9 w-9 text-xs" />
               <h2 className="text-display text-lg font-semibold text-white">
                 {selected.displayName}
               </h2>

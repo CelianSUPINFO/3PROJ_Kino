@@ -15,6 +15,7 @@ import {
 } from "react-native";
 import { apiFetch } from "../api";
 import { PosterCard, type PosterItem } from "../components/PosterCard";
+import { UserAvatar } from "../components/UserAvatar";
 import { useLocale } from "../context/LocaleContext";
 import { useThemeColors } from "../context/ThemeContext";
 import type { RootStackParamList } from "../navigation/types";
@@ -480,7 +481,12 @@ export function ProfileScreen({ route, navigation }: Props) {
             {t("profile.followers")} ({followers.length})
           </Text>
           {followers.map((u) => (
-            <Pressable key={u.id} onPress={() => navigation.push("Profile", { userId: u.id })}>
+            <Pressable
+              key={u.id}
+              style={{ flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 4 }}
+              onPress={() => navigation.push("Profile", { userId: u.id })}
+            >
+              <UserAvatar name={u.displayName} avatarUrl={u.avatarUrl} size={26} />
               <Text style={[s.link, { color: colors.kinoHot }]}>{u.displayName}</Text>
             </Pressable>
           ))}
@@ -488,7 +494,12 @@ export function ProfileScreen({ route, navigation }: Props) {
             {t("profile.following")} ({following.length})
           </Text>
           {following.map((u) => (
-            <Pressable key={u.id} onPress={() => navigation.push("Profile", { userId: u.id })}>
+            <Pressable
+              key={u.id}
+              style={{ flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 4 }}
+              onPress={() => navigation.push("Profile", { userId: u.id })}
+            >
+              <UserAvatar name={u.displayName} avatarUrl={u.avatarUrl} size={26} />
               <Text style={[s.link, { color: colors.kinoHot }]}>{u.displayName}</Text>
             </Pressable>
           ))}

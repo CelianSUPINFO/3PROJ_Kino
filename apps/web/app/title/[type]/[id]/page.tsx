@@ -6,6 +6,8 @@ import { apiFetch } from "@/lib/api";
 import { statusLabel } from "@/lib/i18n";
 import { useLocale } from "../../../components/AppProviders";
 import { StarRating } from "../../../components/StarRating";
+import { FormattedBody } from "../../../components/FormattedBody";
+import { UserAvatar } from "../../../components/UserAvatar";
 
 type Detail = { source: string; data: Record<string, unknown> };
 
@@ -16,7 +18,7 @@ type ReviewRow = {
   spoiler: boolean;
   featured?: boolean;
   userId: string;
-  user: { id: string; displayName: string };
+  user: { id: string; displayName: string; avatarUrl?: string | null };
   _count?: { likes: number; comments: number };
 };
 
@@ -26,7 +28,7 @@ type CommentRow = {
   id: string;
   body: string;
   createdAt: string;
-  user: { id: string; displayName: string };
+  user: { id: string; displayName: string; avatarUrl?: string | null };
   replies: CommentRow[];
 };
 
@@ -46,6 +48,8 @@ export default function TitlePage() {
   const [commentsByReview, setCommentsByReview] = useState<Record<string, CommentRow[]>>({});
   const [commentInputs, setCommentInputs] = useState<Record<string, string>>({});
   const [reportInputs, setReportInputs] = useState<Record<string, string>>({});
+  const [revealedSpoilers, setRevealedSpoilers] = useState<Record<string, boolean>>({});
+  const [selectedList, setSelectedList] = useState("");
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -234,13 +238,26 @@ export default function TitlePage() {
     }
   }
 
+  async function removeStatus() {
+    try {
+      await apiFetch(`/library/status/${params.type}/${tmdbId}`, {
+        method: "DELETE",
+      });
+      setMsg(t("title.statusRemoved"));
+    } catch {
+      setMsg(t("title.signInLibrary"));
+    }
+  }
+
   async function addToList(listId: string) {
+    if (!listId) return;
     try {
       await apiFetch(`/library/lists/${listId}/items`, {
         method: "POST",
         body: JSON.stringify({ tmdbId, mediaType }),
       });
-      setMsg(t("title.addedToList"));
+      const listName = lists.find((l) => l.id === listId)?.name;
+      setMsg(`${t("title.addedToList")}${listName ? ` (${listName})` : ""}`);
     } catch {
       setMsg(t("title.addToListFailed"));
     }
@@ -317,6 +334,10 @@ export default function TitlePage() {
   }
 
   const myExistingReview = meId ? reviews.find((r) => r.userId === meId) : undefined;
+  const kinoAverage =
+    reviews.length > 0
+      ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
+      : null;
 
   return (
     <div className="space-y-8">
@@ -364,6 +385,14 @@ export default function TitlePage() {
                       <span className="text-kino-gold">{voteAvg.toFixed(1)}</span>
                     </>
                   )}
+                  {kinoAverage !== null && (
+                    <>
+                      <span className="text-white/30">·</span>
+                      <span className="rounded-full border border-kino/40 bg-kino/15 px-2 py-0.5 text-xs font-semibold text-kino-hot">
+                        {t("title.kinoAverage")} {kinoAverage.toFixed(1)}/5
+                      </span>
+                    </>
+                  )}
                 </div>
                 {genres.length > 0 && (
                   <div className="flex flex-wrap gap-2">
@@ -406,21 +435,37 @@ export default function TitlePage() {
                 </button>
               ))}
             </div>
+            <button
+              className="text-xs text-kino-muted underline-offset-2 hover:text-white hover:underline"
+              onClick={removeStatus}
+            >
+              {t("title.removeStatus")}
+            </button>
             {lists.length > 0 && (
               <div className="border-t border-white/10 pt-3">
                 <p className="text-xs uppercase tracking-wider text-kino-muted">
                   {t("title.addToList")}
                 </p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {lists.map((l) => (
-                    <button
-                      key={l.id}
-                      className="chip"
-                      onClick={() => addToList(l.id)}
-                    >
-                      + {l.name}
-                    </button>
-                  ))}
+                <div className="mt-2 flex gap-2">
+                  <select
+                    className="min-w-0 flex-1 rounded-full border border-white/10 bg-black/30 px-3 py-2 text-sm text-white focus:border-kino/60 focus:outline-none"
+                    value={selectedList}
+                    onChange={(e) => setSelectedList(e.target.value)}
+                  >
+                    <option value="">{t("title.chooseList")}</option>
+                    {lists.map((l) => (
+                      <option key={l.id} value={l.id}>
+                        {l.name}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    className="btn-primary !px-4 !py-2 text-sm disabled:opacity-50"
+                    disabled={!selectedList}
+                    onClick={() => addToList(selectedList)}
+                  >
+                    {t("title.add")}
+                  </button>
                 </div>
               </div>
             )}
@@ -490,6 +535,29 @@ export default function TitlePage() {
                   </button>
                 ))}
               </div>
+              {lists.length > 0 && (
+                <div className="flex gap-2 border-t border-white/10 pt-3">
+                  <select
+                    className="min-w-0 flex-1 rounded-full border border-white/10 bg-black/30 px-3 py-2 text-sm text-white focus:border-kino/60 focus:outline-none"
+                    value={selectedList}
+                    onChange={(e) => setSelectedList(e.target.value)}
+                  >
+                    <option value="">{t("title.chooseList")}</option>
+                    {lists.map((l) => (
+                      <option key={l.id} value={l.id}>
+                        {l.name}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    className="btn-primary !px-4 !py-2 text-sm disabled:opacity-50"
+                    disabled={!selectedList}
+                    onClick={() => addToList(selectedList)}
+                  >
+                    {t("title.add")}
+                  </button>
+                </div>
+              )}
             </div>
           </section>
 
@@ -553,9 +621,19 @@ export default function TitlePage() {
           )}
 
           <section>
-            <h2 className="text-display mb-3 text-xl font-semibold text-white">
-              {t("title.reviewsSection")}
-            </h2>
+            <div className="mb-3 flex flex-wrap items-center gap-3">
+              <h2 className="text-display text-xl font-semibold text-white">
+                {t("title.reviewsSection")}
+              </h2>
+              {kinoAverage !== null ? (
+                <span className="flex items-center gap-2 rounded-full border border-kino/40 bg-kino/15 px-3 py-1 text-sm font-semibold text-kino-hot">
+                  <StarRating value={kinoAverage} size={13} />
+                  {kinoAverage.toFixed(1)}/5 · {t("title.reviewsCount", { count: reviews.length })}
+                </span>
+              ) : (
+                <span className="text-sm text-kino-muted">{t("title.noKinoRatings")}</span>
+              )}
+            </div>
             <ul className="space-y-3">
               {reviews.length === 0 && (
                 <li className="text-sm text-kino-muted">{t("title.noReviews")}</li>
@@ -564,9 +642,11 @@ export default function TitlePage() {
                 <li key={r.id} className="glass rounded-2xl p-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-kino to-kino-hot text-xs font-bold text-white">
-                        {r.user.displayName.slice(0, 2).toUpperCase()}
-                      </span>
+                      <UserAvatar
+                        name={r.user.displayName}
+                        avatarUrl={r.user.avatarUrl}
+                        className="h-8 w-8 text-xs"
+                      />
                       <div>
                         <p className="text-sm font-medium text-white">
                           {r.user.displayName}
@@ -580,14 +660,35 @@ export default function TitlePage() {
                       </div>
                     </div>
                   </div>
-                  <p className="mt-3 text-white/85">
-                    {r.spoiler && (
-                      <span className="mr-2 rounded bg-amber-500/20 px-2 py-0.5 text-[10px] font-semibold uppercase text-amber-200">
+                  {r.spoiler && !revealedSpoilers[r.id] ? (
+                    <div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-amber-400/20 bg-amber-500/10 p-3">
+                      <span className="rounded bg-amber-500/20 px-2 py-0.5 text-[10px] font-semibold uppercase text-amber-200">
                         {t("title.spoilerBadge")}
                       </span>
-                    )}
-                    {r.body}
-                  </p>
+                      <button
+                        className="chip border-amber-400/40 text-amber-200"
+                        onClick={() =>
+                          setRevealedSpoilers((prev) => ({ ...prev, [r.id]: true }))
+                        }
+                      >
+                        {t("title.showSpoiler")}
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="mt-3 text-white/85">
+                      {r.spoiler && (
+                        <button
+                          className="mr-2 rounded bg-amber-500/20 px-2 py-0.5 text-[10px] font-semibold uppercase text-amber-200"
+                          onClick={() =>
+                            setRevealedSpoilers((prev) => ({ ...prev, [r.id]: false }))
+                          }
+                        >
+                          {t("title.hideSpoiler")}
+                        </button>
+                      )}
+                      <FormattedBody text={r.body} />
+                    </p>
+                  )}
                   <div className="mt-3 flex flex-wrap gap-2">
                     <button className="chip" onClick={() => toggleLike(r.id)}>
                       {t("title.like")} ({r._count?.likes ?? 0})
@@ -731,9 +832,16 @@ function CommentThread({
   return (
     <li className="rounded-lg border border-white/5 bg-white/[0.02] p-2 text-sm text-kino-muted">
       <div className="flex items-start justify-between gap-3">
-        <span>
-          <span className="font-medium text-white">{comment.user.displayName}:</span>{" "}
-          {comment.body}
+        <span className="flex items-start gap-2">
+          <UserAvatar
+            name={comment.user.displayName}
+            avatarUrl={comment.user.avatarUrl}
+            className="h-6 w-6 text-[10px]"
+          />
+          <span>
+            <span className="font-medium text-white">{comment.user.displayName}:</span>{" "}
+            {comment.body}
+          </span>
         </span>
         {(meId === comment.user.id || meRole === "ADMIN") && (
           <button

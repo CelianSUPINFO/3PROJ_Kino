@@ -35,6 +35,7 @@ export class UsersService {
         theme: true,
         locale: true,
         notifyPush: true,
+        notifyEmail: true,
         role: true,
         createdAt: true,
       },
@@ -70,6 +71,7 @@ export class UsersService {
         theme: true,
         locale: true,
         notifyPush: true,
+        notifyEmail: true,
       },
     });
   }

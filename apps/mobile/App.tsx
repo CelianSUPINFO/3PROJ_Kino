@@ -1,13 +1,13 @@
 import { Ionicons } from "@expo/vector-icons";
-import { DefaultTheme, NavigationContainer } from "@react-navigation/native";
+import { DefaultTheme, NavigationContainer, useFocusEffect } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { StatusBar } from "expo-status-bar";
-import { ComponentType, useEffect, useState } from "react";
-import { ActivityIndicator, SafeAreaView, Text } from "react-native";
+import { ComponentType, useCallback, useEffect, useState } from "react";
+import { ActivityIndicator, SafeAreaView, Text, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { apiFetch } from "./src/api";
-import { s } from "./src/components/AppUi";
+import { PrimaryButton, GhostButton, s } from "./src/components/AppUi";
 import { LocaleProvider, useLocale } from "./src/context/LocaleContext";
 import {
   ThemeContextProvider,
@@ -57,14 +57,29 @@ function ProfileTab({ navigation }: { navigation: any }) {
   const { colors } = useThemeColors();
   const { t } = useLocale();
   const [userId, setUserId] = useState<string | null>(null);
+  const [checking, setChecking] = useState(true);
 
-  useEffect(() => {
-    apiFetch<{ id: string }>("/users/me")
-      .then((me) => setUserId(me.id))
-      .catch(() => navigation.navigate("Login"));
-  }, [navigation]);
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      setChecking(true);
+      apiFetch<{ id: string }>("/users/me")
+        .then((me) => {
+          if (!cancelled) setUserId(me.id);
+        })
+        .catch(() => {
+          if (!cancelled) setUserId(null);
+        })
+        .finally(() => {
+          if (!cancelled) setChecking(false);
+        });
+      return () => {
+        cancelled = true;
+      };
+    }, []),
+  );
 
-  if (!userId) {
+  if (checking && !userId) {
     return (
       <SafeAreaView
         style={[
@@ -83,6 +98,30 @@ function ProfileTab({ navigation }: { navigation: any }) {
       </SafeAreaView>
     );
   }
+
+  if (!userId) {
+    return (
+      <SafeAreaView
+        style={[
+          s.screen,
+          {
+            backgroundColor: colors.ink,
+            alignItems: "center",
+            justifyContent: "center",
+          },
+        ]}
+      >
+        <Text style={{ color: colors.text, fontSize: 18, fontWeight: "700" }}>
+          {t("common.signInRequired")}
+        </Text>
+        <View style={{ marginTop: 20, width: 240, gap: 10 }}>
+          <PrimaryButton label={t("nav.login")} onPress={() => navigation.navigate("Login")} />
+          <GhostButton label={t("auth.createAccount")} onPress={() => navigation.navigate("Register")} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <ProfileScreen
       route={
@@ -97,9 +136,32 @@ function ProfileTab({ navigation }: { navigation: any }) {
   );
 }
 
+function useUnreadNotifications() {
+  const [unread, setUnread] = useState(0);
+  useEffect(() => {
+    let cancelled = false;
+    const load = () =>
+      apiFetch<{ read: boolean }[]>("/notifications")
+        .then((rows) => {
+          if (!cancelled) setUnread(rows.filter((n) => !n.read).length);
+        })
+        .catch(() => {
+          if (!cancelled) setUnread(0);
+        });
+    load();
+    const timer = setInterval(load, 15000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, []);
+  return unread;
+}
+
 function MainTabs() {
   const { colors } = useThemeColors();
   const { t } = useLocale();
+  const unread = useUnreadNotifications();
   const icons: Record<string, keyof typeof Ionicons.glyphMap> = {
     HomeTab: "home-outline",
     SearchTab: "search-outline",
@@ -144,7 +206,11 @@ function MainTabs() {
       <Tabs.Screen
         name="NotificationsTab"
         component={NotificationsScreen}
-        options={{ title: t("nav.notifications") }}
+        options={{
+          title: t("nav.notifications"),
+          tabBarBadge: unread > 0 ? (unread > 99 ? "99+" : unread) : undefined,
+          tabBarBadgeStyle: { backgroundColor: "#ef4444", color: "#fff", fontSize: 10 },
+        }}
       />
       <Tabs.Screen
         name="ProfileTab"

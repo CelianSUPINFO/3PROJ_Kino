@@ -48,6 +48,21 @@ export class AdminController {
     return this.admin.resolveReport(id, body.status);
   }
 
+  @Get('message-reports')
+  messageReports() {
+    return this.admin.messageReports();
+  }
+
+  @Patch('message-reports/:id')
+  resolveMessageReport(@Param('id') id: string, @Body() body: ResolveReportDto) {
+    return this.admin.resolveMessageReport(id, body.status);
+  }
+
+  @Delete('messages/:id')
+  deleteMessage(@Param('id') id: string) {
+    return this.admin.deleteMessage(id);
+  }
+
   @Post('users/:id/ban')
   ban(@Param('id') id: string, @Body() body: BanUserDto) {
     return this.admin.banUser(

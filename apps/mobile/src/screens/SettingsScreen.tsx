@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Alert, Animated, Dimensions, FlatList, Image, ImageBackground, PanResponder, Pressable, SafeAreaView, ScrollView, Switch, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Alert, Animated, Dimensions, FlatList, Image, ImageBackground, PanResponder, Pressable, SafeAreaView, ScrollView, Share, Switch, Text, TextInput, TouchableOpacity, View } from "react-native";
 import * as Linking from "expo-linking";
 import * as WebBrowser from "expo-web-browser";
 import { io, Socket } from "socket.io-client";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { apiFetch, clearTokens, getApiRoot, logoutSession, setTokens } from "../api";
+import { apiFetch, clearTokens, getAccessToken, getApiRoot, logoutSession, setTokens } from "../api";
 import { PosterCard, type PosterItem } from "../components/PosterCard";
 import { Chip, Eyebrow, GhostButton, H1, Label, Logo, PrimaryButton, Section, s } from "../components/AppUi";
 import { useLocale } from "../context/LocaleContext";
@@ -14,6 +14,8 @@ import { categoryLabel, notificationLabel } from "../lib/i18n";
 import type { RootStackParamList } from "../navigation/types";
 import { colors, spacing } from "../theme";
 import { registerPushNotifications, unregisterPushNotifications } from "../pushNotifications";
+const WEB_URL = "https://kino-web-ten.vercel.app";
+
 type Me = {
   displayName: string;
   bio: string;
@@ -21,6 +23,7 @@ type Me = {
   theme: string;
   locale: string;
   notifyPush: boolean;
+  notifyEmail: boolean;
   role?: string;
 };
 
@@ -51,6 +54,7 @@ export function SettingsScreen({
         theme: me.theme,
         locale: me.locale,
         notifyPush: me.notifyPush,
+        notifyEmail: me.notifyEmail,
       }),
     });
     setMe(updated);
@@ -75,10 +79,26 @@ export function SettingsScreen({
   async function exportJson() {
     try {
       const data = await apiFetch("/users/export");
-      const text = JSON.stringify(data);
-      setStatus(`Export RGPD pret (${text.length} caracteres)`);
+      await Share.share({
+        title: "kino-export.json",
+        message: JSON.stringify(data, null, 2),
+      });
     } catch {
-      setStatus("Export impossible");
+      setStatus(t("settings.exportFailed"));
+    }
+  }
+
+  async function exportCsv() {
+    try {
+      const token = await getAccessToken();
+      const res = await fetch(`${getApiRoot()}/v1/users/export.csv`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
+      if (!res.ok) throw new Error("csv export failed");
+      const text = await res.text();
+      await Share.share({ title: "kino-export.csv", message: text });
+    } catch {
+      setStatus(t("settings.exportFailed"));
     }
   }
 
@@ -175,7 +195,15 @@ export function SettingsScreen({
                 onValueChange={(v) => setMe({ ...me, notifyPush: v })}
                 trackColor={{ true: colors.kino }}
               />
-              <Text style={[s.sub, { flex: 1 }]}>Alertes instantanées dans l'application</Text>
+              <Text style={[s.sub, { flex: 1 }]}>{t("settings.notifyPush")}</Text>
+            </View>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 }}>
+              <Switch
+                value={me.notifyEmail}
+                onValueChange={(v) => setMe({ ...me, notifyEmail: v })}
+                trackColor={{ true: colors.kino }}
+              />
+              <Text style={[s.sub, { flex: 1 }]}>{t("settings.notifyEmail")}</Text>
             </View>
             <View style={{ height: 12 }} />
             <PrimaryButton label={t("common.save")} onPress={save} />
@@ -193,10 +221,19 @@ export function SettingsScreen({
               </>
             )}
             <View style={{ height: 8 }} />
-            <GhostButton label="Export RGPD (JSON)" onPress={exportJson} />
+            <GhostButton label={t("settings.exportJson")} onPress={exportJson} />
+            <View style={{ height: 8 }} />
+            <GhostButton label={t("settings.exportCsv")} onPress={exportCsv} />
             <View style={{ height: 8 }} />
             <GhostButton label={t("nav.logout")} onPress={logout} />
             <View style={{ height: 18 }} />
+            <Label>{t("settings.legal").toUpperCase()}</Label>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 8 }}>
+              <Chip label={t("settings.legal")} onPress={() => Linking.openURL(`${WEB_URL}/legal`)} />
+              <Chip label={t("settings.privacyPolicy")} onPress={() => Linking.openURL(`${WEB_URL}/privacy`)} />
+              <Chip label={t("settings.terms")} onPress={() => Linking.openURL(`${WEB_URL}/terms`)} />
+            </View>
+            <View style={{ height: 10 }} />
             <Text style={[s.label, { color: colors.danger }]}>ZONE SENSIBLE</Text>
             <TouchableOpacity onPress={deleteAccount} style={[s.btnGhost, { borderColor: colors.danger }]}>
               <Text style={{ color: colors.danger, fontWeight: "700" }}>{t("settings.deleteAccount")}</Text>
