@@ -100,7 +100,7 @@ export function LoginScreen({
         />
         <Label>Password</Label>
         <TextInput
-          placeholder="Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢"
+          placeholder="••••••••"
           placeholderTextColor={colors.muted}
           style={s.input}
           secureTextEntry

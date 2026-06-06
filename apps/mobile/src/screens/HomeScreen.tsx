@@ -137,13 +137,13 @@ export function HomeScreen({
               onPress={() => navigation.navigate("Menu")}
               style={s.iconBtn}
             >
-              <Text style={{ color: colors.text, fontSize: 18, fontWeight: "700" }}>â˜°</Text>
+              <Text style={{ color: colors.text, fontSize: 18, fontWeight: "700" }}>☰</Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => navigation.navigate("Search")}
               style={s.iconBtn}
             >
-              <Text style={{ color: colors.text, fontSize: 16 }}>âŒ•</Text>
+              <Text style={{ color: colors.text, fontSize: 16 }}>⌕</Text>
             </TouchableOpacity>
             {authed && meNav ? (
               <TouchableOpacity
@@ -170,7 +170,7 @@ export function HomeScreen({
                 onPress={() => navigation.navigate("Login")}
                 style={s.iconBtn}
               >
-                <Text style={{ color: colors.text, fontSize: 16 }}>â†’</Text>
+                <Text style={{ color: colors.text, fontSize: 16 }}>→</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -200,7 +200,7 @@ export function HomeScreen({
                   </Text>
                   {typeof featured.vote_average === "number" && (
                     <Text style={s.heroScore}>
-                      â˜… {featured.vote_average.toFixed(1)}
+                      ★ {featured.vote_average.toFixed(1)}
                     </Text>
                   )}
                   <View style={{ flexDirection: "row", gap: 8, marginTop: 10 }}>
@@ -342,9 +342,9 @@ export function HomeScreen({
                   </View>
                   <Text style={{ color: colors.text, flex: 1 }} numberOfLines={2}>
                     {r.user.displayName}
-                    {" Â· "}
+                    {" · "}
                     <Text style={{ color: colors.kinoHot }}>{r.title}</Text>
-                    {" Â· â˜… "}
+                    {" · ★ "}
                     {r.rating}/5
                   </Text>
                 </Pressable>

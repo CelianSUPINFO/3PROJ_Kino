@@ -56,7 +56,7 @@ export function FeedScreen({
             }}
           >
             <Text style={s.sub}>
-              {item.user.displayName} Â· {new Date(item.createdAt).toLocaleString()}
+              {item.user.displayName} · {new Date(item.createdAt).toLocaleString()}
             </Text>
             <Text style={{ color: colors.text, marginTop: 4 }}>
               {item.type.toLowerCase().replace(/_/g, " ")}

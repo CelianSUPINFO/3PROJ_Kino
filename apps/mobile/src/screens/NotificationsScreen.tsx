@@ -102,7 +102,7 @@ export function NotificationsScreen({ navigation }: { navigation: any }) {
             activeOpacity={0.85}
             accessibilityRole="button"
             accessibilityLabel={notificationLabel(locale, item.type)}
-            accessibilityHint={locale === "fr" ? "Ouvre le contenu associÃ©" : "Opens related content"}
+            accessibilityHint={locale === "fr" ? "Ouvre le contenu associé" : "Opens related content"}
             onPress={() => openNotification(item)}
             style={[s.card, item.read ? null : { borderColor: c.kino }]}
           >

@@ -96,7 +96,7 @@ export function SettingsScreen({
               await apiFetch("/users/me", { method: "DELETE" });
               await clearTokens();
               setMe(null);
-              setStatus("Compte supprimÃ©.");
+              setStatus("Compte supprimé.");
               navigation.navigate("Home");
             } catch {
               setStatus("Suppression impossible");
@@ -175,7 +175,7 @@ export function SettingsScreen({
                 onValueChange={(v) => setMe({ ...me, notifyPush: v })}
                 trackColor={{ true: colors.kino }}
               />
-              <Text style={[s.sub, { flex: 1 }]}>Alertes instantanÃ©es dans l'application</Text>
+              <Text style={[s.sub, { flex: 1 }]}>Alertes instantanées dans l'application</Text>
             </View>
             <View style={{ height: 12 }} />
             <PrimaryButton label={t("common.save")} onPress={save} />

@@ -72,8 +72,8 @@ export function TonightScreen({
       setIndex(0);
       setStatus(
         res.personalized
-          ? "Suggestions personnalisÃ©es."
-          : "Mode dÃ©couverte : notez plus d'Å“uvres pour personnaliser.",
+          ? "Suggestions personnalisées."
+          : "Mode découverte : notez plus d'œuvres pour personnaliser.",
       );
     } catch {
       setStatus("Connectez-vous pour enregistrer vos choix.");
@@ -109,12 +109,12 @@ export function TonightScreen({
       choice === "SMASH"
         ? {
             msg: saved
-              ? "AjoutÃ© Ã  votre profil"
-              : "Connectez-vous pour mÃ©moriser ce choix",
+              ? "Ajouté à votre profil"
+              : "Connectez-vous pour mémoriser ce choix",
             tone: saved ? "success" : "danger",
           }
         : {
-            msg: saved ? "PassÃ©, choix enregistrÃ©" : "PassÃ© en mode invitÃ©",
+            msg: saved ? "Passé, choix enregistré" : "Passé en mode invité",
             tone: "danger",
           },
     );
@@ -164,7 +164,7 @@ export function TonightScreen({
     <SafeAreaView style={s.screen}>
       <View style={{ paddingHorizontal: spacing.lg }}>
         <Eyebrow>{locale === "fr" ? "CE SOIR ?" : "TONIGHT?"}</Eyebrow>
-        <H1>{locale === "fr" ? "Ã€ garder ou passer" : "Smash or Pass"}</H1>
+        <H1>{locale === "fr" ? "À garder ou passer" : "Smash or Pass"}</H1>
         <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
           <Chip
             label={locale === "fr" ? "Films" : "Movies"}
@@ -172,7 +172,7 @@ export function TonightScreen({
             onPress={() => setType("movie")}
           />
           <Chip
-            label={locale === "fr" ? "SÃ©ries" : "TV shows"}
+            label={locale === "fr" ? "Séries" : "TV shows"}
             active={type === "tv"}
             onPress={() => setType("tv")}
           />
@@ -201,7 +201,7 @@ export function TonightScreen({
           <View style={s.emptyCard}>
             <Text style={s.h1}>{locale === "fr" ? "Vous avez tout parcouru" : "You're all caught up"}</Text>
             <Text style={s.sub}>
-              {locale === "fr" ? "Changez de catÃ©gorie ou actualisez les suggestions." : "Switch category or refresh to see fresh picks."}
+              {locale === "fr" ? "Changez de catégorie ou actualisez les suggestions." : "Switch category or refresh to see fresh picks."}
             </Text>
             <View style={{ height: 12 }} />
             <PrimaryButton label={locale === "fr" ? "Actualiser" : "Refresh picks"} onPress={load} />
@@ -265,7 +265,7 @@ export function TonightScreen({
             <Text
               style={{ color: colors.danger, fontSize: 24, fontWeight: "700" }}
             >
-              âœ•
+              ✕
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -279,7 +279,7 @@ export function TonightScreen({
             }
           >
             <Text style={{ color: colors.text, fontWeight: "600" }}>
-              {locale === "fr" ? "DÃ©tails" : "Details"} â†’
+              {locale === "fr" ? "Détails" : "Details"} →
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -289,7 +289,7 @@ export function TonightScreen({
             ]}
             onPress={() => resolveSwipe("right")}
           >
-            <Text style={{ color: "#fff", fontSize: 22 }}>â˜…</Text>
+            <Text style={{ color: "#fff", fontSize: 22 }}>★</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -360,7 +360,7 @@ function TonightCard({
             <Text
               style={{ color: colors.gold, fontWeight: "700", marginTop: 4 }}
             >
-              â˜… {item.score.toFixed(1)} / 10
+              ★ {item.score.toFixed(1)} / 10
             </Text>
             {item.overview ? (
               <Text numberOfLines={3} style={[s.sub, { marginTop: 8 }]}>
@@ -374,7 +374,7 @@ function TonightCard({
           style={{ flex: 1, justifyContent: "flex-end", padding: spacing.lg }}
         >
           <Text style={[s.h1, { fontSize: 28 }]}>{item.title}</Text>
-          <Text style={{ color: colors.gold }}>â˜… {item.score.toFixed(1)}</Text>
+          <Text style={{ color: colors.gold }}>★ {item.score.toFixed(1)}</Text>
         </View>
       )}
     </View>

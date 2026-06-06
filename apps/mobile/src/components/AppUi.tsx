@@ -110,7 +110,7 @@ export function Section({
         <Text style={s.sectionTitle}>{title}</Text>
         {action && (
           <TouchableOpacity onPress={action.onPress}>
-            <Text style={s.sectionAction}>{action.label} â†’</Text>
+            <Text style={s.sectionAction}>{action.label} →</Text>
           </TouchableOpacity>
         )}
       </View>

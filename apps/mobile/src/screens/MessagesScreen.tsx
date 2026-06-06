@@ -62,7 +62,7 @@ export function MessagesScreen({ route }: { route: { params?: { userId?: string 
       })
       .catch(() => {
         setMessages([]);
-        setMsg("Cette discussion nÃ©cessite un abonnement mutuel.");
+        setMsg("Cette discussion nécessite un abonnement mutuel.");
       });
   }, [selectedId]);
 
@@ -123,7 +123,7 @@ export function MessagesScreen({ route }: { route: { params?: { userId?: string 
   function messageActions(item: Msg) {
     const mine = item.senderId === meId;
     Alert.alert(
-      mine ? (locale === "fr" ? "Votre message" : "Your message") : (locale === "fr" ? "Message reÃ§u" : "Received message"),
+      mine ? (locale === "fr" ? "Votre message" : "Your message") : (locale === "fr" ? "Message reçu" : "Received message"),
       item.body,
       mine
         ? [
@@ -132,7 +132,7 @@ export function MessagesScreen({ route }: { route: { params?: { userId?: string 
           ]
         : [
             { text: t("common.cancel"), style: "cancel" },
-            { text: locale === "fr" ? "Signaler" : "Report", onPress: () => void apiFetch(`/messages/${item.id}/report`, { method: "POST", body: JSON.stringify({ reason: "Message signalÃ© depuis l'application" }) }) },
+            { text: locale === "fr" ? "Signaler" : "Report", onPress: () => void apiFetch(`/messages/${item.id}/report`, { method: "POST", body: JSON.stringify({ reason: "Message signalé depuis l'application" }) }) },
             { text: locale === "fr" ? "Bloquer l'utilisateur" : "Block user", style: "destructive", onPress: () => selectedId && void apiFetch(`/users/${selectedId}/block`, { method: "POST" }).then(() => setSelectedId(null)) },
           ],
     );
@@ -150,7 +150,7 @@ export function MessagesScreen({ route }: { route: { params?: { userId?: string 
       const rows = await apiFetch<Msg[]>(`/messages/${selectedId}`);
       setMessages(rows);
     } catch {
-      setMsg("Message non envoyÃ©. VÃ©rifiez que vous vous suivez mutuellement.");
+      setMsg("Message non envoyé. Vérifiez que vous vous suivez mutuellement.");
     }
   }
 
@@ -219,13 +219,13 @@ export function MessagesScreen({ route }: { route: { params?: { userId?: string 
             >
               <Text style={{ color: c.text }}>{item.body}</Text>
               <Text style={[s.sub, { fontSize: 10, marginTop: 4, color: mine ? "#fff" : c.muted }]}>
-                {date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}{mine ? ` Â· ${item.readAt ? (locale === "fr" ? "Lu" : "Read") : (locale === "fr" ? "EnvoyÃ©" : "Sent")}` : ""}
+                {date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}{mine ? ` · ${item.readAt ? (locale === "fr" ? "Lu" : "Read") : (locale === "fr" ? "Envoyé" : "Sent")}` : ""}
               </Text>
             </TouchableOpacity>
           </View>;
         }}
       />
-      {typing && <Text style={[s.sub, { marginHorizontal: spacing.lg, marginBottom: 4 }]}>{locale === "fr" ? "Ã‰crit actuellementâ€¦" : "Typingâ€¦"}</Text>}
+      {typing && <Text style={[s.sub, { marginHorizontal: spacing.lg, marginBottom: 4 }]}>{locale === "fr" ? "Écrit actuellement…" : "Typing…"}</Text>}
       <View
         style={{
           flexDirection: "row",
