@@ -49,7 +49,7 @@ export class ReviewsController {
       body.tmdbId,
       body.mediaType,
       body.rating,
-      body.body ?? '',
+      body.body?.trim() ?? '',
       body.spoiler ?? false,
     );
   }

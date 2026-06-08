@@ -344,7 +344,7 @@ export function TitleScreen({ route, navigation }: Props) {
             <Switch value={spoiler} onValueChange={setSpoiler} trackColor={{ true: colors.kino }} />
             <Text style={s.sub}>Contient des spoilers</Text>
           </View>
-          <Pressable style={[s.btn, !body.trim() && { opacity: 0.5 }]} disabled={!body.trim()} onPress={publish}>
+          <Pressable style={s.btn} onPress={publish}>
             <Text style={s.btnText}>{myReview ? "Mettre à jour" : "Publier"}</Text>
           </Pressable>
           {myReview && (

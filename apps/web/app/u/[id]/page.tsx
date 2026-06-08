@@ -84,7 +84,7 @@ export default function UserPage() {
         apiFetch<PublicUser[]>(`/users/${params.id}/followers`, { auth: false }),
         apiFetch<PublicUser[]>(`/users/${params.id}/following`, { auth: false }),
         apiFetch<ProfileReview[]>(`/users/${params.id}/reviews`, { auth: false }),
-        apiFetch<ProfileList[]>(`/users/${params.id}/lists`),
+        apiFetch<ProfileList[]>(`/users/${params.id}/lists`).catch(() => []),
         apiFetch<{ id: string }>("/users/me").catch(() => null),
       ]);
       setP(profile);

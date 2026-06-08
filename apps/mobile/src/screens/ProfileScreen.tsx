@@ -96,7 +96,7 @@ export function ProfileScreen({ route, navigation }: Props) {
         apiFetch<PublicUser[]>(`/users/${userId}/followers`, { auth: false }),
         apiFetch<PublicUser[]>(`/users/${userId}/following`, { auth: false }),
         apiFetch<ProfileReview[]>(`/users/${userId}/reviews`, { auth: false }),
-        apiFetch<ProfileList[]>(`/users/${userId}/lists`),
+        apiFetch<ProfileList[]>(`/users/${userId}/lists`).catch(() => []),
         apiFetch<{ id: string }>("/users/me").catch(() => null),
       ]);
       setProfile(p);
