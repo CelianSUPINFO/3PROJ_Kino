@@ -3,11 +3,12 @@ import { UsersService } from './users.service';
 describe('UsersService profile lists visibility', () => {
   const findMany = jest.fn();
   const findUnique = jest.fn();
+  const resolveCards = jest.fn();
   const service = new UsersService(
     { customList: { findMany }, user: { findUnique } } as never,
     {} as never,
     {} as never,
-    {} as never,
+    { resolveCards } as never,
   );
 
   beforeEach(() => {
@@ -15,6 +16,8 @@ describe('UsersService profile lists visibility', () => {
     findMany.mockResolvedValue([]);
     findUnique.mockReset();
     findUnique.mockResolvedValue({ id: 'owner-id', displayName: 'Owner' });
+    resolveCards.mockReset();
+    resolveCards.mockResolvedValue({});
   });
 
   it('returns private and public lists to the owner', async () => {

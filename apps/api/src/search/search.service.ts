@@ -15,7 +15,8 @@ export class SearchService {
         where: {
           displayName: { contains: q, mode: 'insensitive' },
         },
-        take: 10,
+        take: 100,
+        orderBy: { displayName: 'asc' },
         select: {
           id: true,
           displayName: true,
@@ -24,7 +25,8 @@ export class SearchService {
       }),
       this.prisma.customList.findMany({
         where: { isPublic: true, name: { contains: q, mode: 'insensitive' } },
-        take: 10,
+        take: 100,
+        orderBy: { updatedAt: 'desc' },
         include: {
           user: { select: { id: true, displayName: true } },
         },

@@ -242,6 +242,44 @@ async function main() {
     });
   }
 
+  for (const user of users) {
+    const favorites = Array.isArray(user.favoriteFilms)
+      ? (user.favoriteFilms as Array<{
+          tmdbId: number;
+          mediaType: MediaType;
+          title?: string;
+          posterPath?: string | null;
+        }>)
+      : [];
+    const cachedFavorites = await prisma.cachedWork.findMany({
+      where: {
+        OR: favorites.map((favorite) => ({
+          tmdbId: favorite.tmdbId,
+          mediaType: favorite.mediaType,
+          language: 'fr-FR',
+        })),
+      },
+      select: { tmdbId: true, mediaType: true, title: true, posterPath: true },
+    });
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        favoriteFilms: favorites.map((favorite) => {
+          const cached = cachedFavorites.find(
+            (work) =>
+              work.tmdbId === favorite.tmdbId &&
+              work.mediaType === favorite.mediaType,
+          );
+          return {
+            ...favorite,
+            title: cached?.title ?? favorite.title,
+            posterPath: cached?.posterPath ?? favorite.posterPath ?? null,
+          };
+        }),
+      },
+    });
+  }
+
   const demoIds = users.map((user) => user.id);
   await clearDemoData(demoIds);
 

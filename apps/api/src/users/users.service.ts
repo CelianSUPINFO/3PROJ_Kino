@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Prisma } from '@prisma/client';
+import { MediaType, Prisma } from '@prisma/client';
 import { v2 as cloudinary } from 'cloudinary';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -156,7 +156,28 @@ export class UsersService {
       },
     });
     if (!u) throw new NotFoundException();
-    return { ...u, lists: await this.profileLists(id, viewerId) };
+    const favorites = Array.isArray(u.favoriteFilms)
+      ? (u.favoriteFilms as Array<{
+          tmdbId: number;
+          mediaType: MediaType;
+          title?: string;
+          posterPath?: string | null;
+        }>)
+      : [];
+    const cards = await this.tmdb.resolveCards(
+      favorites.map((favorite) => ({
+        tmdbId: favorite.tmdbId,
+        mediaType: favorite.mediaType,
+      })),
+    );
+    return {
+      ...u,
+      favoriteFilms: favorites.map((favorite) => ({
+        ...favorite,
+        ...cards[`${favorite.mediaType}:${favorite.tmdbId}`],
+      })),
+      lists: await this.profileLists(id, viewerId),
+    };
   }
 
   async profileLists(profileId: string, viewerId?: string) {
@@ -208,29 +229,19 @@ export class UsersService {
       orderBy: { updatedAt: 'desc' },
       include: { _count: { select: { likes: true, comments: true } } },
     });
-    const titles = await this.tmdb.resolveTitles(
+    const cards = await this.tmdb.resolveCards(
       reviews.map((review) => ({
         tmdbId: review.tmdbId,
         mediaType: review.mediaType,
       })),
     );
-    const cached = await this.prisma.cachedWork.findMany({
-      where: {
-        OR: reviews.map((review) => ({
-          tmdbId: review.tmdbId,
-          mediaType: review.mediaType,
-        })),
-      },
-      select: { tmdbId: true, mediaType: true, posterPath: true },
-    });
     return reviews.map((review) => ({
       ...review,
-      title: titles[`${review.mediaType}:${review.tmdbId}`] ?? `#${review.tmdbId}`,
+      title:
+        cards[`${review.mediaType}:${review.tmdbId}`]?.title ??
+        `#${review.tmdbId}`,
       posterPath:
-        cached.find(
-          (work) =>
-            work.tmdbId === review.tmdbId && work.mediaType === review.mediaType,
-        )?.posterPath ?? null,
+        cards[`${review.mediaType}:${review.tmdbId}`]?.posterPath ?? null,
     }));
   }
 

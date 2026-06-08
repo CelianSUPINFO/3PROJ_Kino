@@ -245,7 +245,13 @@ export class TmdbService {
       },
     });
     const now = Date.now();
-    if (cached && now - cached.cachedAt.getTime() < CACHE_MS) {
+    const cachedPayload = cached?.payload as Record<string, unknown> | undefined;
+    if (
+      cached &&
+      now - cached.cachedAt.getTime() < CACHE_MS &&
+      cachedPayload &&
+      Object.keys(cachedPayload).length > 0
+    ) {
       return { source: 'cache' as const, data: cached.payload };
     }
     const path =
@@ -345,5 +351,47 @@ export class TmdbService {
       }),
     );
     return out;
+  }
+
+  async resolveCards(
+    works: { tmdbId: number; mediaType: MediaType }[],
+    language = 'fr-FR',
+  ): Promise<Record<string, { title: string; posterPath: string | null }>> {
+    if (!works.length) return {};
+    const unique = [
+      ...new Map(
+        works.map((work) => [`${work.mediaType}:${work.tmdbId}`, work] as const),
+      ).values(),
+    ];
+    await Promise.all(
+      unique.map(async (work) => {
+        try {
+          await this.getDetails(work.mediaType, work.tmdbId, language);
+        } catch {
+          // Keep the locally cached title when TMDB is temporarily unavailable.
+        }
+      }),
+    );
+    const cached = await this.prisma.cachedWork.findMany({
+      where: {
+        OR: unique.map((work) => ({
+          tmdbId: work.tmdbId,
+          mediaType: work.mediaType,
+          language,
+        })),
+      },
+      select: {
+        tmdbId: true,
+        mediaType: true,
+        title: true,
+        posterPath: true,
+      },
+    });
+    return Object.fromEntries(
+      cached.map((work) => [
+        `${work.mediaType}:${work.tmdbId}`,
+        { title: work.title, posterPath: work.posterPath },
+      ]),
+    );
   }
 }
