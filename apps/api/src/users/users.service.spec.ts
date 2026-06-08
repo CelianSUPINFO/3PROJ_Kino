@@ -2,8 +2,9 @@ import { UsersService } from './users.service';
 
 describe('UsersService profile lists visibility', () => {
   const findMany = jest.fn();
+  const findUnique = jest.fn();
   const service = new UsersService(
-    { customList: { findMany } } as never,
+    { customList: { findMany }, user: { findUnique } } as never,
     {} as never,
     {} as never,
     {} as never,
@@ -12,6 +13,8 @@ describe('UsersService profile lists visibility', () => {
   beforeEach(() => {
     findMany.mockReset();
     findMany.mockResolvedValue([]);
+    findUnique.mockReset();
+    findUnique.mockResolvedValue({ id: 'owner-id', displayName: 'Owner' });
   });
 
   it('returns private and public lists to the owner', async () => {
@@ -23,6 +26,19 @@ describe('UsersService profile lists visibility', () => {
 
   it('returns only public lists to other visitors', async () => {
     await service.profileLists('owner-id', 'visitor-id');
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { userId: 'owner-id', isPublic: true },
+      }),
+    );
+  });
+
+  it('includes only visible lists directly in a public profile', async () => {
+    findMany.mockResolvedValue([{ id: 'public-list', isPublic: true }]);
+
+    const profile = await service.publicProfile('owner-id', 'visitor-id');
+
+    expect(profile.lists).toEqual([{ id: 'public-list', isPublic: true }]);
     expect(findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { userId: 'owner-id', isPublic: true },

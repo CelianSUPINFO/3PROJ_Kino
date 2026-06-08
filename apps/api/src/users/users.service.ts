@@ -141,7 +141,7 @@ export class UsersService {
     return { url: result.secure_url, user: updated };
   }
 
-  async publicProfile(id: string) {
+  async publicProfile(id: string, viewerId?: string) {
     const u = await this.prisma.user.findUnique({
       where: { id },
       select: {
@@ -156,7 +156,7 @@ export class UsersService {
       },
     });
     if (!u) throw new NotFoundException();
-    return u;
+    return { ...u, lists: await this.profileLists(id, viewerId) };
   }
 
   async profileLists(profileId: string, viewerId?: string) {

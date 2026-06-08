@@ -37,6 +37,7 @@ type Profile = {
   avatarUrl?: string | null;
   bannerUrl?: string | null;
   favoriteFilms?: FavoriteFilm[];
+  lists?: ProfileList[];
 };
 
 type PublicUser = { id: string; displayName: string; avatarUrl?: string | null };
@@ -91,14 +92,18 @@ export function ProfileScreen({ route, navigation }: Props) {
 
   const load = useCallback(async () => {
     try {
-      const [p, fol, fing, reviewRows, listRows, me] = await Promise.all([
-        apiFetch<Profile>(`/users/${userId}`, { auth: false }),
+      const [p, fol, fing, reviewRows, me] = await Promise.all([
+        apiFetch<Profile>(`/users/${userId}`),
         apiFetch<PublicUser[]>(`/users/${userId}/followers`, { auth: false }),
         apiFetch<PublicUser[]>(`/users/${userId}/following`, { auth: false }),
         apiFetch<ProfileReview[]>(`/users/${userId}/reviews`, { auth: false }),
-        apiFetch<ProfileList[]>(`/users/${userId}/lists`).catch(() => []),
         apiFetch<{ id: string }>("/users/me").catch(() => null),
       ]);
+      const listRows = p.lists ?? await apiFetch<ProfileList[]>(`/users/${userId}/lists`).catch(() =>
+        me?.id === p.id
+          ? apiFetch<ProfileList[]>("/library/lists/mine").catch(() => [])
+          : [],
+      );
       setProfile(p);
       setDraft(p);
       setFollowers(fol);

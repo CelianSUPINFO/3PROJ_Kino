@@ -80,8 +80,9 @@ export class UsersController {
   }
 
   @Get(':id')
-  profile(@Param('id') id: string) {
-    return this.users.publicProfile(id);
+  @UseGuards(OptionalJwtAuthGuard)
+  profile(@Param('id') id: string, @CurrentUser() user?: JwtUser) {
+    return this.users.publicProfile(id, user?.sub);
   }
 
   @Get(':id/followers')
