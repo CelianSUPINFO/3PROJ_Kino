@@ -39,6 +39,9 @@ function notificationHref(notification: N) {
     const type = payload.mediaType === "TV" ? "tv" : "movie";
     return `/title/${type}/${payload.tmdbId}?review=${payload.reviewId ?? ""}`;
   }
+  if (notification.type === "RECOMMENDATION" && payload.tmdbId) {
+    return `/title/${payload.mediaType === "TV" ? "tv" : "movie"}/${payload.tmdbId}`;
+  }
   if (notification.type === "RECOMMENDATION") return "/ce-soir";
   return undefined;
 }
@@ -127,7 +130,9 @@ export default function NotificationsPage() {
               </span>
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium">
-                  {notificationLabel(locale, n.type)}
+                  {typeof n.payload?.message === "string"
+                    ? n.payload.message
+                    : notificationLabel(locale, n.type)}
                 </p>
                 <p className="text-xs text-kino-muted">
                   {new Date(n.createdAt).toLocaleString(locale === "fr" ? "fr-FR" : "en-US")}

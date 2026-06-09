@@ -14,7 +14,10 @@ import { apiFetch } from "../api";
 import { discoverAllUsers } from "../lib/publicDiscovery";
 import { PosterCard, type PosterItem } from "../components/PosterCard";
 import { UserAvatar } from "../components/UserAvatar";
+import { useLocale } from "../context/LocaleContext";
 import { useThemeColors } from "../context/ThemeContext";
+import { MOVIE_GENRES, TV_GENRES } from "../lib/genres";
+import { genreLabel } from "../lib/i18n";
 import type { RootStackParamList } from "../navigation/types";
 import { radius, spacing } from "../theme";
 
@@ -26,13 +29,20 @@ type Unified = {
   works: { results: PosterItem[]; total_pages?: number };
 };
 
+const SORTS = ["relevance", "popularity.desc", "vote_average.desc", "release_date.desc"] as const;
+type SortKey = (typeof SORTS)[number];
+
 export function SearchScreen({ navigation }: Props) {
+  const { locale } = useLocale();
   const { colors } = useThemeColors();
   const s = makeStyles(colors);
   const [q, setQ] = useState("");
   const [type, setType] = useState<"all" | "movie" | "tv" | "users" | "lists">("all");
   const [year, setYear] = useState("");
   const [creator, setCreator] = useState("");
+  const [genre, setGenre] = useState("");
+  const [minVote, setMinVote] = useState(0);
+  const [sort, setSort] = useState<SortKey>("relevance");
   const [results, setResults] = useState<PosterItem[]>([]);
   const [users, setUsers] = useState<Unified["users"]>([]);
   const [lists, setLists] = useState<Unified["lists"]>([]);
@@ -41,6 +51,8 @@ export function SearchScreen({ navigation }: Props) {
   const [loading, setLoading] = useState(false);
   const [meId, setMeId] = useState<string | null>(null);
   const [followed, setFollowed] = useState<Record<string, boolean>>({});
+  const genres = type === "tv" ? TV_GENRES : MOVIE_GENRES;
+  const language = locale === "en" ? "en-US" : "fr-FR";
 
   useEffect(() => {
     apiFetch<{ id: string }>("/users/me").then((me) => setMeId(me.id)).catch(() => setMeId(null));
@@ -61,7 +73,12 @@ export function SearchScreen({ navigation }: Props) {
             apiFetch<Unified>(`/search?q=${encodeURIComponent(q)}&page=${targetPage}`, { auth: false }),
             type === "users" || type === "lists"
               ? Promise.resolve({ results: [], total_pages: 1 })
-              : apiFetch<{ results: PosterItem[]; total_pages: number }>(`/media/search?q=${encodeURIComponent(q)}&page=${targetPage}${year ? `&year=${year}` : ""}${type === "movie" || type === "tv" ? `&type=${type}` : ""}${creator.trim() ? `&creator=${encodeURIComponent(creator.trim())}` : ""}`, { auth: false }),
+              : apiFetch<{ results: PosterItem[]; total_pages: number }>(
+                  sort !== "relevance" && !creator.trim() && (type === "movie" || type === "tv")
+                    ? `/media/discover/${type}?page=${targetPage}&sort=${encodeURIComponent(sort)}${year ? `&year=${year}` : ""}${genre ? `&genre=${genre}` : ""}${minVote > 0 ? `&minVote=${minVote}` : ""}&language=${language}`
+                    : `/media/search?q=${encodeURIComponent(q)}&page=${targetPage}${year ? `&year=${year}` : ""}${genre ? `&genre=${genre}` : ""}${minVote > 0 ? `&minVote=${minVote}` : ""}${type === "movie" || type === "tv" ? `&type=${type}` : ""}${creator.trim() ? `&creator=${encodeURIComponent(creator.trim())}` : ""}&language=${language}`,
+                  { auth: false },
+                ),
           ]);
           const discoveredUsers =
             type === "users" && !q.trim() ? await discoverAllUsers() : null;
@@ -71,7 +88,7 @@ export function SearchScreen({ navigation }: Props) {
           setResults((prev) => (append ? [...prev, ...works] : works));
           setTotalPages(media.total_pages ?? 1);
         } else {
-          const path = `/media/discover/${type}?page=${targetPage}${year ? `&year=${year}` : ""}`;
+          const path = `/media/discover/${type}?page=${targetPage}&sort=${encodeURIComponent(sort === "relevance" ? "popularity.desc" : sort)}${year ? `&year=${year}` : ""}${genre ? `&genre=${genre}` : ""}${minVote > 0 ? `&minVote=${minVote}` : ""}&language=${language}`;
           const media = await apiFetch<{ results: PosterItem[]; total_pages: number }>(
             path,
             { auth: false },
@@ -88,7 +105,7 @@ export function SearchScreen({ navigation }: Props) {
         setLoading(false);
       }
     },
-    [creator, q, type, year],
+    [creator, genre, language, minVote, q, sort, type, year],
   );
 
   async function follow(userId: string) {
@@ -123,6 +140,48 @@ export function SearchScreen({ navigation }: Props) {
             </Pressable>
           ))}
         </View>
+        {type !== "users" && type !== "lists" && (
+          <>
+            <Text style={s.filterLabel}>{locale === "fr" ? "Trier par" : "Sort by"}</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.filterScroll}>
+              {SORTS.map((value) => (
+                <Pressable key={value} style={[s.chip, sort === value && s.chipOn]} onPress={() => setSort(value)}>
+                  <Text style={s.chipText}>
+                    {value === "relevance"
+                      ? locale === "fr" ? "Pertinence" : "Relevance"
+                      : value === "popularity.desc"
+                        ? locale === "fr" ? "Popularité" : "Popularity"
+                        : value === "vote_average.desc"
+                          ? locale === "fr" ? "Mieux notés" : "Top rated"
+                          : locale === "fr" ? "Plus récents" : "Recent"}
+                  </Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+            {(type === "movie" || type === "tv") && (
+              <>
+                <Text style={s.filterLabel}>{locale === "fr" ? "Genre" : "Genre"}</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.filterScroll}>
+                  {genres.map((item) => (
+                    <Pressable key={item.slug} style={[s.chip, genre === item.id && s.chipOn]} onPress={() => setGenre(item.id)}>
+                      <Text style={s.chipText}>
+                        {item.slug === "all" ? (locale === "fr" ? "Tous" : "All") : genreLabel(locale, item.slug)}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              </>
+            )}
+            <Text style={s.filterLabel}>{locale === "fr" ? "Note minimale" : "Minimum rating"}</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.filterScroll}>
+              {[0, 5, 6, 7, 8, 9].map((value) => (
+                <Pressable key={value} style={[s.chip, minVote === value && s.chipOn]} onPress={() => setMinVote(value)}>
+                  <Text style={s.chipText}>{value === 0 ? (locale === "fr" ? "Toutes" : "Any") : `${value}+/10`}</Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </>
+        )}
         {type !== "users" && type !== "lists" && <TextInput
           style={[s.input, { marginTop: 8 }]}
           placeholder="Année (optionnel)"
@@ -242,6 +301,8 @@ const makeStyles = (colors: ReturnType<typeof useThemeColors>["colors"]) => Styl
     backgroundColor: colors.panel,
   },
   row: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 8 },
+  filterLabel: { color: colors.muted, fontSize: 11, fontWeight: "700", marginTop: 10, textTransform: "uppercase" },
+  filterScroll: { gap: 8, paddingVertical: 6 },
   chip: {
     borderWidth: 1,
     borderColor: colors.border,

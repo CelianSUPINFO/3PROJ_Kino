@@ -1,12 +1,15 @@
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { MediaModule } from '../media/media.module';
 import { NotificationsController } from './notifications.controller';
 import { NotificationsGateway } from './notifications.gateway';
 import { NotificationsService } from './notifications.service';
+import { RecommendationNotificationsService } from './recommendation-notifications.service';
 
 @Module({
   imports: [
+    MediaModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -16,7 +19,7 @@ import { NotificationsService } from './notifications.service';
     }),
   ],
   controllers: [NotificationsController],
-  providers: [NotificationsService, NotificationsGateway],
+  providers: [NotificationsService, NotificationsGateway, RecommendationNotificationsService],
   exports: [NotificationsService, NotificationsGateway],
 })
 export class NotificationsModule {}

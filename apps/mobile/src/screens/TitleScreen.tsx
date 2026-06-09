@@ -130,11 +130,10 @@ export function TitleScreen({ route, navigation }: Props) {
 
   async function publish() {
     try {
-      await apiFetch("/reviews", {
-        method: "POST",
+      await apiFetch(myReview ? `/reviews/${myReview.id}` : "/reviews", {
+        method: myReview ? "PATCH" : "POST",
         body: JSON.stringify({
-          tmdbId: id,
-          mediaType,
+          ...(myReview ? {} : { tmdbId: id, mediaType }),
           rating,
           body,
           spoiler,

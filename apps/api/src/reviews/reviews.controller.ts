@@ -5,6 +5,7 @@ import {
   Get,
   Param,
   ParseIntPipe,
+  Patch,
   Post,
   UseGuards,
 } from '@nestjs/common';
@@ -22,6 +23,7 @@ import {
   CreateReviewDto,
   FeaturedReviewDto,
   ReportReviewDto,
+  UpdateReviewDto,
 } from './dto/review.dto';
 
 @Controller('reviews')
@@ -36,6 +38,22 @@ export class ReviewsController {
   ) {
     const mediaType = type === 'tv' ? MediaType.TV : MediaType.MOVIE;
     return this.reviews.listForWork(tmdbId, mediaType);
+  }
+
+  @Patch(':id')
+  @UseGuards(JwtAuthGuard)
+  update(
+    @CurrentUser() user: JwtUser,
+    @Param('id') id: string,
+    @Body() body: UpdateReviewDto,
+  ) {
+    return this.reviews.updateReview(
+      user.sub,
+      id,
+      body.rating,
+      body.body?.trim() ?? '',
+      body.spoiler ?? false,
+    );
   }
 
   @Post()

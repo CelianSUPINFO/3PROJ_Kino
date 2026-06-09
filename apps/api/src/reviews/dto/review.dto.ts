@@ -22,6 +22,21 @@ export class CreateReviewDto {
   spoiler?: boolean;
 }
 
+export class UpdateReviewDto {
+  @IsInt()
+  @Min(1)
+  @Max(5)
+  rating!: number;
+
+  @IsString()
+  @Length(0, 4000)
+  body!: string;
+
+  @IsOptional()
+  @IsBoolean()
+  spoiler?: boolean;
+}
+
 export class CreateCommentDto {
   @IsString()
   @Length(1, 1200)

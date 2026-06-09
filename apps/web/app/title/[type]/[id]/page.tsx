@@ -217,11 +217,10 @@ export default function TitlePage() {
     setSaving(true);
     setMsg(null);
     try {
-      await apiFetch("/reviews", {
-        method: "POST",
+      await apiFetch(myExistingReview ? `/reviews/${myExistingReview.id}` : "/reviews", {
+        method: myExistingReview ? "PATCH" : "POST",
         body: JSON.stringify({
-          tmdbId,
-          mediaType,
+          ...(myExistingReview ? {} : { tmdbId, mediaType }),
           rating: myRating,
           body: myBody,
           spoiler: mySpoiler,

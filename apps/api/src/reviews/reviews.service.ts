@@ -77,6 +77,22 @@ export class ReviewsService {
     return { ok: true };
   }
 
+  async updateReview(
+    userId: string,
+    reviewId: string,
+    rating: number,
+    body: string,
+    spoiler: boolean,
+  ) {
+    const review = await this.prisma.review.findUnique({ where: { id: reviewId } });
+    if (!review) throw new NotFoundException();
+    if (review.userId !== userId) throw new ForbiddenException();
+    return this.prisma.review.update({
+      where: { id: reviewId },
+      data: { rating, body, spoiler },
+    });
+  }
+
   async toggleLike(userId: string, reviewId: string) {
     const existing = await this.prisma.reviewLike.findUnique({
       where: { reviewId_userId: { reviewId, userId } },

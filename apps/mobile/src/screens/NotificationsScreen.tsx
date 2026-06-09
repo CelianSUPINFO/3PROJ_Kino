@@ -11,7 +11,7 @@ type Notif = {
   type: string;
   read: boolean;
   createdAt: string;
-  payload?: { followerId?: string; senderId?: string; tmdbId?: number; mediaType?: "MOVIE" | "TV"; reviewId?: string };
+  payload?: { followerId?: string; senderId?: string; tmdbId?: number; mediaType?: "MOVIE" | "TV"; reviewId?: string; message?: string; title?: string };
 };
 
 export function NotificationsScreen({ navigation }: { navigation: any }) {
@@ -52,8 +52,12 @@ export function NotificationsScreen({ navigation }: { navigation: any }) {
         id: item.payload.tmdbId,
         title: "",
       });
-    } else if (item.type === "RECOMMENDATION") {
-      navigation.navigate("Tonight");
+    } else if (item.type === "RECOMMENDATION" && item.payload?.tmdbId) {
+      navigation.navigate("Title", {
+        type: item.payload.mediaType === "TV" ? "tv" : "movie",
+        id: item.payload.tmdbId,
+        title: item.payload.title ?? "",
+      });
     }
   }
 
@@ -104,7 +108,8 @@ export function NotificationsScreen({ navigation }: { navigation: any }) {
                 fontWeight: "600",
               }}
             >
-              {notificationLabel(locale, item.type) ??
+              {item.payload?.message ??
+                notificationLabel(locale, item.type) ??
                 item.type.toLowerCase().replace(/_/g, " ")}
             </Text>
             <Text style={[s.sub, { fontSize: 11 }]}>

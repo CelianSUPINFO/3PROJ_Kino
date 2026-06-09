@@ -47,16 +47,19 @@ export class NotificationsService {
       void this.sendExpoPush(userId, type, payload);
     }
     if (user.notifyEmail) {
-      void this.sendEmail(user.email, type);
+      void this.sendEmail(user.email, type, payload);
     }
     return notification;
   }
 
-  private async sendEmail(email: string, type: string) {
+  private async sendEmail(email: string, type: string, payload: NotificationPayload) {
     const apiKey = this.config.get<string>('RESEND_API_KEY');
     if (!apiKey) return;
     const frontend = this.config.get<string>('FRONTEND_URL', 'http://localhost:3001');
-    const subject = labels[type] ?? 'Vous avez une nouvelle notification Kino.';
+    const subject =
+      (typeof payload.message === 'string' && payload.message) ||
+      labels[type] ||
+      'Vous avez une nouvelle notification Kino.';
     try {
       const response = await fetch('https://api.resend.com/emails', {
         method: 'POST',
@@ -114,7 +117,10 @@ export class NotificationsService {
           to: token,
           sound: 'default',
           title: 'Kino',
-          body: labels[type] ?? 'Vous avez une nouvelle notification.',
+          body:
+            (typeof payload.message === 'string' && payload.message) ||
+            labels[type] ||
+            'Vous avez une nouvelle notification.',
           data: { type, ...payload },
         })),
         { headers: { 'Content-Type': 'application/json' }, timeout: 10000 },
