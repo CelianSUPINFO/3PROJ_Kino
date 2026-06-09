@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { useLocale } from "../../components/AppProviders";
@@ -28,7 +28,7 @@ export default function ListPage() {
   const [addType, setAddType] = useState<"movie" | "tv">("movie");
   const [results, setResults] = useState<{ id: number; title?: string; name?: string }[]>([]);
 
-  async function load() {
+  const load = useCallback(async () => {
     if (!params?.id) return;
     try {
       const data = await apiFetch<Omit<ListDetail, "items"> & { items: ApiListItem[] }>(`/library/lists/${params.id}`);
@@ -47,12 +47,12 @@ export default function ListPage() {
     } catch {
       setErr(t("list.notFound"));
     }
-  }
+  }, [locale, params?.id, t]);
 
   useEffect(() => {
     void load();
     apiFetch<{ id: string }>("/users/me").then((me) => setMeId(me.id)).catch(() => setMeId(null));
-  }, [locale, params?.id]);
+  }, [load]);
 
   useEffect(() => {
     if (!list || meId !== list.userId || addQ.trim().length < 2) {

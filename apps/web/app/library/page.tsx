@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { useLocale } from "../components/AppProviders";
 import { MediaCarousel } from "../components/MediaCarousel";
@@ -83,7 +83,7 @@ export default function LibraryPage() {
   const [addResults, setAddResults] = useState<{ id: number; title?: string }[]>([]);
   const [addType, setAddType] = useState<"movie" | "tv">("movie");
 
-  async function loadData() {
+  const loadData = useCallback(async () => {
     apiFetch<StatusRow[]>("/library/me")
       .then(setRows)
       .catch(() => setErr(t("library.signIn")));
@@ -93,11 +93,11 @@ export default function LibraryPage() {
     apiFetch<ListRow[]>("/library/lists/mine")
       .then(setLists)
       .catch(() => setLists([]));
-  }
+  }, [t]);
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [loadData]);
 
   useEffect(() => {
     if (!addTargetId || addQ.trim().length < 2) {

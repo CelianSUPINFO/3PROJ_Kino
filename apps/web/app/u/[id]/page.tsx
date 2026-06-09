@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { discoverPublicListsForUser } from "@/lib/publicDiscovery";
@@ -76,19 +76,21 @@ export default function UserPage() {
     { id: number; title?: string; name?: string; poster_path?: string; media_type?: string }[]
   >([]);
 
-  async function loadProfile() {
-    if (!params?.id) return;
+  const profileId = params?.id;
+
+  const loadProfile = useCallback(async () => {
+    if (!profileId) return;
     setLoading(true);
     setError(null);
     try {
       const [profile, followerRows, followingRows, reviewRows, me] = await Promise.all([
-        apiFetch<Profile>(`/users/${params.id}`),
-        apiFetch<PublicUser[]>(`/users/${params.id}/followers`, { auth: false }),
-        apiFetch<PublicUser[]>(`/users/${params.id}/following`, { auth: false }),
-        apiFetch<ProfileReview[]>(`/users/${params.id}/reviews`, { auth: false }),
+        apiFetch<Profile>(`/users/${profileId}`),
+        apiFetch<PublicUser[]>(`/users/${profileId}/followers`, { auth: false }),
+        apiFetch<PublicUser[]>(`/users/${profileId}/following`, { auth: false }),
+        apiFetch<ProfileReview[]>(`/users/${profileId}/reviews`, { auth: false }),
         apiFetch<{ id: string }>("/users/me").catch(() => null),
       ]);
-      const listRows = profile.lists ?? await apiFetch<ProfileList[]>(`/users/${params.id}/lists`).catch(() =>
+      const listRows = profile.lists ?? await apiFetch<ProfileList[]>(`/users/${profileId}/lists`).catch(() =>
         me?.id === profile.id
           ? apiFetch<ProfileList[]>("/library/lists/mine").catch(() => [])
           : discoverPublicListsForUser(profile.id),
@@ -106,11 +108,11 @@ export default function UserPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [profileId, t]);
 
   useEffect(() => {
     loadProfile();
-  }, [params]);
+  }, [loadProfile]);
 
   useEffect(() => {
     if (!pickQ.trim() || pickQ.length < 2) {

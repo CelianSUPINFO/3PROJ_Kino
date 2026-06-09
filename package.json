@@ -12,7 +12,9 @@
     "build:api": "npm run build -w api",
     "build:web": "npm run build -w web",
     "typecheck:mobile": "npx tsc --noEmit -p apps/mobile/tsconfig.json",
-    "verify": "npm run build:api && npm run build:web && npm run typecheck:mobile && npm run test:e2e -w api -- --runInBand"
+    "test:web": "npm run test -w web",
+    "test:mobile": "npm run test --prefix apps/mobile",
+    "verify": "npm run build:api && npm run build:web && npm run typecheck:mobile && npm run test:web && npm run test:mobile && npm run test:e2e -w api -- --runInBand"
   },
   "devDependencies": {
     "@nestjs/common": "^11.1.26",

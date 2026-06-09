@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { useLocale } from "../components/AppProviders";
 import { Chip } from "../components/Chip";
@@ -43,7 +43,7 @@ export default function CeSoirPage() {
     recommendationRefreshAt: string;
   } | null>(null);
 
-  async function loadPicks() {
+  const loadPicks = useCallback(async () => {
     setLoading(true);
     return apiFetch<TonightPayload>(`/reco/tonight?type=${type}&limit=20`, { auth: true })
       .then((r) => {
@@ -53,7 +53,7 @@ export default function CeSoirPage() {
       })
       .catch(() => setMsg(t("tonight.signInSwipe")))
       .finally(() => setLoading(false));
-  }
+  }, [t, type]);
 
   useEffect(() => {
     loadPicks();
@@ -73,7 +73,7 @@ export default function CeSoirPage() {
         ),
       )
       .catch(() => setEngagement(null));
-  }, [type]);
+  }, [loadPicks]);
 
   const current = items[idx];
   const next = items[idx + 1];
