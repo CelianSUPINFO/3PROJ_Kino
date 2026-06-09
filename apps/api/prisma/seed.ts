@@ -7,10 +7,13 @@ import {
   WatchStatus,
 } from '@prisma/client';
 import { hash } from 'bcryptjs';
+import { randomBytes } from 'crypto';
 
 const prisma = new PrismaClient();
-const password = 'KinoDemo2026!';
-const adminPassword = 'KinoAdmin2026!';
+
+function randomPassword() {
+  return `${randomBytes(24).toString('base64url')}Aa1`;
+}
 
 const people = [
   {
@@ -179,8 +182,9 @@ async function clearDemoData(demoIds: string[]) {
 }
 
 async function main() {
-  const demoHash = await hash(password, 12);
-  const adminHash = await hash(adminPassword, 12);
+  const passwordHashes = await Promise.all(
+    people.map(() => hash(randomPassword(), 12)),
+  );
   const now = Date.now();
   const users = [];
 
@@ -199,7 +203,7 @@ async function main() {
           bio: person.bio,
           website: 'website' in person ? person.website : null,
           favoriteFilms,
-          passwordHash: person.role === Role.ADMIN ? adminHash : demoHash,
+          passwordHash: passwordHashes[index],
           emailVerifiedAt: new Date(),
           lastSeenAt: new Date(now - index * 18 * 60 * 1000),
         },
@@ -210,7 +214,7 @@ async function main() {
           bio: person.bio,
           website: 'website' in person ? person.website : null,
           favoriteFilms,
-          passwordHash: person.role === Role.ADMIN ? adminHash : demoHash,
+          passwordHash: passwordHashes[index],
           locale: index % 4 === 0 ? 'en' : 'fr',
           theme: index % 3 === 0 ? 'light' : 'dark',
           emailVerifiedAt: new Date(),
@@ -497,8 +501,7 @@ async function main() {
   console.log(
     `Seed completed: ${users.length} accounts, ${reviews.length} reviews, ${lists.length} lists, ${conversationPairs.length} conversations.`,
   );
-  console.log('Admin: admin@kino-demo.fr / KinoAdmin2026!');
-  console.log('Demo users password: KinoDemo2026!');
+  console.log('Demo account passwords were randomly rotated and were not printed.');
 }
 
 main()
