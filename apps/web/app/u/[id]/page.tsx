@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { apiFetch } from "@/lib/api";
+import { discoverPublicListsForUser } from "@/lib/publicDiscovery";
 import { useLocale } from "../../components/AppProviders";
 import { UserAvatar } from "../../components/UserAvatar";
 
@@ -90,7 +91,7 @@ export default function UserPage() {
       const listRows = profile.lists ?? await apiFetch<ProfileList[]>(`/users/${params.id}/lists`).catch(() =>
         me?.id === profile.id
           ? apiFetch<ProfileList[]>("/library/lists/mine").catch(() => [])
-          : [],
+          : discoverPublicListsForUser(profile.id),
       );
       setP(profile);
       setDraft(profile);

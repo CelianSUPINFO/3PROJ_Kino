@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { apiFetch } from "@/lib/api";
+import { discoverAllUsers } from "@/lib/publicDiscovery";
 import { useLocale } from "../components/AppProviders";
 import { Chip } from "../components/Chip";
 import { PosterCard, type PosterCardData } from "../components/PosterCard";
@@ -82,11 +83,14 @@ export default function SearchPage() {
   useEffect(() => {
     if (!q.trim() && !creator.trim() && (type === "users" || type === "lists")) {
       setLoading(true);
-      apiFetch<Unified>("/search?q=", { auth: false })
-        .then((result) => {
+      Promise.all([
+        apiFetch<Unified>("/search?q=", { auth: false }),
+        type === "users" ? discoverAllUsers() : Promise.resolve(null),
+      ])
+        .then(([result, discoveredUsers]) => {
           setData({
             ...result,
-            users: type === "lists" ? [] : result.users,
+            users: type === "lists" ? [] : discoveredUsers ?? result.users,
             lists: type === "users" ? [] : result.lists,
           });
           setWorks([]);

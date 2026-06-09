@@ -11,6 +11,7 @@ import {
   View,
 } from "react-native";
 import { apiFetch } from "../api";
+import { discoverAllUsers } from "../lib/publicDiscovery";
 import { PosterCard, type PosterItem } from "../components/PosterCard";
 import { UserAvatar } from "../components/UserAvatar";
 import { useThemeColors } from "../context/ThemeContext";
@@ -62,7 +63,9 @@ export function SearchScreen({ navigation }: Props) {
               ? Promise.resolve({ results: [], total_pages: 1 })
               : apiFetch<{ results: PosterItem[]; total_pages: number }>(`/media/search?q=${encodeURIComponent(q)}&page=${targetPage}${year ? `&year=${year}` : ""}${type === "movie" || type === "tv" ? `&type=${type}` : ""}${creator.trim() ? `&creator=${encodeURIComponent(creator.trim())}` : ""}`, { auth: false }),
           ]);
-          setUsers(type === "lists" ? [] : data.users ?? []);
+          const discoveredUsers =
+            type === "users" && !q.trim() ? await discoverAllUsers() : null;
+          setUsers(type === "lists" ? [] : discoveredUsers ?? data.users ?? []);
           setLists(type === "users" ? [] : data.lists ?? []);
           const works = media.results ?? [];
           setResults((prev) => (append ? [...prev, ...works] : works));

@@ -14,6 +14,7 @@ import {
   View,
 } from "react-native";
 import { apiFetch } from "../api";
+import { discoverPublicListsForUser } from "../lib/publicDiscovery";
 import { UserAvatar } from "../components/UserAvatar";
 import { useLocale } from "../context/LocaleContext";
 import { useThemeColors } from "../context/ThemeContext";
@@ -102,7 +103,7 @@ export function ProfileScreen({ route, navigation }: Props) {
       const listRows = p.lists ?? await apiFetch<ProfileList[]>(`/users/${userId}/lists`).catch(() =>
         me?.id === p.id
           ? apiFetch<ProfileList[]>("/library/lists/mine").catch(() => [])
-          : [],
+          : discoverPublicListsForUser(p.id),
       );
       setProfile(p);
       setDraft(p);
