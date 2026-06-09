@@ -6,6 +6,7 @@ import { useLocale } from "../context/LocaleContext";
 import { useThemeColors } from "../context/ThemeContext";
 import { notificationLabel } from "../lib/i18n";
 import { spacing } from "../theme";
+import { notifyNotificationsChanged } from "../notificationEvents";
 type Notif = {
   id: string;
   type: string;
@@ -35,6 +36,7 @@ export function NotificationsScreen({ navigation }: { navigation: any }) {
     setItems((prev) =>
       prev.map((n) => (n.id === id ? { ...n, read: true } : n)),
     );
+    notifyNotificationsChanged();
   }
 
   async function openNotification(item: Notif) {
@@ -64,6 +66,7 @@ export function NotificationsScreen({ navigation }: { navigation: any }) {
   async function readAll() {
     await apiFetch("/notifications/read-all", { method: "PATCH" });
     setItems((prev) => prev.map((n) => ({ ...n, read: true })));
+    notifyNotificationsChanged();
   }
 
   useEffect(() => {

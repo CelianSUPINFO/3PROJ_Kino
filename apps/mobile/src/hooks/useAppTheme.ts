@@ -6,12 +6,15 @@ const THEME_KEY = "kino_theme";
 
 export const lightColors = {
   ink: "#f8f5fa",
+  surface: "#f2ecf4",
   panel: "#ffffff",
+  panelSoft: "rgba(0,0,0,0.035)",
   text: "#1a1020",
   muted: "#6b5f75",
-  border: "rgba(0,0,0,0.1)",
+  border: "rgba(0,0,0,0.22)",
   kino: "#ff2e7e",
   kinoHot: "#c21263",
+  kinoDark: "#a90f54",
   gold: "#c9a227",
 };
 

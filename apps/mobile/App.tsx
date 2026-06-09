@@ -15,6 +15,7 @@ import {
 } from "./src/context/ThemeContext";
 import type { RootStackParamList } from "./src/navigation/types";
 import { registerPushNotifications } from "./src/pushNotifications";
+import { subscribeNotificationsChanged } from "./src/notificationEvents";
 import { AdminScreen } from "./src/screens/AdminScreen";
 import { LoginScreen } from "./src/screens/LoginScreen";
 import { RegisterScreen } from "./src/screens/RegisterScreen";
@@ -150,9 +151,11 @@ function useUnreadNotifications() {
         });
     load();
     const timer = setInterval(load, 15000);
+    const unsubscribe = subscribeNotificationsChanged(load);
     return () => {
       cancelled = true;
       clearInterval(timer);
+      unsubscribe();
     };
   }, []);
   return unread;

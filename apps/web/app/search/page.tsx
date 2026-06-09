@@ -7,7 +7,6 @@ import { discoverAllUsers } from "@/lib/publicDiscovery";
 import { useLocale } from "../components/AppProviders";
 import { Chip } from "../components/Chip";
 import { PosterCard, type PosterCardData } from "../components/PosterCard";
-import { ScrollToTop } from "../components/ScrollToTop";
 import { Skeleton } from "../components/Skeleton";
 import { UserAvatar } from "../components/UserAvatar";
 
@@ -198,6 +197,8 @@ export default function SearchPage() {
   }, [loading, page, totalPages, loadMore]);
 
   const hasResults = works.length > 0 || (data?.users.length ?? 0) > 0 || (data?.lists.length ?? 0) > 0;
+  const movieResults = works.filter((work) => work.media_type !== "tv");
+  const tvResults = works.filter((work) => work.media_type === "tv");
 
   return (
     <div className="space-y-8">
@@ -302,7 +303,24 @@ export default function SearchPage() {
         <p className="text-sm text-kino-muted">{t("search.noResults")}</p>
       )}
 
-      {works.length > 0 && (
+      {type === "all" && (works.length > 0 || (data?.users.length ?? 0) > 0) && (
+        <div className="space-y-10">
+          <SearchWorkSection title={t("nav.movies")} items={movieResults.slice(0, 5)} type="movie" seeAll={() => setType("movie")} />
+          <SearchWorkSection title={t("nav.series")} items={tvResults.slice(0, 5)} type="tv" seeAll={() => setType("tv")} />
+          {data && data.users.length > 0 && (
+            <section className="space-y-3">
+              <SectionHeading title={t("search.users")} onClick={() => setType("users")} />
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {data.users.filter((user) => user.id !== meId).slice(0, 5).map((user) => (
+                  <UserResult key={user.id} user={user} followed={followed[user.id]} canFollow={!!meId} onFollow={() => void follow(user.id)} />
+                ))}
+              </div>
+            </section>
+          )}
+        </div>
+      )}
+
+      {type !== "all" && type !== "users" && type !== "lists" && works.length > 0 && (
         <section className="space-y-3">
           <h2 className="text-display text-xl font-semibold text-white">{t("search.titles")}</h2>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
@@ -323,55 +341,43 @@ export default function SearchPage() {
         </section>
       )}
 
-      {data && (data.users.length > 0 || data.lists.length > 0) && (
-        <section className="grid gap-6 md:grid-cols-2">
-          {data.users.length > 0 && (
-            <div className="glass rounded-2xl p-5">
-              <h2 className="text-display mb-3 text-xl font-semibold text-white">{t("search.users")}</h2>
-              <ul className="space-y-2">
-                {data.users.map((u) => (
-                  <li key={u.id} className="flex items-center gap-2 rounded-xl border border-white/5 bg-white/[0.02] p-1">
-                    <Link
-                      href={`/u/${u.id}`}
-                      className="flex min-w-0 flex-1 items-center gap-2 truncate rounded-lg px-3 py-2 text-white transition hover:bg-white/5"
-                    >
-                      <UserAvatar name={u.displayName} avatarUrl={u.avatarUrl} className="h-7 w-7 text-[10px]" />
-                      <span className="truncate">{u.displayName}</span>
-                    </Link>
-                    {meId && meId !== u.id && (
-                      <button type="button" className="chip shrink-0" disabled={followed[u.id]} onClick={() => void follow(u.id)}>
-                        {followed[u.id] ? "Suivi" : "Suivre"}
-                      </button>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-          {data.lists.length > 0 && (
-            <div className="glass rounded-2xl p-5">
-              <h2 className="text-display mb-3 text-xl font-semibold text-white">
-                {t("search.publicLists")}
-              </h2>
-              <ul className="space-y-2">
-                {data.lists.map((l) => (
-                  <li key={l.id}>
-                    <Link
-                      href={`/list/${l.id}`}
-                      className="block rounded-xl border border-white/5 bg-white/[0.02] px-3 py-2 text-white transition hover:border-kino/40 hover:bg-white/5"
-                    >
-                      {l.name}{" "}
-                      <span className="text-kino-muted">· {l.user.displayName}</span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+      {type === "users" && data && data.users.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="text-display text-xl font-semibold text-white">{t("search.users")}</h2>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {data.users.filter((user) => user.id !== meId).map((user) => (
+              <UserResult key={user.id} user={user} followed={followed[user.id]} canFollow={!!meId} onFollow={() => void follow(user.id)} />
+            ))}
+          </div>
         </section>
       )}
 
-      <ScrollToTop />
+      {type === "lists" && data && data.lists.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="text-display text-xl font-semibold text-white">{t("search.publicLists")}</h2>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {data.lists.map((list) => (
+              <Link key={list.id} href={`/list/${list.id}`} className="rounded-xl border border-white/10 px-4 py-3 text-white transition hover:border-kino/50">
+                <span className="font-semibold">{list.name}</span>
+                <span className="block text-sm text-kino-muted">· {list.user.displayName}</span>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
+}
+
+function SectionHeading({ title, onClick }: { title: string; onClick: () => void }) {
+  return <div className="flex items-center justify-between gap-4"><h2 className="text-display text-xl font-semibold text-white">{title}</h2><button type="button" className="text-sm font-semibold text-kino-hot hover:text-kino" onClick={onClick}>Voir tout →</button></div>;
+}
+
+function SearchWorkSection({ title, items, type, seeAll }: { title: string; items: PosterCardData[]; type: "movie" | "tv"; seeAll: () => void }) {
+  if (items.length === 0) return null;
+  return <section className="space-y-3"><SectionHeading title={title} onClick={seeAll} /><div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-5">{items.map((item, index) => <PosterCard key={`${type}-${item.id}`} item={item} type={type} width={0} index={index} className="w-full" />)}</div></section>;
+}
+
+function UserResult({ user, followed, canFollow, onFollow }: { user: Unified["users"][number]; followed?: boolean; canFollow: boolean; onFollow: () => void }) {
+  return <div className="flex items-center gap-3 rounded-xl border border-white/10 px-3 py-2"><Link href={`/u/${user.id}`} className="flex min-w-0 flex-1 items-center gap-3 text-white"><UserAvatar name={user.displayName} avatarUrl={user.avatarUrl} className="h-9 w-9 text-[10px]" /><span className="truncate font-semibold">{user.displayName}</span></Link>{canFollow && <button type="button" className="chip shrink-0" disabled={followed} onClick={onFollow}>{followed ? "Suivi" : "Suivre"}</button>}</div>;
 }

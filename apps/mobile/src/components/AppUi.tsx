@@ -1,11 +1,13 @@
 import React from "react";
 import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { colors, radius, spacing, typography } from "../theme";
+import { useThemeColors } from "../context/ThemeContext";
 export function Logo() {
+  const { colors: c } = useThemeColors();
   return (
     <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
       <Image source={require("../../assets/icon.png")} style={logoStyles.square} />
-      <Text style={logoStyles.word}>kino</Text>
+      <Text style={[logoStyles.word, { color: c.text }]}>kino</Text>
     </View>
   );
 }
@@ -25,11 +27,13 @@ const logoStyles = StyleSheet.create({
 });
 
 export function Eyebrow({ children }: { children: string }) {
-  return <Text style={s.eyebrow}>{children}</Text>;
+  const { colors: c } = useThemeColors();
+  return <Text style={[s.eyebrow, { color: c.kinoHot }]}>{children}</Text>;
 }
 
 export function H1({ children }: { children: string }) {
-  return <Text style={s.h1}>{children}</Text>;
+  const { colors: c } = useThemeColors();
+  return <Text style={[s.h1, { color: c.text }]}>{children}</Text>;
 }
 
 export function Chip({
@@ -104,13 +108,14 @@ export function Section({
   action?: { label: string; onPress: () => void };
   children: React.ReactNode;
 }) {
+  const { colors: c } = useThemeColors();
   return (
     <View style={{ marginBottom: spacing.xl }}>
       <View style={s.sectionHeader}>
-        <Text style={s.sectionTitle}>{title}</Text>
+        <Text style={[s.sectionTitle, { color: c.text }]}>{title}</Text>
         {action && (
           <TouchableOpacity onPress={action.onPress}>
-            <Text style={s.sectionAction}>{action.label} →</Text>
+            <Text style={[s.sectionAction, { color: c.kinoHot }]}>{action.label} →</Text>
           </TouchableOpacity>
         )}
       </View>

@@ -8,7 +8,7 @@ import { useLocale } from "../context/LocaleContext";
 import { useThemeColors } from "../context/ThemeContext";
 import { categoryLabel } from "../lib/i18n";
 import type { RootStackParamList } from "../navigation/types";
-import { colors, spacing } from "../theme";
+import { spacing } from "../theme";
 type SearchResult = PosterItem & { overview?: string };
 type HomePayload = {
   trending?: { movies: SearchResult[]; tv: SearchResult[] };
@@ -125,20 +125,20 @@ export function HomeScreen({
                 style={[s.iconBtn, s.adminIconBtn]}
                 accessibilityLabel={t("nav.admin")}
               >
-                <Text style={{ color: colors.kinoHot, fontSize: 16, fontWeight: "800" }}>A</Text>
+                <Text style={{ color: c.kinoHot, fontSize: 16, fontWeight: "800" }}>A</Text>
               </TouchableOpacity>
             )}
             <TouchableOpacity
               onPress={() => navigation.navigate("Menu")}
               style={s.iconBtn}
             >
-              <Text style={{ color: colors.text, fontSize: 18, fontWeight: "700" }}>☰</Text>
+              <Text style={{ color: c.text, fontSize: 18, fontWeight: "700" }}>☰</Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => navigation.navigate("Search")}
               style={s.iconBtn}
             >
-              <Text style={{ color: colors.text, fontSize: 16 }}>⌕</Text>
+              <Text style={{ color: c.text, fontSize: 16 }}>⌕</Text>
             </TouchableOpacity>
             {authed && meNav ? (
               <TouchableOpacity
@@ -165,7 +165,7 @@ export function HomeScreen({
                 onPress={() => navigation.navigate("Login")}
                 style={s.iconBtn}
               >
-                <Text style={{ color: colors.text, fontSize: 16 }}>→</Text>
+                <Text style={{ color: c.text, fontSize: 16 }}>→</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -233,7 +233,7 @@ export function HomeScreen({
             )}
           </TouchableOpacity>
         ) : (
-          <View style={[s.hero, { backgroundColor: colors.panel }]} />
+          <View style={[s.hero, { backgroundColor: c.panel, borderColor: c.border }]} />
         )}
 
         {engagement && (
@@ -243,7 +243,7 @@ export function HomeScreen({
               <Text style={s.engLabel}>{t("engagement.streak")}</Text>
               <Text style={s.engDescription}>{t("engagement.streakDescription")}</Text>
             </View>
-            <View style={[s.engBadge, { backgroundColor: colors.kino }]}>
+            <View style={[s.engBadge, { backgroundColor: c.kino }]}>
               <Text style={s.engValue}>
                 {engagement.weekly.reviews}/{engagement.weekly.targetReviews}
               </Text>
@@ -335,7 +335,7 @@ export function HomeScreen({
 
         {home?.latestRatings && home.latestRatings.length > 0 && (
           <Section title={t("home.latestRatings")}>
-            <View style={s.card}>
+            <View style={[s.card, { backgroundColor: c.panel, borderColor: c.border }]}>
               {home.latestRatings.slice(0, 5).map((r) => (
                 <Pressable key={r.id} style={s.ratingRow} onPress={() => navigation.navigate("Profile", { userId: r.user.id })}>
                   {r.user.avatarUrl ? (
@@ -347,10 +347,10 @@ export function HomeScreen({
                       </Text>
                     </View>
                   )}
-                  <Text style={{ color: colors.text, flex: 1 }} numberOfLines={2}>
+                  <Text style={{ color: c.text, flex: 1 }} numberOfLines={2}>
                     {r.user.displayName}
                     {" · "}
-                    <Text style={{ color: colors.kinoHot }}>{r.title}</Text>
+                    <Text style={{ color: c.kinoHot }}>{r.title}</Text>
                     {" · ★ "}
                     {r.rating}/5
                   </Text>

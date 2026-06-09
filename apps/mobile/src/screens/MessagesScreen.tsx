@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Alert, FlatList, SafeAreaView, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Alert, FlatList, KeyboardAvoidingView, Platform, SafeAreaView, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { io, Socket } from "socket.io-client";
 import { apiFetch, getAccessToken, getApiRoot } from "../api";
 import { Chip, Eyebrow, H1, s } from "../components/AppUi";
@@ -148,6 +148,11 @@ export function MessagesScreen({ route }: { route: { params?: { userId?: string 
 
   return (
     <SafeAreaView style={s.screen}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 88 : 0}
+      >
       <View style={{ padding: spacing.lg, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
         <View><Eyebrow>{t("messages.title").toUpperCase()}</Eyebrow><H1>{t("messages.title")}</H1></View>
         <TouchableOpacity accessibilityRole="button" accessibilityLabel={locale === "fr" ? "Nouvelle discussion" : "New conversation"} onPress={openChooser} style={s.btnPrimary}>
@@ -167,6 +172,8 @@ export function MessagesScreen({ route }: { route: { params?: { userId?: string 
       )}
       {msg && <Text style={[s.err, { marginLeft: spacing.lg }]}>{msg}</Text>}
       <FlatList
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{
@@ -231,14 +238,17 @@ export function MessagesScreen({ route }: { route: { params?: { userId?: string 
         <TextInput
           placeholder={t("messages.placeholder")}
           placeholderTextColor={c.muted}
-          style={[s.input, { flex: 1, marginBottom: 0 }]}
           value={body}
           onChangeText={updateBody}
+          multiline
+          maxLength={1000}
+          style={[s.input, { flex: 1, marginBottom: 0, maxHeight: 110, color: c.text, backgroundColor: c.panel, borderColor: c.border }]}
         />
         <TouchableOpacity accessibilityRole="button" accessibilityLabel={t("common.send")} onPress={send} style={s.btnPrimary}>
           <Text style={s.btnPrimaryText}>{t("common.send")}</Text>
         </TouchableOpacity>
       </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
