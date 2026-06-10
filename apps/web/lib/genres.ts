@@ -32,3 +32,20 @@ export function browseHref(type: "movie" | "tv", genreId?: string) {
   const base = `/browse/${type}`;
   return genreId ? `${base}?genre=${genreId}` : base;
 }
+
+const ALL_GENRE_ENTRIES = [...MOVIE_GENRES, ...TV_GENRES];
+
+export function genreSlugFromId(id: string) {
+  if (!id) return "all";
+  return ALL_GENRE_ENTRIES.find((genre) => genre.id === id)?.slug ?? "all";
+}
+
+export function genreIdForMedia(slug: string, media: "movie" | "tv") {
+  if (!slug || slug === "all") return "";
+  const list = media === "tv" ? TV_GENRES : MOVIE_GENRES;
+  return list.find((genre) => genre.slug === slug)?.id ?? "";
+}
+
+export function genreChipList(type: "all" | "movie" | "tv") {
+  return type === "tv" ? TV_GENRES : MOVIE_GENRES;
+}

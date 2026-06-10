@@ -241,6 +241,8 @@ const fr = {
   "review.hideSpoiler": "Masquer le spoiler",
   "title.kinoAverage": "Note Kino",
   "title.noKinoRatings": "Pas encore de note Kino.",
+  "title.removeStatus": "Retirer de ma bibliothèque",
+  "title.statusRemoved": "Œuvre retirée de votre bibliothèque.",
   "tonight.title": "Ce soir ?",
 } as const;
 
@@ -485,6 +487,8 @@ const en: Record<keyof typeof fr, string> = {
   "review.hideSpoiler": "Hide spoiler",
   "title.kinoAverage": "Kino rating",
   "title.noKinoRatings": "No Kino ratings yet.",
+  "title.removeStatus": "Remove from my library",
+  "title.statusRemoved": "Removed from your library.",
   "tonight.title": "Tonight?",
 };
 

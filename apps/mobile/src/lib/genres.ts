@@ -27,3 +27,20 @@ export const TV_GENRES = [
   { id: "10762", slug: "fantasy" },
   { id: "27", slug: "horror" },
 ] as const;
+
+const ALL_GENRE_ENTRIES = [...MOVIE_GENRES, ...TV_GENRES];
+
+export function genreSlugFromId(id: string) {
+  if (!id) return "all";
+  return ALL_GENRE_ENTRIES.find((genre) => genre.id === id)?.slug ?? "all";
+}
+
+export function genreIdForMedia(slug: string, media: "movie" | "tv") {
+  if (!slug || slug === "all") return "";
+  const list = media === "tv" ? TV_GENRES : MOVIE_GENRES;
+  return list.find((genre) => genre.slug === slug)?.id ?? "";
+}
+
+export function genreChipList(type: "all" | "movie" | "tv") {
+  return type === "tv" ? TV_GENRES : MOVIE_GENRES;
+}

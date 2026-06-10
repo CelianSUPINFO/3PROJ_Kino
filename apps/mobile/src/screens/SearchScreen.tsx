@@ -15,7 +15,7 @@ import { PosterCard, type PosterItem } from "../components/PosterCard";
 import { UserAvatar } from "../components/UserAvatar";
 import { useLocale } from "../context/LocaleContext";
 import { useThemeColors } from "../context/ThemeContext";
-import { MOVIE_GENRES, TV_GENRES } from "../lib/genres";
+import { genreChipList, genreIdForMedia, genreSlugFromId } from "../lib/genres";
 import { genreLabel } from "../lib/i18n";
 import { discoverAllUsers } from "../lib/publicDiscovery";
 import type { RootStackParamList } from "../navigation/types";
@@ -52,7 +52,62 @@ export function SearchScreen({ navigation }: Props) {
   const [meId, setMeId] = useState<string | null>(null);
   const [followed, setFollowed] = useState<Record<string, boolean>>({});
   const language = locale === "en" ? "en-US" : "fr-FR";
-  const genres = type === "tv" ? TV_GENRES : MOVIE_GENRES;
+  const genres = genreChipList(type === "tv" ? "tv" : "movie");
+
+  async function fetchWorks(targetPage: number, requestedType: SearchType) {
+    if (requestedType === "users" || requestedType === "lists") {
+      return { results: [] as PosterItem[], total_pages: 1 };
+    }
+
+    const slug = genreSlugFromId(genre);
+    const hasGenre = slug !== "all";
+    const filters = `${year ? `&year=${year}` : ""}${minVote ? `&minVote=${minVote}` : ""}&language=${language}`;
+
+    const searchMedia = async (media: "movie" | "tv") => {
+      const mappedGenre = genreIdForMedia(slug, media);
+      return apiFetch<{ results: PosterItem[]; total_pages: number }>(
+        `/media/search?q=${encodeURIComponent(q)}&page=${targetPage}&type=${media}${mappedGenre ? `&genre=${mappedGenre}` : ""}${filters}${creator.trim() ? `&creator=${encodeURIComponent(creator.trim())}` : ""}`,
+        { auth: false },
+      );
+    };
+
+    const discoverMedia = async (media: "movie" | "tv") => {
+      const mappedGenre = genreIdForMedia(slug, media);
+      return apiFetch<{ results: PosterItem[]; total_pages: number }>(
+        `/media/discover/${media}?page=${targetPage}&sort=${encodeURIComponent(sort === "relevance" ? "popularity.desc" : sort)}${year ? `&year=${year}` : ""}${mappedGenre ? `&genre=${mappedGenre}` : ""}${minVote ? `&minVote=${minVote}` : ""}&language=${language}`,
+        { auth: false },
+      );
+    };
+
+    const pickMedia = (media: "movie" | "tv") =>
+      !q.trim() && !creator.trim() && sort !== "relevance"
+        ? discoverMedia(media)
+        : searchMedia(media);
+
+    if (requestedType === "all" && hasGenre) {
+      const [movies, series] = await Promise.all([pickMedia("movie"), pickMedia("tv")]);
+      return {
+        results: [...(movies.results ?? []), ...(series.results ?? [])],
+        total_pages: Math.max(movies.total_pages ?? 1, series.total_pages ?? 1),
+      };
+    }
+
+    if (requestedType === "all") {
+      if (!q.trim() && !creator.trim()) {
+        return { results: [] as PosterItem[], total_pages: 1 };
+      }
+      return apiFetch<{ results: PosterItem[]; total_pages: number }>(
+        `/media/search?q=${encodeURIComponent(q)}&page=${targetPage}${filters}${creator.trim() ? `&creator=${encodeURIComponent(creator.trim())}` : ""}`,
+        { auth: false },
+      );
+    }
+
+    if (!q.trim() && !creator.trim()) {
+      return discoverMedia(requestedType);
+    }
+
+    return searchMedia(requestedType);
+  }
 
   const movies = useMemo(
     () => results.filter((item) => item.media_type !== "tv"),
@@ -68,7 +123,12 @@ export function SearchScreen({ navigation }: Props) {
   }, []);
 
   async function search(targetPage = 1, append = false, requestedType = type) {
-    if (!q.trim() && !creator.trim() && requestedType === "all") {
+    if (
+      !q.trim() &&
+      !creator.trim() &&
+      requestedType === "all" &&
+      genreSlugFromId(genre) === "all"
+    ) {
       setResults([]);
       setUsers([]);
       setLists([]);
@@ -80,16 +140,8 @@ export function SearchScreen({ navigation }: Props) {
       const unifiedPromise = needsUnified
         ? apiFetch<Unified>(`/search?q=${encodeURIComponent(q)}&page=${targetPage}`, { auth: false })
         : Promise.resolve({ users: [], lists: [] });
-      const mediaPromise =
-        requestedType === "users" || requestedType === "lists"
-          ? Promise.resolve({ results: [], total_pages: 1 })
-          : apiFetch<{ results: PosterItem[]; total_pages: number }>(
-              !q.trim() && !creator.trim() && requestedType !== "all"
-                ? `/media/discover/${requestedType}?page=${targetPage}&sort=${encodeURIComponent(sort === "relevance" ? "popularity.desc" : sort)}${year ? `&year=${year}` : ""}${genre ? `&genre=${genre}` : ""}${minVote ? `&minVote=${minVote}` : ""}&language=${language}`
-                : `/media/search?q=${encodeURIComponent(q)}&page=${targetPage}${year ? `&year=${year}` : ""}${genre ? `&genre=${genre}` : ""}${minVote ? `&minVote=${minVote}` : ""}${requestedType === "movie" || requestedType === "tv" ? `&type=${requestedType}` : ""}${creator.trim() ? `&creator=${encodeURIComponent(creator.trim())}` : ""}&language=${language}`,
-              { auth: false },
-            );
-      const [unified, media] = await Promise.all([unifiedPromise, mediaPromise]);
+      const media = await fetchWorks(targetPage, requestedType);
+      const unified = await unifiedPromise;
       const discoveredUsers =
         requestedType === "users" && !q.trim() ? await discoverAllUsers() : null;
       setUsers(requestedType === "lists" ? [] : discoveredUsers ?? unified.users ?? []);
@@ -104,9 +156,22 @@ export function SearchScreen({ navigation }: Props) {
 
   function switchType(next: SearchType) {
     setType(next);
-    setGenre("");
+    if (next === "users" || next === "lists") {
+      setGenre("");
+    } else if (genre) {
+      const mapped = genreIdForMedia(genreSlugFromId(genre), next === "tv" ? "tv" : "movie");
+      if (mapped) setGenre(mapped);
+    }
     void search(1, false, next);
   }
+
+  useEffect(() => {
+    if (type === "users" || type === "lists") return;
+    const timer = setTimeout(() => {
+      void search(1, false, type);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [q, type, year, creator, genre, minVote, sort]);
 
   async function follow(userId: string) {
     await apiFetch(`/users/${userId}/follow`, { method: "POST" });
@@ -199,10 +264,10 @@ export function SearchScreen({ navigation }: Props) {
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.filterScroll}>
                   {SORTS.map((value) => <Pressable key={value} style={[s.chip, sort === value && s.chipOn]} onPress={() => setSort(value)}><Text style={s.chipText}>{value === "relevance" ? "Pertinence" : value === "popularity.desc" ? "Popularité" : value === "vote_average.desc" ? "Mieux notés" : "Plus récents"}</Text></Pressable>)}
                 </ScrollView>
-                {(type === "movie" || type === "tv") && <>
+                {(type === "movie" || type === "tv" || type === "all") && <>
                   <Text style={s.filterLabel}>Genre</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.filterScroll}>
-                    {genres.map((item) => <Pressable key={item.slug} style={[s.chip, genre === item.id && s.chipOn]} onPress={() => setGenre(item.id)}><Text style={s.chipText}>{item.slug === "all" ? (locale === "fr" ? "Tous" : "All") : genreLabel(locale, item.slug)}</Text></Pressable>)}
+                    {genres.map((item) => <Pressable key={item.slug} style={[s.chip, genreSlugFromId(genre) === item.slug && s.chipOn]} onPress={() => setGenre(item.id)}><Text style={s.chipText}>{item.slug === "all" ? (locale === "fr" ? "Tous" : "All") : genreLabel(locale, item.slug)}</Text></Pressable>)}
                   </ScrollView>
                 </>}
                 <Text style={s.filterLabel}>{locale === "fr" ? "Note minimale" : "Minimum rating"}</Text>

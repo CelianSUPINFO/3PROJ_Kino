@@ -131,6 +131,16 @@ export function TitleScreen({ route, navigation }: Props) {
     }
   }
 
+  async function removeStatus() {
+    try {
+      await apiFetch(`/library/status/${type}/${id}`, { method: "DELETE" });
+      setSelectedStatus(null);
+      setMsg(t("title.statusRemoved"));
+    } catch {
+      setMsg("Connexion requise.");
+    }
+  }
+
   async function publish() {
     try {
       await apiFetch(myReview ? `/reviews/${myReview.id}` : "/reviews", {
@@ -312,6 +322,11 @@ export function TitleScreen({ route, navigation }: Props) {
               </Pressable>
             ))}
           </View>
+          {selectedStatus && meId && (
+            <Pressable style={s.removeStatusBtn} onPress={() => void removeStatus()}>
+              <Text style={s.removeStatusText}>{t("title.removeStatus")}</Text>
+            </Pressable>
+          )}
           {lists.length > 0 && (
             <>
               <Text style={s.section}>Ajouter à une liste</Text>
@@ -511,6 +526,17 @@ const makeStyles = (colors: ReturnType<typeof useThemeColors>["colors"]) => Styl
   chipText: { color: colors.text, fontSize: 12 },
   chipActive: { borderColor: colors.kino, backgroundColor: "rgba(255,46,126,0.18)" },
   chipActiveText: { color: colors.kinoHot, fontWeight: "700" },
+  removeStatusBtn: {
+    alignSelf: "flex-start",
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.pill,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    backgroundColor: colors.panel,
+  },
+  removeStatusText: { color: colors.muted, fontSize: 12, fontWeight: "700" },
   input: {
     borderWidth: 1,
     borderColor: colors.border,
