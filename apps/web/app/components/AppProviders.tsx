@@ -33,11 +33,6 @@ export function useApp() {
   return useContext(AppContext);
 }
 
-export function useTheme() {
-  const { theme, setTheme } = useApp();
-  return { theme, setTheme };
-}
-
 export function useLocale() {
   const { locale, setLocale, t } = useApp();
   return { locale, setLocale, t };

@@ -1,5 +1,5 @@
 import { Image, Text, View } from "react-native";
-import { colors } from "../theme";
+import { useThemeColors } from "../context/ThemeContext";
 
 export function UserAvatar({
   name,
@@ -10,6 +10,7 @@ export function UserAvatar({
   avatarUrl?: string | null;
   size?: number;
 }) {
+  const { colors } = useThemeColors();
   const round = { width: size, height: size, borderRadius: size / 2 };
   if (avatarUrl) {
     return <Image source={{ uri: avatarUrl }} style={round} />;

@@ -3,7 +3,7 @@ import { FlatList, Image, ImageBackground, Pressable, SafeAreaView, ScrollView, 
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { apiFetch } from "../api";
 import { PosterCard, type PosterItem } from "../components/PosterCard";
-import { Eyebrow, GhostButton, Logo, PrimaryButton, Section, s } from "../components/AppUi";
+import { Eyebrow, GhostButton, Logo, PrimaryButton, Section, s, useUiStyles } from "../components/AppUi";
 import { useLocale } from "../context/LocaleContext";
 import { useThemeColors } from "../context/ThemeContext";
 import { categoryLabel } from "../lib/i18n";
@@ -54,6 +54,7 @@ export function HomeScreen({
   const insets = useSafeAreaInsets();
   const { locale, t } = useLocale();
   const { colors: c } = useThemeColors();
+  const ui = useUiStyles();
   const [home, setHome] = useState<HomePayload | null>(null);
   const [engagement, setEngagement] = useState<EngagementPayload | null>(null);
   const [authed, setAuthed] = useState(false);
@@ -122,7 +123,7 @@ export function HomeScreen({
             {meNav?.role === "ADMIN" && (
               <TouchableOpacity
                 onPress={() => navigation.navigate("Admin")}
-                style={[s.iconBtn, s.adminIconBtn]}
+                style={[s.iconBtn, ui.iconBtn, s.adminIconBtn, ui.adminIconBtn]}
                 accessibilityLabel={t("nav.admin")}
               >
                 <Text style={{ color: c.kinoHot, fontSize: 16, fontWeight: "800" }}>A</Text>
@@ -130,13 +131,13 @@ export function HomeScreen({
             )}
             <TouchableOpacity
               onPress={() => navigation.navigate("Menu")}
-              style={s.iconBtn}
+              style={[s.iconBtn, ui.iconBtn]}
             >
               <Text style={{ color: c.text, fontSize: 18, fontWeight: "700" }}>☰</Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => navigation.navigate("Search")}
-              style={s.iconBtn}
+              style={[s.iconBtn, ui.iconBtn]}
             >
               <Text style={{ color: c.text, fontSize: 16 }}>⌕</Text>
             </TouchableOpacity>
@@ -145,7 +146,7 @@ export function HomeScreen({
                 onPress={() =>
                   navigation.navigate("Profile", { userId: meNav.id })
                 }
-                style={s.avatarBtn}
+                style={[s.avatarBtn, { borderColor: c.border, backgroundColor: c.kino }]}
               >
                 {meNav.avatarUrl?.startsWith("http") ? (
                   <Image source={{ uri: meNav.avatarUrl }} style={s.avatarImg} />
@@ -163,7 +164,7 @@ export function HomeScreen({
             ) : (
               <TouchableOpacity
                 onPress={() => navigation.navigate("Login")}
-                style={s.iconBtn}
+                style={[s.iconBtn, ui.iconBtn]}
               >
                 <Text style={{ color: c.text, fontSize: 16 }}>→</Text>
               </TouchableOpacity>
@@ -174,7 +175,7 @@ export function HomeScreen({
         {featured ? (
           <TouchableOpacity
             activeOpacity={0.9}
-            style={s.hero}
+            style={[s.hero, ui.hero]}
             onPress={() =>
               openTitle(featured, featured.media_type === "tv" ? "tv" : "movie")
             }
@@ -226,7 +227,7 @@ export function HomeScreen({
             ) : (
               <View style={s.heroContent}>
                 <Eyebrow>{t("hero.featured").toUpperCase()}</Eyebrow>
-                <Text style={s.heroTitle}>
+                <Text style={[s.heroTitle, { color: c.text }]}>
                   {featured.title ?? featured.name}
                 </Text>
               </View>
@@ -264,12 +265,12 @@ export function HomeScreen({
         <TouchableOpacity
           activeOpacity={0.9}
           onPress={() => navigation.navigate("Tonight")}
-          style={s.tonightBanner}
+          style={[s.tonightBanner, ui.tonightBanner]}
         >
           <View style={s.tonightGlow} />
           <Eyebrow>{t("home.ctaBadge").toUpperCase()}</Eyebrow>
-          <Text style={s.tonightTitle}>{t("home.ctaTitle")}</Text>
-          <Text style={s.tonightSub}>{t("home.ctaBody")}</Text>
+          <Text style={[s.tonightTitle, ui.tonightTitle]}>{t("home.ctaTitle")}</Text>
+          <Text style={[s.tonightSub, ui.tonightSub]}>{t("home.ctaBody")}</Text>
           <View style={{ marginTop: 12, alignSelf: "flex-start" }}>
             <PrimaryButton
               label={t("home.ctaTonight")}
@@ -341,7 +342,7 @@ export function HomeScreen({
                   {r.user.avatarUrl ? (
                     <Image source={{ uri: r.user.avatarUrl }} style={[s.avatar, { backgroundColor: "transparent" }]} />
                   ) : (
-                    <View style={s.avatar}>
+                    <View style={[s.avatar, ui.avatar]}>
                       <Text style={s.avatarText}>
                         {(r.user.displayName ?? "??").slice(0, 2).toUpperCase()}
                       </Text>

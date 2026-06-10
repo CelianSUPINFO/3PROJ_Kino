@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { FlatList, SafeAreaView, Text, TouchableOpacity, View } from "react-native";
 import { apiFetch } from "../api";
-import { Chip, Eyebrow, H1, s } from "../components/AppUi";
+import { Chip, Eyebrow, H1, s, useUiStyles } from "../components/AppUi";
 import { useLocale } from "../context/LocaleContext";
 import { useThemeColors } from "../context/ThemeContext";
 import { notificationLabel } from "../lib/i18n";
@@ -17,6 +17,7 @@ type Notif = {
 
 export function NotificationsScreen({ navigation }: { navigation: any }) {
   const { colors: c } = useThemeColors();
+  const ui = useUiStyles();
   const { locale, t } = useLocale();
   const [items, setItems] = useState<Notif[]>([]);
   const [status, setStatus] = useState<string | null>(null);
@@ -86,7 +87,7 @@ export function NotificationsScreen({ navigation }: { navigation: any }) {
         </View>
       </View>
       {status && (
-        <Text style={[s.err, { marginLeft: spacing.lg }]}>{status}</Text>
+        <Text style={[s.err, ui.err, { marginLeft: spacing.lg }]}>{status}</Text>
       )}
       <FlatList
         contentContainerStyle={{
@@ -103,7 +104,7 @@ export function NotificationsScreen({ navigation }: { navigation: any }) {
             accessibilityLabel={notificationLabel(locale, item.type)}
             accessibilityHint={locale === "fr" ? "Ouvre le contenu associé" : "Opens related content"}
             onPress={() => openNotification(item)}
-            style={[s.card, item.read ? null : { borderColor: c.kino }]}
+            style={[s.card, ui.card, item.read ? null : { borderColor: c.kino }]}
           >
             <Text
               style={{
@@ -115,7 +116,7 @@ export function NotificationsScreen({ navigation }: { navigation: any }) {
                 notificationLabel(locale, item.type) ??
                 item.type.toLowerCase().replace(/_/g, " ")}
             </Text>
-            <Text style={[s.sub, { fontSize: 11 }]}>
+            <Text style={[s.sub, ui.sub, { fontSize: 11 }]}>
               {new Date(item.createdAt).toLocaleString()}
             </Text>
           </TouchableOpacity>

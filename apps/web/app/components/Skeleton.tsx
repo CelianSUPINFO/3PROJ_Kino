@@ -2,7 +2,7 @@ export function Skeleton({ className = "" }: { className?: string }) {
   return <div className={`skeleton rounded-xl ${className}`} />;
 }
 
-export function PosterSkeleton() {
+function PosterSkeleton() {
   return (
     <div className="min-w-[150px] space-y-2">
       <Skeleton className="aspect-[2/3] w-[150px]" />

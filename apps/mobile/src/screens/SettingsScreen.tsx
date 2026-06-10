@@ -3,11 +3,11 @@ import { Alert, SafeAreaView, ScrollView, Share, Switch, Text, TextInput, Toucha
 import * as Linking from "expo-linking";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { apiFetch, clearTokens, getAccessToken, getApiRoot, logoutSession } from "../api";
-import { Chip, Eyebrow, GhostButton, H1, Label, PrimaryButton, s } from "../components/AppUi";
+import { Chip, Eyebrow, GhostButton, H1, Label, PrimaryButton, s, useUiStyles } from "../components/AppUi";
 import { useLocale } from "../context/LocaleContext";
 import { useThemeColors } from "../context/ThemeContext";
 import type { RootStackParamList } from "../navigation/types";
-import { colors, spacing } from "../theme";
+import { spacing } from "../theme";
 import { unregisterPushNotifications } from "../pushNotifications";
 const WEB_URL = "https://kino-web-ten.vercel.app";
 
@@ -28,6 +28,7 @@ export function SettingsScreen({
   navigation: { navigate: (name: keyof RootStackParamList) => void };
 }) {
   const { colors: c, setTheme: applyTheme } = useThemeColors();
+  const ui = useUiStyles();
   const { setLocale, t } = useLocale();
   const [me, setMe] = useState<Me | null>(null);
   const [status, setStatus] = useState<string | null>(null);
@@ -131,31 +132,31 @@ export function SettingsScreen({
       >
         <Eyebrow>{t("common.yourAccount").toUpperCase()}</Eyebrow>
         <H1>{me ? t("common.hello", { name: me.displayName }) : t("settings.title")}</H1>
-        {status && <Text style={[s.sub, { marginBottom: 8 }]}>{status}</Text>}
+        {status && <Text style={[s.sub, ui.sub, { marginBottom: 8 }]}>{status}</Text>}
         {me && (
           <>
             <Label>Pseudo</Label>
             <TextInput
-              style={s.input}
+              style={[s.input, ui.input]}
               placeholder="Display name"
-              placeholderTextColor={colors.muted}
+              placeholderTextColor={c.muted}
               value={me.displayName}
               onChangeText={(v) => setMe({ ...me, displayName: v })}
             />
             <Label>Bio</Label>
             <TextInput
-              style={[s.input, { height: 80, textAlignVertical: "top" }]}
+              style={[s.input, ui.input, { height: 80, textAlignVertical: "top" }]}
               placeholder="Bio"
-              placeholderTextColor={colors.muted}
+              placeholderTextColor={c.muted}
               value={me.bio ?? ""}
               onChangeText={(v) => setMe({ ...me, bio: v })}
               multiline
             />
             <Label>Site web</Label>
             <TextInput
-              style={s.input}
+              style={[s.input, ui.input]}
               placeholder="Website"
-              placeholderTextColor={colors.muted}
+              placeholderTextColor={c.muted}
               value={me.website ?? ""}
               onChangeText={(v) => setMe({ ...me, website: v })}
             />
@@ -190,17 +191,17 @@ export function SettingsScreen({
               <Switch
                 value={me.notifyPush}
                 onValueChange={(v) => setMe({ ...me, notifyPush: v })}
-                trackColor={{ true: colors.kino }}
+                trackColor={{ false: c.border, true: c.kino }}
               />
-              <Text style={[s.sub, { flex: 1 }]}>{t("settings.notifyPush")}</Text>
+              <Text style={[s.sub, ui.sub, { flex: 1 }]}>{t("settings.notifyPush")}</Text>
             </View>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 }}>
               <Switch
                 value={me.notifyEmail}
                 onValueChange={(v) => setMe({ ...me, notifyEmail: v })}
-                trackColor={{ true: colors.kino }}
+                trackColor={{ false: c.border, true: c.kino }}
               />
-              <Text style={[s.sub, { flex: 1 }]}>{t("settings.notifyEmail")}</Text>
+              <Text style={[s.sub, ui.sub, { flex: 1 }]}>{t("settings.notifyEmail")}</Text>
             </View>
             <View style={{ height: 12 }} />
             <PrimaryButton label={t("common.save")} onPress={save} />
@@ -231,9 +232,9 @@ export function SettingsScreen({
               <Chip label={t("settings.terms")} onPress={() => Linking.openURL(`${WEB_URL}/terms`)} />
             </View>
             <View style={{ height: 10 }} />
-            <Text style={[s.label, { color: colors.danger }]}>ZONE SENSIBLE</Text>
-            <TouchableOpacity onPress={deleteAccount} style={[s.btnGhost, { borderColor: colors.danger }]}>
-              <Text style={{ color: colors.danger, fontWeight: "700" }}>{t("settings.deleteAccount")}</Text>
+            <Text style={[s.label, { color: c.danger }]}>ZONE SENSIBLE</Text>
+            <TouchableOpacity onPress={deleteAccount} style={[s.btnGhost, ui.btnGhost, { borderColor: c.danger }]}>
+              <Text style={{ color: c.danger, fontWeight: "700" }}>{t("settings.deleteAccount")}</Text>
             </TouchableOpacity>
           </>
         )}

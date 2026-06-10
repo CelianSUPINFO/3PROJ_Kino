@@ -25,7 +25,7 @@ export function getAccessToken() {
   return getTokens().access;
 }
 
-export function getRefreshToken() {
+function getRefreshToken() {
   return getTokens().refresh;
 }
 

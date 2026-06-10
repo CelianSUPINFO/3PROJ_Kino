@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Animated, Dimensions, ImageBackground, PanResponder, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { apiFetch } from "../api";
-import { Chip, Eyebrow, H1, PrimaryButton, s } from "../components/AppUi";
+import { Chip, Eyebrow, H1, PrimaryButton, s, useUiStyles } from "../components/AppUi";
 import { useLocale } from "../context/LocaleContext";
+import { useThemeColors } from "../context/ThemeContext";
 import type { RootStackParamList } from "../navigation/types";
-import { colors, spacing } from "../theme";
+import { spacing } from "../theme";
 type TonightResult = {
   id: number;
   title: string;
@@ -26,6 +27,8 @@ export function TonightScreen({
   };
 }) {
   const { locale } = useLocale();
+  const { colors } = useThemeColors();
+  const ui = useUiStyles();
   const [items, setItems] = useState<TonightResult[]>([]);
   const [index, setIndex] = useState(0);
   const [type, setType] = useState<"movie" | "tv">("movie");
@@ -170,7 +173,7 @@ export function TonightScreen({
   );
 
   return (
-    <SafeAreaView style={s.screen}>
+    <SafeAreaView style={[s.screen, ui.screen]}>
       <View style={{ paddingHorizontal: spacing.lg }}>
         <Eyebrow>{locale === "fr" ? "CE SOIR ?" : "TONIGHT?"}</Eyebrow>
         <H1>{locale === "fr" ? "À garder ou passer" : "Smash or Pass"}</H1>
@@ -186,7 +189,7 @@ export function TonightScreen({
             onPress={() => setType("tv")}
           />
         </View>
-        {status && <Text style={[s.sub, { marginTop: 8 }]}>{status}</Text>}
+        {status && <Text style={[s.sub, ui.sub, { marginTop: 8 }]}>{status}</Text>}
       </View>
 
       <View
@@ -207,9 +210,9 @@ export function TonightScreen({
             <ActivityIndicator color={colors.kino} size="large" />
           </View>
         ) : !current ? (
-          <View style={s.emptyCard}>
-            <Text style={s.h1}>{locale === "fr" ? "Vous avez tout parcouru" : "You're all caught up"}</Text>
-            <Text style={s.sub}>
+          <View style={[s.emptyCard, ui.emptyCard]}>
+            <Text style={[s.h1, { color: colors.text }]}>{locale === "fr" ? "Vous avez tout parcouru" : "You're all caught up"}</Text>
+            <Text style={[s.sub, ui.sub]}>
               {locale === "fr" ? "Changez de catégorie ou actualisez les suggestions." : "Switch category or refresh to see fresh picks."}
             </Text>
             <View style={{ height: 12 }} />
@@ -278,7 +281,7 @@ export function TonightScreen({
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={s.detailsPill}
+            style={[s.detailsPill, ui.detailsPill]}
             onPress={() =>
               navigation.navigate("Title", {
                 type: current.mediaType,
@@ -307,6 +310,7 @@ export function TonightScreen({
         <View
           style={[
             s.toast,
+            ui.toast,
             {
               borderColor:
                 toast.tone === "success" ? colors.success : colors.danger,
@@ -329,6 +333,8 @@ function TonightCard({
   item: TonightResult;
   stacked?: boolean;
 }) {
+  const { colors } = useThemeColors();
+  const ui = useUiStyles();
   const uri = item.backdropPath
     ? `https://image.tmdb.org/t/p/w780${item.backdropPath}`
     : item.posterPath
@@ -338,6 +344,7 @@ function TonightCard({
     <View
       style={[
         s.swipeCard,
+        ui.swipeCard,
         stacked ? { transform: [{ scale: 0.94 }, { translateY: 12 }] } : null,
       ]}
     >
@@ -365,14 +372,14 @@ function TonightCard({
                 ))}
               </View>
             )}
-            <Text style={[s.h1, { fontSize: 28 }]}>{item.title}</Text>
+            <Text style={[s.h1, { color: "#fff", fontSize: 28 }]}>{item.title}</Text>
             <Text
               style={{ color: colors.gold, fontWeight: "700", marginTop: 4 }}
             >
               ★ {item.score.toFixed(1)} / 10
             </Text>
             {item.overview ? (
-              <Text numberOfLines={3} style={[s.sub, { marginTop: 8 }]}>
+              <Text numberOfLines={3} style={[s.sub, { color: "rgba(255,255,255,0.88)", marginTop: 8 }]}>
                 {item.overview}
               </Text>
             ) : null}
@@ -382,7 +389,7 @@ function TonightCard({
         <View
           style={{ flex: 1, justifyContent: "flex-end", padding: spacing.lg }}
         >
-          <Text style={[s.h1, { fontSize: 28 }]}>{item.title}</Text>
+          <Text style={[s.h1, { color: colors.text, fontSize: 28 }]}>{item.title}</Text>
           <Text style={{ color: colors.gold }}>★ {item.score.toFixed(1)}</Text>
         </View>
       )}

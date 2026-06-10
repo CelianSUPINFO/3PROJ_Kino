@@ -1,19 +1,13 @@
--- CreateEnum
 CREATE TYPE "Role" AS ENUM ('USER', 'ADMIN');
 
--- CreateEnum
 CREATE TYPE "MediaType" AS ENUM ('MOVIE', 'TV');
 
--- CreateEnum
 CREATE TYPE "WatchStatus" AS ENUM ('WATCHLIST', 'IN_PROGRESS', 'COMPLETED', 'DROPPED');
 
--- CreateEnum
 CREATE TYPE "ActivityType" AS ENUM ('RATED', 'REVIEWED', 'LIST_ADDED', 'STATUS_CHANGED', 'FOLLOW');
 
--- CreateEnum
 CREATE TYPE "ReportStatus" AS ENUM ('OPEN', 'RESOLVED', 'DISMISSED');
 
--- CreateTable
 CREATE TABLE "User" (
     "id" TEXT NOT NULL,
     "email" TEXT NOT NULL,
@@ -32,7 +26,6 @@ CREATE TABLE "User" (
     CONSTRAINT "User_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
 CREATE TABLE "OAuthAccount" (
     "id" TEXT NOT NULL,
     "provider" TEXT NOT NULL,
@@ -42,7 +35,6 @@ CREATE TABLE "OAuthAccount" (
     CONSTRAINT "OAuthAccount_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
 CREATE TABLE "RefreshToken" (
     "id" TEXT NOT NULL,
     "tokenHash" TEXT NOT NULL,
@@ -53,7 +45,6 @@ CREATE TABLE "RefreshToken" (
     CONSTRAINT "RefreshToken_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
 CREATE TABLE "CachedWork" (
     "id" TEXT NOT NULL,
     "tmdbId" INTEGER NOT NULL,
@@ -69,7 +60,6 @@ CREATE TABLE "CachedWork" (
     CONSTRAINT "CachedWork_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
 CREATE TABLE "UserWorkStatus" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
@@ -81,7 +71,6 @@ CREATE TABLE "UserWorkStatus" (
     CONSTRAINT "UserWorkStatus_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
 CREATE TABLE "CustomList" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
@@ -93,7 +82,6 @@ CREATE TABLE "CustomList" (
     CONSTRAINT "CustomList_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
 CREATE TABLE "CustomListItem" (
     "id" TEXT NOT NULL,
     "listId" TEXT NOT NULL,
@@ -104,7 +92,6 @@ CREATE TABLE "CustomListItem" (
     CONSTRAINT "CustomListItem_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
 CREATE TABLE "Review" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
@@ -120,7 +107,6 @@ CREATE TABLE "Review" (
     CONSTRAINT "Review_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
 CREATE TABLE "ReviewLike" (
     "reviewId" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
@@ -128,7 +114,6 @@ CREATE TABLE "ReviewLike" (
     CONSTRAINT "ReviewLike_pkey" PRIMARY KEY ("reviewId","userId")
 );
 
--- CreateTable
 CREATE TABLE "Comment" (
     "id" TEXT NOT NULL,
     "reviewId" TEXT NOT NULL,
@@ -140,7 +125,6 @@ CREATE TABLE "Comment" (
     CONSTRAINT "Comment_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
 CREATE TABLE "Follow" (
     "followerId" TEXT NOT NULL,
     "followingId" TEXT NOT NULL,
@@ -149,7 +133,6 @@ CREATE TABLE "Follow" (
     CONSTRAINT "Follow_pkey" PRIMARY KEY ("followerId","followingId")
 );
 
--- CreateTable
 CREATE TABLE "Activity" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
@@ -160,7 +143,6 @@ CREATE TABLE "Activity" (
     CONSTRAINT "Activity_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
 CREATE TABLE "Notification" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
@@ -172,7 +154,6 @@ CREATE TABLE "Notification" (
     CONSTRAINT "Notification_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
 CREATE TABLE "Message" (
     "id" TEXT NOT NULL,
     "senderId" TEXT NOT NULL,
@@ -184,7 +165,6 @@ CREATE TABLE "Message" (
     CONSTRAINT "Message_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
 CREATE TABLE "Report" (
     "id" TEXT NOT NULL,
     "reporterId" TEXT NOT NULL,
@@ -196,74 +176,50 @@ CREATE TABLE "Report" (
     CONSTRAINT "Report_pkey" PRIMARY KEY ("id")
 );
 
--- CreateIndex
 CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 
--- CreateIndex
 CREATE UNIQUE INDEX "OAuthAccount_provider_providerUserId_key" ON "OAuthAccount"("provider", "providerUserId");
 
--- CreateIndex
 CREATE UNIQUE INDEX "CachedWork_tmdbId_mediaType_key" ON "CachedWork"("tmdbId", "mediaType");
 
--- CreateIndex
 CREATE UNIQUE INDEX "UserWorkStatus_userId_tmdbId_mediaType_key" ON "UserWorkStatus"("userId", "tmdbId", "mediaType");
 
--- CreateIndex
 CREATE UNIQUE INDEX "CustomListItem_listId_tmdbId_mediaType_key" ON "CustomListItem"("listId", "tmdbId", "mediaType");
 
--- CreateIndex
 CREATE UNIQUE INDEX "Review_userId_tmdbId_mediaType_key" ON "Review"("userId", "tmdbId", "mediaType");
 
--- AddForeignKey
 ALTER TABLE "OAuthAccount" ADD CONSTRAINT "OAuthAccount_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "RefreshToken" ADD CONSTRAINT "RefreshToken_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "UserWorkStatus" ADD CONSTRAINT "UserWorkStatus_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "CustomList" ADD CONSTRAINT "CustomList_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "CustomListItem" ADD CONSTRAINT "CustomListItem_listId_fkey" FOREIGN KEY ("listId") REFERENCES "CustomList"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "Review" ADD CONSTRAINT "Review_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "ReviewLike" ADD CONSTRAINT "ReviewLike_reviewId_fkey" FOREIGN KEY ("reviewId") REFERENCES "Review"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "ReviewLike" ADD CONSTRAINT "ReviewLike_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "Comment" ADD CONSTRAINT "Comment_reviewId_fkey" FOREIGN KEY ("reviewId") REFERENCES "Review"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "Comment" ADD CONSTRAINT "Comment_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "Follow" ADD CONSTRAINT "Follow_followerId_fkey" FOREIGN KEY ("followerId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "Follow" ADD CONSTRAINT "Follow_followingId_fkey" FOREIGN KEY ("followingId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "Activity" ADD CONSTRAINT "Activity_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "Notification" ADD CONSTRAINT "Notification_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "Message" ADD CONSTRAINT "Message_senderId_fkey" FOREIGN KEY ("senderId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "Message" ADD CONSTRAINT "Message_recipientId_fkey" FOREIGN KEY ("recipientId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "Report" ADD CONSTRAINT "Report_reporterId_fkey" FOREIGN KEY ("reporterId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "Report" ADD CONSTRAINT "Report_reviewId_fkey" FOREIGN KEY ("reviewId") REFERENCES "Review"("id") ON DELETE CASCADE ON UPDATE CASCADE;

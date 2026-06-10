@@ -135,7 +135,7 @@ export function AdminScreen({}: Props) {
                   load();
                 }}
               >
-                <Text style={[s.chipText, { color: "#f87171" }]}>Supprimer</Text>
+                <Text style={[s.chipText, { color: colors.danger }]}>Supprimer</Text>
               </Pressable>
               <Pressable
                 style={s.chip}
@@ -147,7 +147,7 @@ export function AdminScreen({}: Props) {
                   setMsg("Utilisateur banni.");
                 }}
               >
-                <Text style={[s.chipText, { color: "#f87171" }]}>Bannir</Text>
+                <Text style={[s.chipText, { color: colors.danger }]}>Bannir</Text>
               </Pressable>
             </View>
           </View>
@@ -200,7 +200,7 @@ export function AdminScreen({}: Props) {
                 });
                 await load();
               }}>
-                <Text style={[s.chipText, { color: "#fca5a5" }]}>{user.bannedUntil ? "Réactiver" : "Suspendre"}</Text>
+                <Text style={[s.chipText, { color: colors.danger }]}>{user.bannedUntil ? "Réactiver" : "Suspendre"}</Text>
               </Pressable>
             </View>
           </View>

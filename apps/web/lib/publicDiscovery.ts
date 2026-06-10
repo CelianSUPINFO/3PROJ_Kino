@@ -1,12 +1,12 @@
 import { apiFetch } from "./api";
 
-export type DiscoveredUser = {
+type DiscoveredUser = {
   id: string;
   displayName: string;
   avatarUrl: string | null;
 };
 
-export type DiscoveredList = {
+type DiscoveredList = {
   id: string;
   userId?: string;
   name: string;

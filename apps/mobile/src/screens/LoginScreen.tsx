@@ -2,10 +2,11 @@ import { useEffect, useState } from "react";
 import { ActivityIndicator, KeyboardAvoidingView, Platform, SafeAreaView, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
 import * as Linking from "expo-linking";
 import { apiFetch, setTokens } from "../api";
-import { Eyebrow, H1, Label, PrimaryButton, s } from "../components/AppUi";
+import { Eyebrow, H1, Label, PrimaryButton, s, useUiStyles } from "../components/AppUi";
 import { useLocale } from "../context/LocaleContext";
+import { useThemeColors } from "../context/ThemeContext";
 import type { RootStackParamList } from "../navigation/types";
-import { colors, spacing } from "../theme";
+import { spacing } from "../theme";
 import { registerPushNotifications } from "../pushNotifications";
 import { runGoogleOAuth } from "../auth/googleOAuth";
 
@@ -15,6 +16,8 @@ export function LoginScreen({
   navigation: { navigate: (name: keyof RootStackParamList) => void };
 }) {
   const { t } = useLocale();
+  const { colors } = useThemeColors();
+  const ui = useUiStyles();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [err, setErr] = useState<string | null>(null);
@@ -98,19 +101,19 @@ export function LoginScreen({
   }
 
   return (
-    <SafeAreaView style={s.screen}>
+    <SafeAreaView style={[s.screen, ui.screen]}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" contentContainerStyle={{ padding: spacing.lg, flexGrow: 1 }}>
         <Eyebrow>{t("auth.welcomeBack").toUpperCase()}</Eyebrow>
         <H1>{t("auth.loginTitle")}</H1>
-        <Text style={[s.sub, { marginBottom: spacing.lg }]}>
+        <Text style={[s.sub, ui.sub, { marginBottom: spacing.lg }]}>
           {t("auth.loginSubtitle")}
         </Text>
         <Label>{t("common.email")}</Label>
         <TextInput
           placeholder="you@example.com"
           placeholderTextColor={colors.muted}
-          style={s.input}
+          style={[s.input, ui.input]}
           autoCapitalize="none"
           keyboardType="email-address"
           value={email}
@@ -120,7 +123,7 @@ export function LoginScreen({
         <TextInput
           placeholder="••••••••"
           placeholderTextColor={colors.muted}
-          style={s.input}
+          style={[s.input, ui.input]}
           secureTextEntry
           value={password}
           onChangeText={setPassword}
@@ -135,7 +138,7 @@ export function LoginScreen({
             {t("auth.forgotPassword")}
           </Text>
         </TouchableOpacity>
-        {err && <Text style={s.err}>{err}</Text>}
+        {err && <Text style={[s.err, ui.err]}>{err}</Text>}
         {info && <Text style={{ color: colors.gold, marginBottom: 8 }}>{info}</Text>}
         <View style={{ marginTop: 8 }}>
           {loading ? (
@@ -149,7 +152,7 @@ export function LoginScreen({
           )}
         </View>
         <View style={{ flexDirection: "row", justifyContent: "center", gap: 6, marginTop: spacing.lg }}>
-          <Text style={s.sub}>{t("auth.newToKino")}</Text>
+          <Text style={[s.sub, ui.sub]}>{t("auth.newToKino")}</Text>
           <TouchableOpacity
             accessibilityRole="button"
             accessibilityLabel={t("auth.createAccount")}

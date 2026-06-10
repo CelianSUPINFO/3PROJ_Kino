@@ -126,7 +126,7 @@ export class RecommendationNotificationsService {
           const genres = (details.data as { genres?: { id: number }[] }).genres ?? [];
           for (const genre of genres) counts.set(genre.id, (counts.get(genre.id) ?? 0) + 1);
         } catch {
-          // A missing TMDB title must not prevent the scheduled batch.
+          return;
         }
       }),
     );

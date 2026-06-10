@@ -21,7 +21,7 @@ export function AuthShell({
 
   return (
     <div className="relative -mx-4 grid min-h-[70vh] overflow-hidden rounded-3xl border border-white/10 bg-kino-panel shadow-card md:-mx-6 md:grid-cols-2">
-      <div className="relative hidden md:block">
+      <div className="image-text-surface relative hidden md:block">
         <img
           src="https://image.tmdb.org/t/p/original/8b8R8l88Qje9dn9OE8PY05Nxl1X.jpg"
           alt=""

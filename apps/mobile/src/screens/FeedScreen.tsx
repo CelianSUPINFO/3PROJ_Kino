@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { FlatList, Pressable, SafeAreaView, Text, View } from "react-native";
 import { apiFetch } from "../api";
-import { Eyebrow, H1, s } from "../components/AppUi";
+import { Eyebrow, H1, s, useUiStyles } from "../components/AppUi";
 import { UserAvatar } from "../components/UserAvatar";
 import { useLocale } from "../context/LocaleContext";
 import { useThemeColors } from "../context/ThemeContext";
@@ -24,6 +24,7 @@ export function FeedScreen({
 }) {
   const { locale, t } = useLocale();
   const { colors: c } = useThemeColors();
+  const ui = useUiStyles();
   const [items, setItems] = useState<Act[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -96,13 +97,13 @@ export function FeedScreen({
   }
 
   return (
-    <SafeAreaView style={s.screen}>
+    <SafeAreaView style={[s.screen, ui.screen]}>
       <View style={{ padding: spacing.lg }}>
         <Eyebrow>{t("feed.social").toUpperCase()}</Eyebrow>
         <H1>{t("feed.title")}</H1>
-        <Text style={s.sub}>{t("feed.subtitle")}</Text>
+        <Text style={[s.sub, ui.sub]}>{t("feed.subtitle")}</Text>
       </View>
-      {err && <Text style={[s.err, { marginLeft: spacing.lg }]}>{err}</Text>}
+      {err && <Text style={[s.err, ui.err, { marginLeft: spacing.lg }]}>{err}</Text>}
       <FlatList
         contentContainerStyle={{ padding: spacing.lg, paddingBottom: 40 }}
         data={items}
@@ -110,7 +111,7 @@ export function FeedScreen({
         onEndReachedThreshold={0.4}
         onEndReached={() => void loadMore()}
         renderItem={({ item }) => (
-          <Pressable style={s.card} onPress={() => openActivity(item)}>
+          <Pressable style={[s.card, ui.card]} onPress={() => openActivity(item)}>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
               <Pressable
                 onPress={() => {
@@ -120,7 +121,7 @@ export function FeedScreen({
                 <UserAvatar name={item.user.displayName} avatarUrl={item.user.avatarUrl} size={32} />
               </Pressable>
               <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={s.sub} numberOfLines={1}>
+                <Text style={[s.sub, ui.sub]} numberOfLines={1}>
                   <Text style={{ fontWeight: "700", color: c.text }}>{item.user.displayName}</Text>
                   {" · "}
                   {new Date(item.createdAt).toLocaleString(locale === "fr" ? "fr-FR" : "en-US")}
@@ -132,13 +133,13 @@ export function FeedScreen({
         )}
         ListFooterComponent={
           loadingMore ? (
-            <Text style={[s.sub, { textAlign: "center", marginTop: 8 }]}>
+            <Text style={[s.sub, ui.sub, { textAlign: "center", marginTop: 8 }]}>
               {t("common.loading")}
             </Text>
           ) : null
         }
         ListEmptyComponent={
-          !err ? <Text style={s.sub}>{t("feed.emptyFollow")}</Text> : null
+          !err ? <Text style={[s.sub, ui.sub]}>{t("feed.emptyFollow")}</Text> : null
         }
       />
     </SafeAreaView>

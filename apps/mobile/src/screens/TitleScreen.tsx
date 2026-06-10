@@ -42,15 +42,18 @@ type Comment = {
 
 type ListRow = { id: string; name: string };
 
-const STATUS_COLORS = {
-  WATCHLIST: { borderColor: "#38bdf8", backgroundColor: "rgba(56,189,248,0.16)", color: "#bae6fd" },
-  IN_PROGRESS: { borderColor: "#f59e0b", backgroundColor: "rgba(245,158,11,0.16)", color: "#fde68a" },
-  COMPLETED: { borderColor: "#10b981", backgroundColor: "rgba(16,185,129,0.16)", color: "#a7f3d0" },
-  DROPPED: { borderColor: "#fb7185", backgroundColor: "rgba(251,113,133,0.16)", color: "#fecdd3" },
-} as const;
+function statusColors(light: boolean) {
+  return {
+    WATCHLIST: { borderColor: "#0284c7", backgroundColor: "rgba(14,165,233,0.16)", color: light ? "#075985" : "#bae6fd" },
+    IN_PROGRESS: { borderColor: "#d97706", backgroundColor: "rgba(245,158,11,0.16)", color: light ? "#92400e" : "#fde68a" },
+    COMPLETED: { borderColor: "#059669", backgroundColor: "rgba(16,185,129,0.16)", color: light ? "#065f46" : "#a7f3d0" },
+    DROPPED: { borderColor: "#e11d48", backgroundColor: "rgba(251,113,133,0.16)", color: light ? "#9f1239" : "#fecdd3" },
+  } as const;
+}
 
 export function TitleScreen({ route, navigation }: Props) {
-  const { colors } = useThemeColors();
+  const { colors, theme } = useThemeColors();
+  const statusPalette = statusColors(theme === "light");
   const { locale, t } = useLocale();
   const s = makeStyles(colors);
   const { type, id, title } = route.params;
@@ -304,8 +307,8 @@ export function TitleScreen({ route, navigation }: Props) {
                 ["DROPPED", "Abandonné"],
               ] as const
             ).map(([st, label]) => (
-              <Pressable key={st} style={[s.chip, STATUS_COLORS[st], selectedStatus === st && s.chipActive]} onPress={() => setStatus(st)}>
-                <Text style={[s.chipText, { color: STATUS_COLORS[st].color }, selectedStatus === st && s.chipActiveText]}>{statusLabel(locale, st === "WATCHLIST" ? "TO_WATCH" : st)}</Text>
+              <Pressable key={st} style={[s.chip, statusPalette[st], selectedStatus === st && s.chipActive]} onPress={() => setStatus(st)}>
+                <Text style={[s.chipText, { color: statusPalette[st].color }, selectedStatus === st && s.chipActiveText]}>{statusLabel(locale, st === "WATCHLIST" ? "TO_WATCH" : st)}</Text>
               </Pressable>
             ))}
           </View>

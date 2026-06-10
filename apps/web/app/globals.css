@@ -49,67 +49,108 @@ html.light .chip:hover {
   color: #160d1a;
 }
 
-html.light main .text-white,
-html.light main .text-white\/90,
-html.light main .text-white\/85,
-html.light main .text-white\/80,
-html.light main .text-white\/75,
-html.light main .text-white\/70,
-html.light main .text-white\/60 {
+html.light .text-kino,
+html.light .text-kino-hot {
+  color: #a90f54;
+}
+
+html.light .border-kino {
+  border-color: #c21263;
+}
+
+html.light .bg-kino {
+  background-color: #c21263;
+}
+
+html.light .text-white,
+html.light .text-white\/90,
+html.light .text-white\/85,
+html.light .text-white\/80,
+html.light .text-white\/75,
+html.light .text-white\/70,
+html.light .text-white\/60 {
   color: #251827;
 }
 
-html.light main .text-kino-muted,
-html.light main .text-white\/50,
-html.light main .text-white\/40,
-html.light main .text-white\/30 {
-  color: #7a6b83;
+html.light .text-kino-muted,
+html.light .text-white\/50,
+html.light .text-white\/40,
+html.light .text-white\/30 {
+  color: #695a72;
 }
 
-html.light main .image-text-surface,
-html.light main .image-text-surface .text-white,
-html.light main .image-text-surface .text-white\/90,
-html.light main .image-text-surface .text-white\/85,
-html.light main .image-text-surface .text-white\/80,
-html.light main .image-text-surface .text-white\/75,
-html.light main .image-text-surface .text-white\/70,
-html.light main .image-text-surface .text-white\/60,
-html.light main .image-text-surface .text-white\/50,
-html.light main .image-text-surface .text-white\/40,
-html.light main .image-text-surface .text-white\/30 {
+html.light .image-text-surface,
+html.light .image-text-surface .text-white,
+html.light .image-text-surface .text-white\/90,
+html.light .image-text-surface .text-white\/85,
+html.light .image-text-surface .text-white\/80,
+html.light .image-text-surface .text-white\/75,
+html.light .image-text-surface .text-white\/70,
+html.light .image-text-surface .text-white\/60,
+html.light .image-text-surface .text-white\/50,
+html.light .image-text-surface .text-white\/40,
+html.light .image-text-surface .text-white\/30 {
   color: #ffffff;
 }
 
-html.light main .text-red-100,
-html.light main .text-red-200,
-html.light main .text-red-300 {
+html.light .image-text-surface .text-kino,
+html.light .image-text-surface .text-kino-hot {
+  color: #ff9bc2;
+}
+
+html.light .image-text-surface .chip,
+html.light .image-text-surface .btn-ghost {
+  border-color: rgba(255, 255, 255, 0.28);
+  background: rgba(10, 7, 16, 0.48);
+  color: #ffffff;
+}
+
+html.light .text-red-100,
+html.light .text-red-200,
+html.light .text-red-300 {
   color: #9f1d3f;
 }
 
-html.light main .bg-kino-panel,
-html.light main .bg-kino-panel\/40,
-html.light main .bg-kino-panel\/75,
-html.light main .bg-kino-panel\/80,
-html.light main .bg-kino-panel\/90,
-html.light main .bg-kino-panel\/95 {
+html.light .text-emerald-100,
+html.light .text-emerald-200,
+html.light .text-emerald-300 {
+  color: #066447;
+}
+
+html.light .bg-kino-panel,
+html.light .bg-kino-panel\/40,
+html.light .bg-kino-panel\/75,
+html.light .bg-kino-panel\/80,
+html.light .bg-kino-panel\/90,
+html.light .bg-kino-panel\/95 {
   background-color: rgba(255, 255, 255, 0.86);
 }
 
-html.light main .bg-black\/20,
-html.light main .bg-black\/30,
-html.light main .bg-black\/40 {
+html.light .bg-black\/20,
+html.light .bg-black\/30,
+html.light .bg-black\/40 {
   background-color: rgba(255, 255, 255, 0.72);
 }
 
-html.light main .border-white\/5,
-html.light main .border-white\/10,
-html.light main .border-white\/15,
-html.light main .border-white\/20 {
-  border-color: rgba(66, 48, 76, 0.14);
+html.light .bg-white\/5,
+html.light .bg-white\/10,
+html.light .bg-white\/\[0\.02\],
+html.light .bg-white\/\[0\.03\],
+html.light .bg-white\/\[0\.04\],
+html.light .bg-white\/\[0\.06\],
+html.light .bg-white\/\[0\.08\] {
+  background-color: rgba(66, 48, 76, 0.055);
 }
 
-html.light main .placeholder\:text-white\/40::placeholder {
-  color: #8f8198;
+html.light .border-white\/5,
+html.light .border-white\/10,
+html.light .border-white\/15,
+html.light .border-white\/20 {
+  border-color: rgba(66, 48, 76, 0.2);
+}
+
+html.light .placeholder\:text-white\/40::placeholder {
+  color: #75677e;
 }
 
 html.light input,
@@ -132,10 +173,30 @@ html.light [class*="from-kino"][class*="to-kino-hot"] * {
   color: #ffffff;
 }
 
+html.light .btn-primary,
+html.light [class*="from-kino"][class*="to-kino-hot"] {
+  background-image: linear-gradient(to right, #c21263, #a90f54);
+}
+
+html.light .bg-kino.text-white,
+html.light .bg-kino-dark.text-white,
+html.light .bg-red-500.text-white,
+html.light .bg-red-600.text-white,
+html.light [class*="from-orange"][class*="to-kino"],
+html.light [class*="from-orange"][class*="to-kino"] * {
+  color: #ffffff;
+}
+
 html.light .btn-ghost {
   border-color: rgba(66, 48, 76, 0.18);
   background: rgba(255, 255, 255, 0.62);
   color: #251827;
+}
+
+html.light .chip-active {
+  border-color: rgba(194, 18, 99, 0.58);
+  background: rgba(255, 46, 126, 0.13);
+  color: #71103d;
 }
 
 html.light .btn-danger {
@@ -152,6 +213,25 @@ html.light header > div {
 html.light header .text-white,
 html.light header .text-kino-muted {
   color: #251827;
+}
+
+html.light footer,
+html.light footer .text-kino-muted {
+  color: #695a72;
+}
+
+html.light *::-webkit-scrollbar-thumb {
+  background: rgba(66, 48, 76, 0.22);
+}
+
+html.light .skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(66, 48, 76, 0.05) 0%,
+    rgba(66, 48, 76, 0.14) 50%,
+    rgba(66, 48, 76, 0.05) 100%
+  );
+  background-size: 800px 100%;
 }
 
 html,
@@ -335,8 +415,6 @@ a[aria-disabled="true"] {
   animation: pulseGlow 2.8s ease-in-out infinite;
 }
 
-/* Couleurs des statuts de bibliothèque — hors @layer car les classes sont
-   construites dynamiquement côté TSX (Tailwind ne peut pas les détecter). */
 .status-watchlist {
   border-color: rgba(56, 189, 248, 0.7);
   background-color: rgba(14, 165, 233, 0.25);

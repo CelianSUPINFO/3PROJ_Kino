@@ -638,7 +638,7 @@ const en: Record<keyof typeof fr, string> = {
 
 export type I18nKey = keyof typeof fr;
 
-export const translations: Record<Locale, Record<I18nKey, string>> = { fr, en };
+const translations: Record<Locale, Record<I18nKey, string>> = { fr, en };
 
 export function t(locale: Locale, key: I18nKey, vars?: Record<string, string | number>) {
   let text = translations[locale][key] ?? translations.fr[key] ?? key;

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { colors, radius, spacing, typography } from "../theme";
 import { useThemeColors } from "../context/ThemeContext";
@@ -45,6 +45,7 @@ export function Chip({
   active?: boolean;
   onPress?: () => void;
 }) {
+  const { colors: c } = useThemeColors();
   return (
     <TouchableOpacity
       onPress={onPress}
@@ -52,9 +53,12 @@ export function Chip({
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityState={{ selected: active }}
-      style={[s.chip, { minHeight: 44 }, active ? s.chipActive : null]}
+      style={[
+        s.chip,
+        { minHeight: 44, borderColor: active ? c.kino : c.border, backgroundColor: active ? `${c.kino}20` : c.panelSoft },
+      ]}
     >
-      <Text style={[s.chipText, active ? s.chipTextActive : null]}>
+      <Text style={[s.chipText, { color: active ? c.text : c.muted }]}>
         {label}
       </Text>
     </TouchableOpacity>
@@ -70,6 +74,7 @@ export function PrimaryButton({
   onPress: () => void;
   disabled?: boolean;
 }) {
+  const { colors: c } = useThemeColors();
   return (
     <TouchableOpacity
       activeOpacity={0.85}
@@ -78,7 +83,7 @@ export function PrimaryButton({
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityState={{ disabled }}
-      style={[s.btnPrimary, disabled ? { opacity: 0.6 } : null]}
+      style={[s.btnPrimary, { backgroundColor: c.kino }, disabled ? { opacity: 0.6 } : null]}
     >
       <Text style={s.btnPrimaryText}>{label}</Text>
     </TouchableOpacity>
@@ -92,9 +97,10 @@ export function GhostButton({
   label: string;
   onPress: () => void;
 }) {
+  const { colors: c } = useThemeColors();
   return (
-    <TouchableOpacity accessibilityRole="button" accessibilityLabel={label} activeOpacity={0.85} onPress={onPress} style={s.btnGhost}>
-      <Text style={s.btnGhostText}>{label}</Text>
+    <TouchableOpacity accessibilityRole="button" accessibilityLabel={label} activeOpacity={0.85} onPress={onPress} style={[s.btnGhost, { borderColor: c.border, backgroundColor: c.panelSoft }]}>
+      <Text style={[s.btnGhostText, { color: c.text }]}>{label}</Text>
     </TouchableOpacity>
   );
 }
@@ -426,9 +432,42 @@ export const s = StyleSheet.create({
   },
 });
 
+export function useUiStyles() {
+  const { colors: c } = useThemeColors();
+  return useMemo(
+    () => ({
+      screen: { backgroundColor: c.ink },
+      iconBtn: { borderColor: c.border, backgroundColor: c.panelSoft },
+      adminIconBtn: { borderColor: c.kino, backgroundColor: `${c.kino}18` },
+      sub: { color: c.muted },
+      err: { color: c.danger },
+      label: { color: c.muted },
+      card: { borderColor: c.border, backgroundColor: c.panel },
+      hero: { borderColor: c.border, backgroundColor: c.panel },
+      tonightBanner: { backgroundColor: c.panel, borderColor: `${c.kino}66` },
+      tonightTitle: { color: c.text },
+      tonightSub: { color: c.muted },
+      avatar: { backgroundColor: c.kino },
+      chip: { borderColor: c.border, backgroundColor: c.panelSoft },
+      chipActive: { borderColor: c.kino, backgroundColor: `${c.kino}20` },
+      chipText: { color: c.muted },
+      chipTextActive: { color: c.text },
+      btnPrimary: { backgroundColor: c.kino },
+      btnGhost: { borderColor: c.border, backgroundColor: c.panelSoft },
+      btnGhostText: { color: c.text },
+      input: { borderColor: c.border, color: c.text, backgroundColor: c.panel },
+      swipeCard: { borderColor: c.border, backgroundColor: c.panel },
+      emptyCard: { borderColor: c.border, backgroundColor: c.panelSoft },
+      detailsPill: { borderColor: c.border, backgroundColor: c.panelSoft },
+      toast: { borderColor: c.border, backgroundColor: c.panel },
+    }),
+    [c],
+  );
+}
 
 export function Label({ children }: { children: string }) {
-  return <Text style={s.label}>{children}</Text>;
+  const { colors: c } = useThemeColors();
+  return <Text style={[s.label, { color: c.muted }]}>{children}</Text>;
 }
 
 

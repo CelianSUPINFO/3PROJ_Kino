@@ -11,6 +11,25 @@ export class RecommendationsService {
     private readonly tmdb: TmdbService,
   ) {}
 
+  private mapDiscoverResult(
+    mediaType: MediaType,
+    result: Record<string, unknown>,
+  ) {
+    return {
+      id: Number(result.id),
+      score: Number(result.vote_average ?? 0),
+      genres: (result.genre_ids as number[] | undefined) ?? [],
+      mediaType:
+        mediaType === MediaType.MOVIE
+          ? ('movie' as const)
+          : ('tv' as const),
+      title: (result.title ?? result.name ?? 'Untitled') as string,
+      posterPath: (result.poster_path as string | undefined) ?? null,
+      backdropPath: (result.backdrop_path as string | undefined) ?? null,
+      overview: (result.overview as string | undefined) ?? '',
+    };
+  }
+
   async tonight(
     user: JwtUser | undefined,
     mediaType: MediaType,
@@ -74,19 +93,7 @@ export class RecommendationsService {
             (r) => !hiddenTmdbIds.has(Number(r.id)),
           );
           const ranked = detailSamples
-            .map((r) => ({
-              id: Number(r.id),
-              score: Number(r.vote_average ?? 0),
-              genres: (r.genre_ids as number[] | undefined) ?? [],
-              mediaType:
-                mediaType === MediaType.MOVIE
-                  ? ('movie' as const)
-                  : ('tv' as const),
-              title: (r.title ?? r.name ?? 'Untitled') as string,
-              posterPath: (r.poster_path as string | undefined) ?? null,
-              backdropPath: (r.backdrop_path as string | undefined) ?? null,
-              overview: (r.overview as string | undefined) ?? '',
-            }))
+            .map((result) => this.mapDiscoverResult(mediaType, result))
             .map((item) => {
               const boost = item.genres.filter((g) =>
                 preferredGenres.has(g),
@@ -113,17 +120,7 @@ export class RecommendationsService {
     const fallback = raw
       .filter((r) => !hiddenTmdbIds.has(Number(r.id)))
       .slice(0, limit)
-      .map((r) => ({
-        id: Number(r.id),
-        score: Number(r.vote_average ?? 0),
-        genres: (r.genre_ids as number[] | undefined) ?? [],
-        mediaType:
-          mediaType === MediaType.MOVIE ? ('movie' as const) : ('tv' as const),
-        title: (r.title ?? r.name ?? 'Untitled') as string,
-        posterPath: (r.poster_path as string | undefined) ?? null,
-        backdropPath: (r.backdrop_path as string | undefined) ?? null,
-        overview: (r.overview as string | undefined) ?? '',
-      }));
+      .map((result) => this.mapDiscoverResult(mediaType, result));
 
     const enriched = await Promise.all(
       fallback.map(async (movie) => ({

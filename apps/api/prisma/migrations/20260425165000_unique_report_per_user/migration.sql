@@ -1,4 +1,3 @@
--- Prevent duplicate reports from the same user on the same review.
 DELETE FROM "Report" a
 USING "Report" b
 WHERE a."reporterId" = b."reporterId"

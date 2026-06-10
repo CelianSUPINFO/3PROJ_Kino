@@ -1,7 +1,5 @@
--- CreateEnum
 CREATE TYPE "SwipeChoice" AS ENUM ('SMASH', 'PASS');
 
--- CreateTable
 CREATE TABLE "SwipeDecision" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
@@ -14,11 +12,8 @@ CREATE TABLE "SwipeDecision" (
     CONSTRAINT "SwipeDecision_pkey" PRIMARY KEY ("id")
 );
 
--- CreateIndex
 CREATE UNIQUE INDEX "SwipeDecision_userId_tmdbId_mediaType_key" ON "SwipeDecision"("userId", "tmdbId", "mediaType");
 
--- CreateIndex
 CREATE INDEX "SwipeDecision_userId_updatedAt_idx" ON "SwipeDecision"("userId", "updatedAt");
 
--- AddForeignKey
 ALTER TABLE "SwipeDecision" ADD CONSTRAINT "SwipeDecision_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;

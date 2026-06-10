@@ -368,7 +368,7 @@ export class TmdbService {
         try {
           await this.getDetails(work.mediaType, work.tmdbId, language);
         } catch {
-          // Keep the locally cached title when TMDB is temporarily unavailable.
+          return;
         }
       }),
     );

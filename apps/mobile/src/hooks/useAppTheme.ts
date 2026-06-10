@@ -5,17 +5,19 @@ import { colors as darkColors } from "../theme";
 const THEME_KEY = "kino_theme";
 
 export const lightColors = {
-  ink: "#f8f5fa",
-  surface: "#f2ecf4",
+  ink: "#f8f4f9",
+  surface: "#eee7f1",
   panel: "#ffffff",
-  panelSoft: "rgba(0,0,0,0.035)",
-  text: "#1a1020",
-  muted: "#6b5f75",
-  border: "rgba(0,0,0,0.22)",
-  kino: "#ff2e7e",
-  kinoHot: "#c21263",
-  kinoDark: "#a90f54",
-  gold: "#c9a227",
+  panelSoft: "rgba(68,42,76,0.07)",
+  text: "#211426",
+  muted: "#66586f",
+  border: "rgba(54,35,62,0.24)",
+  kino: "#c21263",
+  kinoHot: "#a90f54",
+  kinoDark: "#841040",
+  gold: "#8a6500",
+  danger: "#b4233f",
+  success: "#087554",
 };
 
 export type AppColors = typeof darkColors;

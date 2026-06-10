@@ -2,16 +2,17 @@ import { useEffect, useRef, useState } from "react";
 import { Alert, FlatList, KeyboardAvoidingView, Platform, SafeAreaView, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { io, Socket } from "socket.io-client";
 import { apiFetch, getAccessToken, getApiRoot } from "../api";
-import { Chip, Eyebrow, H1, s } from "../components/AppUi";
+import { Chip, Eyebrow, H1, s, useUiStyles } from "../components/AppUi";
 import { useLocale } from "../context/LocaleContext";
 import { useThemeColors } from "../context/ThemeContext";
-import { colors, spacing } from "../theme";
+import { spacing } from "../theme";
 type Partner = { id: string; displayName: string; unreadCount?: number };
 type Msg = { id: string; body: string; createdAt: string; senderId?: string; recipientId?: string; readAt?: string | null };
 
 export function MessagesScreen({ route }: { route: { params?: { userId?: string } } }) {
   const { t, locale } = useLocale();
   const { colors: c } = useThemeColors();
+  const ui = useUiStyles();
   const [partners, setPartners] = useState<Partner[]>([]);
   const [available, setAvailable] = useState<Partner[]>([]);
   const [choosing, setChoosing] = useState(false);
@@ -147,7 +148,7 @@ export function MessagesScreen({ route }: { route: { params?: { userId?: string 
   }
 
   return (
-    <SafeAreaView style={s.screen}>
+    <SafeAreaView style={[s.screen, ui.screen]}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -155,22 +156,22 @@ export function MessagesScreen({ route }: { route: { params?: { userId?: string 
       >
       <View style={{ padding: spacing.lg, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
         <View><Eyebrow>{t("messages.title").toUpperCase()}</Eyebrow><H1>{t("messages.title")}</H1></View>
-        <TouchableOpacity accessibilityRole="button" accessibilityLabel={locale === "fr" ? "Nouvelle discussion" : "New conversation"} onPress={openChooser} style={s.btnPrimary}>
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel={locale === "fr" ? "Nouvelle discussion" : "New conversation"} onPress={openChooser} style={[s.btnPrimary, ui.btnPrimary]}>
           <Text style={s.btnPrimaryText}>{locale === "fr" ? "Nouveau" : "New"}</Text>
         </TouchableOpacity>
       </View>
       {choosing && (
-        <View style={[s.card, { marginHorizontal: spacing.lg, marginBottom: 8 }]}>
-          <Text style={{ color: colors.text, fontWeight: "700", marginBottom: 6 }}>Nouvelle discussion</Text>
+        <View style={[s.card, ui.card, { marginHorizontal: spacing.lg, marginBottom: 8 }]}>
+          <Text style={{ color: c.text, fontWeight: "700", marginBottom: 6 }}>Nouvelle discussion</Text>
           {available.map((partner) => (
             <TouchableOpacity key={partner.id} onPress={() => startConversation(partner)} style={{ paddingVertical: 8 }}>
-              <Text style={{ color: colors.kinoHot }}>{partner.displayName}</Text>
+              <Text style={{ color: c.kinoHot }}>{partner.displayName}</Text>
             </TouchableOpacity>
           ))}
-          {available.length === 0 && <Text style={s.sub}>Aucun abonnement mutuel sans discussion.</Text>}
+          {available.length === 0 && <Text style={[s.sub, ui.sub]}>Aucun abonnement mutuel sans discussion.</Text>}
         </View>
       )}
-      {msg && <Text style={[s.err, { marginLeft: spacing.lg }]}>{msg}</Text>}
+      {msg && <Text style={[s.err, ui.err, { marginLeft: spacing.lg }]}>{msg}</Text>}
       <FlatList
         style={{ flexGrow: 0, maxHeight: 54 }}
         keyboardShouldPersistTaps="handled"
@@ -212,15 +213,15 @@ export function MessagesScreen({ route }: { route: { params?: { userId?: string 
           const previous = index > 0 ? new Date(messages[index - 1].createdAt) : null;
           const newDay = !previous || previous.toDateString() !== date.toDateString();
           return <View>
-            {newDay && <Text style={[s.sub, { textAlign: "center", marginVertical: 10 }]}>{date.toLocaleDateString(locale === "fr" ? "fr-FR" : "en-US", { weekday: "short", day: "numeric", month: "short" })}</Text>}
+            {newDay && <Text style={[s.sub, ui.sub, { textAlign: "center", marginVertical: 10 }]}>{date.toLocaleDateString(locale === "fr" ? "fr-FR" : "en-US", { weekday: "short", day: "numeric", month: "short" })}</Text>}
             <TouchableOpacity
               accessibilityRole="button"
               accessibilityHint={locale === "fr" ? "Appui long pour plus d'actions" : "Long press for more actions"}
               activeOpacity={0.85}
               onLongPress={() => messageActions(item)}
-              style={[s.card, { maxWidth: "82%", alignSelf: mine ? "flex-end" : "flex-start", backgroundColor: mine ? c.kinoDark : c.panel }]}
+              style={[s.card, ui.card, { maxWidth: "82%", alignSelf: mine ? "flex-end" : "flex-start", backgroundColor: mine ? c.kinoDark : c.panel }]}
             >
-              <Text style={{ color: c.text }}>{item.body}</Text>
+              <Text style={{ color: mine ? "#fff" : c.text }}>{item.body}</Text>
               <Text style={[s.sub, { fontSize: 10, marginTop: 4, color: mine ? "#fff" : c.muted }]}>
                 {date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}{mine ? ` · ${item.readAt ? (locale === "fr" ? "Lu" : "Read") : (locale === "fr" ? "Envoyé" : "Sent")}` : ""}
               </Text>
@@ -228,15 +229,15 @@ export function MessagesScreen({ route }: { route: { params?: { userId?: string 
           </View>;
         }}
       />
-      {typing && <Text style={[s.sub, { marginHorizontal: spacing.lg, marginBottom: 4 }]}>{locale === "fr" ? "Écrit actuellement…" : "Typing…"}</Text>}
+      {typing && <Text style={[s.sub, ui.sub, { marginHorizontal: spacing.lg, marginBottom: 4 }]}>{locale === "fr" ? "Écrit actuellement…" : "Typing…"}</Text>}
       <View
         style={{
           flexDirection: "row",
           gap: 8,
           padding: spacing.lg,
           borderTopWidth: 1,
-          borderTopColor: colors.border,
-          backgroundColor: colors.ink,
+          borderTopColor: c.border,
+          backgroundColor: c.ink,
         }}
       >
         <TextInput
@@ -248,7 +249,7 @@ export function MessagesScreen({ route }: { route: { params?: { userId?: string 
           maxLength={1000}
           style={[s.input, { flex: 1, marginBottom: 0, maxHeight: 110, color: c.text, backgroundColor: c.panel, borderColor: c.border }]}
         />
-        <TouchableOpacity accessibilityRole="button" accessibilityLabel={t("common.send")} onPress={send} style={s.btnPrimary}>
+        <TouchableOpacity accessibilityRole="button" accessibilityLabel={t("common.send")} onPress={send} style={[s.btnPrimary, ui.btnPrimary]}>
           <Text style={s.btnPrimaryText}>{t("common.send")}</Text>
         </TouchableOpacity>
       </View>
