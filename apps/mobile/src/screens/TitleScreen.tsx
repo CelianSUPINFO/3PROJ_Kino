@@ -248,7 +248,7 @@ export function TitleScreen({ route, navigation }: Props) {
 
   return (
     <SafeAreaView style={s.screen}>
-      <ScrollView contentContainerStyle={{ paddingBottom: 48 }}>
+      <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" contentContainerStyle={{ paddingBottom: 48 }}>
         <View style={{ height: 220, backgroundColor: colors.panel }}>
           {backdrop && (
             <ImageBackground

@@ -150,7 +150,7 @@ export function MessagesScreen({ route }: { route: { params?: { userId?: string 
     <SafeAreaView style={s.screen}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
         keyboardVerticalOffset={Platform.OS === "ios" ? 88 : 0}
       >
       <View style={{ padding: spacing.lg, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
@@ -172,6 +172,7 @@ export function MessagesScreen({ route }: { route: { params?: { userId?: string 
       )}
       {msg && <Text style={[s.err, { marginLeft: spacing.lg }]}>{msg}</Text>}
       <FlatList
+        style={{ flexGrow: 0, maxHeight: 54 }}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="interactive"
         horizontal
@@ -195,9 +196,12 @@ export function MessagesScreen({ route }: { route: { params?: { userId?: string 
         )}
       />
       <FlatList
+        style={{ flex: 1 }}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
         contentContainerStyle={{
           padding: spacing.lg,
-          paddingBottom: 120,
+          paddingBottom: spacing.lg,
           gap: 8,
         }}
         data={messages}

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { useLocale } from "../components/AppProviders";
 import { Chip } from "../components/Chip";
@@ -37,26 +37,39 @@ export default function CeSoirPage() {
   const [toast, setToast] = useState<{ msg: string; tone: ToastTone } | null>(null);
   const [leaving, setLeaving] = useState<"left" | "right" | null>(null);
   const [loading, setLoading] = useState(true);
+  const pageRef = useRef(1);
+  const loadingMoreRef = useRef(false);
   const [engagement, setEngagement] = useState<{
     streakDays: number;
     weekly: { reviews: number; completed: number; targetReviews: number; targetCompleted: number };
     recommendationRefreshAt: string;
   } | null>(null);
 
-  const loadPicks = useCallback(async () => {
-    setLoading(true);
-    return apiFetch<TonightPayload>(`/reco/tonight?type=${type}&limit=20`, { auth: true })
+  const loadPicks = useCallback(async (reset = true) => {
+    if (loadingMoreRef.current) return;
+    loadingMoreRef.current = true;
+    if (reset) setLoading(true);
+    const page = reset ? 1 : pageRef.current + 1;
+    return apiFetch<TonightPayload>(`/reco/tonight?type=${type}&limit=20&page=${page}`, { auth: true })
       .then((r) => {
-        setItems(r.results);
-        setIdx(0);
+        setItems((currentItems) => {
+          const base = reset ? [] : currentItems;
+          const known = new Set(base.map((item) => `${item.mediaType}-${item.id}`));
+          return [...base, ...r.results.filter((item) => !known.has(`${item.mediaType}-${item.id}`))];
+        });
+        pageRef.current = page;
+        if (reset) setIdx(0);
         setMsg(r.personalized ? t("tonight.personalized") : t("tonight.discover"));
       })
       .catch(() => setMsg(t("tonight.signInSwipe")))
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (reset) setLoading(false);
+        loadingMoreRef.current = false;
+      });
   }, [t, type]);
 
   useEffect(() => {
-    loadPicks();
+    void loadPicks(true);
     apiFetch("/engagement/summary", { auth: true })
       .then((r) =>
         setEngagement(
@@ -74,6 +87,12 @@ export default function CeSoirPage() {
       )
       .catch(() => setEngagement(null));
   }, [loadPicks]);
+
+  useEffect(() => {
+    if (!loading && items.length > 0 && idx >= items.length - 5) {
+      void loadPicks(false);
+    }
+  }, [idx, items.length, loadPicks, loading]);
 
   const current = items[idx];
   const next = items[idx + 1];
@@ -159,7 +178,7 @@ export default function CeSoirPage() {
             onClick={() => {
               setItems([]);
               setIdx(0);
-              loadPicks();
+              void loadPicks(true);
             }}
             className="btn-primary"
           >

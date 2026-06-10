@@ -264,7 +264,7 @@ export function ProfileScreen({ route, navigation }: Props) {
 
   return (
     <SafeAreaView style={[s.screen, { backgroundColor: colors.ink }]}>
-      <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
+      <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" contentContainerStyle={{ paddingBottom: 40 }}>
         <View style={bannerUri ? s.bannerWrap : s.bannerWrapEmpty}>
           {bannerUri ? (
             <ImageBackground source={{ uri: bannerUri }} style={s.banner} resizeMode="cover">

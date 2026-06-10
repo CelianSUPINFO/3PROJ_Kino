@@ -14,7 +14,7 @@ describe('RecommendationsService', () => {
     expect(result.results[0]).toEqual(expect.objectContaining({ title: 'Candidate', genreNames: ['Drama'] }));
   });
 
-  it('personalizes and excludes passed works', async () => {
+  it('personalizes and excludes works already swiped', async () => {
     const ratings = Array.from({ length: 10 }, (_, index) => ({
       rating: 5, tmdbId: index + 10, mediaType: MediaType.MOVIE,
     }));

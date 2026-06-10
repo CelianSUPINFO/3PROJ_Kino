@@ -41,7 +41,7 @@ export class RecommendationsService {
           take: 200,
         }),
         this.prisma.swipeDecision.findMany({
-          where: { userId: user.sub, mediaType, choice: SwipeChoice.PASS },
+          where: { userId: user.sub, mediaType },
           select: { tmdbId: true },
           take: 200,
         }),

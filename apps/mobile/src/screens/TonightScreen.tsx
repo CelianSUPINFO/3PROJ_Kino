@@ -35,6 +35,8 @@ export function TonightScreen({
     tone: "success" | "danger";
   } | null>(null);
   const [loading, setLoading] = useState(true);
+  const pageRef = useRef(1);
+  const loadingMoreRef = useRef(false);
 
   const pan = useRef(new Animated.ValueXY()).current;
   const rotation = pan.x.interpolate({
@@ -52,15 +54,24 @@ export function TonightScreen({
     extrapolate: "clamp",
   });
 
-  async function load() {
-    setLoading(true);
+  async function load(reset = true) {
+    if (loadingMoreRef.current) return;
+    loadingMoreRef.current = true;
+    if (reset) setLoading(true);
+    const page = reset ? 1 : pageRef.current + 1;
     try {
       const res = await apiFetch<{
         personalized: boolean;
         results: TonightResult[];
-      }>(`/reco/tonight?type=${type}&limit=20`);
-      setItems(res.results ?? []);
-      setIndex(0);
+      }>(`/reco/tonight?type=${type}&limit=20&page=${page}`);
+      const incoming = res.results ?? [];
+      setItems((currentItems) => {
+        const base = reset ? [] : currentItems;
+        const known = new Set(base.map((item) => `${item.mediaType}-${item.id}`));
+        return [...base, ...incoming.filter((item) => !known.has(`${item.mediaType}-${item.id}`))];
+      });
+      pageRef.current = page;
+      if (reset) setIndex(0);
       setStatus(
         res.personalized
           ? "Suggestions personnalisées."
@@ -69,13 +80,20 @@ export function TonightScreen({
     } catch {
       setStatus("Connectez-vous pour enregistrer vos choix.");
     } finally {
-      setLoading(false);
+      if (reset) setLoading(false);
+      loadingMoreRef.current = false;
     }
   }
 
   useEffect(() => {
-    load();
+    void load(true);
   }, [type]);
+
+  useEffect(() => {
+    if (!loading && items.length > 0 && index >= items.length - 5) {
+      void load(false);
+    }
+  }, [index, items.length, loading]);
 
   const current = items[index];
   const next = items[index + 1];
@@ -195,7 +213,7 @@ export function TonightScreen({
               {locale === "fr" ? "Changez de catégorie ou actualisez les suggestions." : "Switch category or refresh to see fresh picks."}
             </Text>
             <View style={{ height: 12 }} />
-            <PrimaryButton label={locale === "fr" ? "Actualiser" : "Refresh picks"} onPress={load} />
+            <PrimaryButton label={locale === "fr" ? "Actualiser" : "Refresh picks"} onPress={() => void load(true)} />
           </View>
         ) : (
           <View style={{ flex: 1 }}>

@@ -20,6 +20,7 @@
       }
     },
     "android": {
+      "softwareKeyboardLayoutMode": "resize",
       "blockedPermissions": [
         "android.permission.RECORD_AUDIO"
       ],

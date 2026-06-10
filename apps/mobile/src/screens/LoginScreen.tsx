@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, SafeAreaView, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, KeyboardAvoidingView, Platform, SafeAreaView, ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
 import * as Linking from "expo-linking";
 import { apiFetch, setTokens } from "../api";
 import { Eyebrow, H1, Label, PrimaryButton, s } from "../components/AppUi";
@@ -99,7 +99,8 @@ export function LoginScreen({
 
   return (
     <SafeAreaView style={s.screen}>
-      <View style={{ padding: spacing.lg, flex: 1 }}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" contentContainerStyle={{ padding: spacing.lg, flexGrow: 1 }}>
         <Eyebrow>{t("auth.welcomeBack").toUpperCase()}</Eyebrow>
         <H1>{t("auth.loginTitle")}</H1>
         <Text style={[s.sub, { marginBottom: spacing.lg }]}>
@@ -159,7 +160,8 @@ export function LoginScreen({
             </Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

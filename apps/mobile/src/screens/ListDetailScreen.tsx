@@ -176,6 +176,8 @@ export function ListDetailScreen({ route, navigation }: Props) {
   return (
     <SafeAreaView style={[s.screen, { backgroundColor: colors.ink }]}>
       <FlatList
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
         data={items}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ paddingBottom: 80 }}

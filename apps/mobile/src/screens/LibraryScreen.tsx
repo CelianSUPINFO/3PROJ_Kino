@@ -180,7 +180,7 @@ export function LibraryScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={[s.screen, { backgroundColor: colors.ink }]}>
-      <ScrollView contentContainerStyle={{ paddingBottom: 100 }}>
+      <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" contentContainerStyle={{ paddingBottom: 100 }}>
         <View style={s.header}>
           <Text style={[s.eyebrow, { color: colors.kinoHot }]}>{t("nav.library").toUpperCase()}</Text>
           <Text style={[s.h1, { color: colors.text }]}>{t("library.title")}</Text>

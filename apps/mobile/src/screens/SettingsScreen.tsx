@@ -125,6 +125,8 @@ export function SettingsScreen({
   return (
     <SafeAreaView style={[s.screen, { backgroundColor: c.ink }]}>
       <ScrollView
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
         contentContainerStyle={{ padding: spacing.lg, paddingBottom: 40 }}
       >
         <Eyebrow>{t("common.yourAccount").toUpperCase()}</Eyebrow>
