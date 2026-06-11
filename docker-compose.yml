@@ -32,6 +32,8 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-kino}:${POSTGRES_PASSWORD:-change-me-db-password}@db:5432/${POSTGRES_DB:-kino}
       PORT: "4000"
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-change-me-access}
+      JWT_ACCESS_EXPIRES: ${JWT_ACCESS_EXPIRES:-15m}
+      JWT_REFRESH_DAYS: ${JWT_REFRESH_DAYS:-14}
       TMDB_API_KEY: ${TMDB_API_KEY:-}
       TMDB_READ_ACCESS_TOKEN: ${TMDB_READ_ACCESS_TOKEN:-}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3001}
@@ -39,9 +41,12 @@ services:
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-dev-google-client-id}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-dev-google-client-secret}
       GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL:-http://localhost:4000/v1/auth/google/callback}
+      MOBILE_OAUTH_SCHEME: ${MOBILE_OAUTH_SCHEME:-kino}
       CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-}
       CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-}
       CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      EMAIL_FROM: ${EMAIL_FROM:-Kino <onboarding@resend.dev>}
     depends_on:
       db:
         condition: service_healthy
@@ -73,5 +78,25 @@ services:
       retries: 5
       start_period: 30s
 
+  mobile:
+    build:
+      context: ./apps/mobile
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      EXPO_PUBLIC_API_URL: ${EXPO_PUBLIC_API_URL:-https://kino-api-9ipb.onrender.com/v1}
+      EXPO_NO_TELEMETRY: "1"
+    ports:
+      - "${EXPO_PORT:-8081}:8081"
+    volumes:
+      - ./apps/mobile:/app
+      - mobile_node_modules:/app/node_modules
+    stdin_open: true
+    tty: true
+    depends_on:
+      api:
+        condition: service_healthy
+
 volumes:
   kino_pg:
+  mobile_node_modules:
