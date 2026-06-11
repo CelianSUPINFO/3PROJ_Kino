@@ -15,6 +15,13 @@ function randomPassword() {
   return `${randomBytes(24).toString('base64url')}Aa1`;
 }
 
+const documentedDemoPasswords: Record<string, string> = {
+  'admin@kino-demo.fr': 'KinoAdmin2026!',
+  'lea@kino-demo.fr': 'KinoLea2026!',
+  'yanis@kino-demo.fr': 'KinoYanis2026!',
+  'zoe@kino-demo.fr': 'KinoZoe2026!',
+};
+
 const people = [
   {
     email: 'admin@kino-demo.fr',
@@ -183,7 +190,9 @@ async function clearDemoData(demoIds: string[]) {
 
 async function main() {
   const passwordHashes = await Promise.all(
-    people.map(() => hash(randomPassword(), 12)),
+    people.map((person) =>
+      hash(documentedDemoPasswords[person.email] ?? randomPassword(), 12),
+    ),
   );
   const now = Date.now();
   const users = [];
@@ -501,7 +510,9 @@ async function main() {
   console.log(
     `Seed completed: ${users.length} accounts, ${reviews.length} reviews, ${lists.length} lists, ${conversationPairs.length} conversations.`,
   );
-  console.log('Demo account passwords were randomly rotated and were not printed.');
+  console.log(
+    'Documented demo accounts use the credentials from COMPTES_DE_TEST.txt; other demo passwords were randomly rotated.',
+  );
 }
 
 main()

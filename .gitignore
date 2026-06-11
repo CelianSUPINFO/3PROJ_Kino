@@ -8,3 +8,5 @@ dist
 coverage
 apps/api/uploads
 .vscode/
+documentation/**/*.py
+documentation/**/__pycache__/
