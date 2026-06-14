@@ -198,6 +198,32 @@ export class AuthService {
     return { ok: true };
   }
 
+  async changePassword(
+    userId: string,
+    currentPassword: string | undefined,
+    newPassword: string,
+  ) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new UnauthorizedException();
+    }
+    if (user.passwordHash) {
+      if (!currentPassword) {
+        throw new BadRequestException('Le mot de passe actuel est requis');
+      }
+      const ok = await bcrypt.compare(currentPassword, user.passwordHash);
+      if (!ok) {
+        throw new UnauthorizedException('Mot de passe actuel incorrect');
+      }
+    }
+    const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+    await this.prisma.$transaction([
+      this.prisma.user.update({ where: { id: userId }, data: { passwordHash } }),
+      this.prisma.refreshToken.deleteMany({ where: { userId } }),
+    ]);
+    return this.issueTokens(user.id, user.email, user.role);
+  }
+
   async requestEmailVerification(email: string) {
     const user = await this.prisma.user.findUnique({ where: { email } });
     if (!user || user.emailVerifiedAt) return { ok: true };

@@ -1,4 +1,4 @@
-import { IsEmail, IsString, Matches, MinLength } from 'class-validator';
+import { IsEmail, IsOptional, IsString, Matches, MinLength } from 'class-validator';
 
 export class RequestEmailActionDto {
   @IsEmail()
@@ -18,4 +18,17 @@ export class ResetPasswordDto extends VerifyTokenDto {
   @Matches(/[a-z]/)
   @Matches(/[0-9]/)
   password!: string;
+}
+
+export class ChangePasswordDto {
+  @IsOptional()
+  @IsString()
+  currentPassword?: string;
+
+  @IsString()
+  @MinLength(8)
+  @Matches(/[A-Z]/)
+  @Matches(/[a-z]/)
+  @Matches(/[0-9]/)
+  newPassword!: string;
 }

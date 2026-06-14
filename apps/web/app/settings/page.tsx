@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { apiFetch, clearTokens, getAccessToken, logoutSession } from "@/lib/api";
+import { apiFetch, clearTokens, getAccessToken, logoutSession, setTokens } from "@/lib/api";
 import { useApp } from "../components/AppProviders";
 
 type Me = {
@@ -16,6 +16,7 @@ type Me = {
   locale: string;
   notifyPush: boolean;
   notifyEmail: boolean;
+  hasPassword?: boolean;
 };
 
 export default function SettingsPage() {
@@ -23,6 +24,10 @@ export default function SettingsPage() {
   const [me, setMe] = useState<Me | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordLoading, setPasswordLoading] = useState(false);
 
   useEffect(() => {
     apiFetch<Me>("/users/me")
@@ -121,6 +126,44 @@ export default function SettingsPage() {
     window.location.href = "/";
   }
 
+  async function changePassword() {
+    if (!me) return;
+    setPasswordLoading(true);
+    setMsg(null);
+    if (newPassword !== confirmPassword) {
+      setMsg(t("settings.passwordMismatch"));
+      setPasswordLoading(false);
+      return;
+    }
+    if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/.test(newPassword)) {
+      setMsg(t("settings.passwordInvalid"));
+      setPasswordLoading(false);
+      return;
+    }
+    try {
+      const tokens = await apiFetch<{
+        accessToken: string;
+        refreshToken: string;
+      }>("/auth/password/change", {
+        method: "POST",
+        body: JSON.stringify({
+          ...(me.hasPassword ? { currentPassword } : {}),
+          newPassword,
+        }),
+      });
+      setTokens(tokens.accessToken, tokens.refreshToken);
+      setMe({ ...me, hasPassword: true });
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setMsg(t("settings.passwordChanged"));
+    } catch {
+      setMsg(t("settings.passwordChangeFailed"));
+    } finally {
+      setPasswordLoading(false);
+    }
+  }
+
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <header className="space-y-2">
@@ -155,6 +198,50 @@ export default function SettingsPage() {
                 {t("nav.logout")}
               </button>
             </div>
+          </section>
+
+          <section className="glass space-y-4 rounded-2xl p-5">
+            <h2 className="text-display text-lg font-semibold text-white">
+              {t("settings.security")}
+            </h2>
+            {!me.hasPassword && (
+              <p className="text-sm text-kino-muted">{t("settings.passwordGoogleHint")}</p>
+            )}
+            <p className="text-sm text-kino-muted">{t("settings.passwordHint")}</p>
+            {me.hasPassword && (
+              <PasswordField
+                label={t("settings.currentPassword")}
+                value={currentPassword}
+                onChange={setCurrentPassword}
+              />
+            )}
+            <PasswordField
+              label={t("settings.newPassword")}
+              value={newPassword}
+              onChange={setNewPassword}
+            />
+            <PasswordField
+              label={t("settings.confirmPassword")}
+              value={confirmPassword}
+              onChange={setConfirmPassword}
+            />
+            <button
+              type="button"
+              className="btn-primary !py-2 text-sm disabled:opacity-60"
+              onClick={() => void changePassword()}
+              disabled={
+                passwordLoading ||
+                !newPassword ||
+                !confirmPassword ||
+                (me.hasPassword && !currentPassword)
+              }
+            >
+              {passwordLoading
+                ? t("common.saving")
+                : me.hasPassword
+                  ? t("settings.changePassword")
+                  : t("settings.setPassword")}
+            </button>
           </section>
 
           <section className="glass space-y-4 rounded-2xl p-5">
@@ -272,6 +359,32 @@ export default function SettingsPage() {
         </>
       )}
     </div>
+  );
+}
+
+function PasswordField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <label className="block">
+      <span className="text-xs font-semibold uppercase tracking-widest text-kino-muted">
+        {label}
+      </span>
+      <input
+        type="password"
+        className="mt-1.5 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-white focus:border-kino/60 focus:outline-none"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        autoComplete="new-password"
+        minLength={8}
+      />
+    </label>
   );
 }
 

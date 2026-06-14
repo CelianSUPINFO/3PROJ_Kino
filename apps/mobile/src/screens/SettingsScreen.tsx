@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Alert, SafeAreaView, ScrollView, Share, Switch, Text, TextInput, TouchableOpacity, View } from "react-native";
 import * as Linking from "expo-linking";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { apiFetch, clearTokens, getAccessToken, getApiRoot, logoutSession } from "../api";
+import { apiFetch, clearTokens, getAccessToken, getApiRoot, logoutSession, setTokens } from "../api";
 import { Chip, Eyebrow, GhostButton, H1, Label, PrimaryButton, s, useUiStyles } from "../components/AppUi";
 import { useLocale } from "../context/LocaleContext";
 import { useThemeColors } from "../context/ThemeContext";
@@ -20,6 +20,7 @@ type Me = {
   notifyPush: boolean;
   notifyEmail: boolean;
   role?: string;
+  hasPassword?: boolean;
 };
 
 export function SettingsScreen({
@@ -32,6 +33,9 @@ export function SettingsScreen({
   const { setLocale, t } = useLocale();
   const [me, setMe] = useState<Me | null>(null);
   const [status, setStatus] = useState<string | null>(null);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
   useEffect(() => {
     apiFetch<Me>("/users/me")
@@ -95,6 +99,38 @@ export function SettingsScreen({
       await Share.share({ title: "kino-export.csv", message: text });
     } catch {
       setStatus(t("settings.exportFailed"));
+    }
+  }
+
+  async function changePassword() {
+    if (!me) return;
+    if (newPassword !== confirmPassword) {
+      setStatus(t("settings.passwordMismatch"));
+      return;
+    }
+    if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/.test(newPassword)) {
+      setStatus(t("settings.passwordInvalid"));
+      return;
+    }
+    try {
+      const tokens = await apiFetch<{ accessToken: string; refreshToken: string }>(
+        "/auth/password/change",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            ...(me.hasPassword ? { currentPassword } : {}),
+            newPassword,
+          }),
+        },
+      );
+      await setTokens(tokens.accessToken, tokens.refreshToken);
+      setMe({ ...me, hasPassword: true });
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setStatus(t("settings.passwordChanged"));
+    } catch {
+      setStatus(t("settings.passwordChangeFailed"));
     }
   }
 
@@ -186,6 +222,48 @@ export function SettingsScreen({
                 onPress={() => setMe({ ...me, locale: "en" })}
               />
             </View>
+            <Label>{t("settings.security").toUpperCase()}</Label>
+            {!me.hasPassword && (
+              <Text style={[s.sub, ui.sub, { marginBottom: 8 }]}>{t("settings.passwordGoogleHint")}</Text>
+            )}
+            <Text style={[s.sub, ui.sub, { marginBottom: 8 }]}>{t("settings.passwordHint")}</Text>
+            {me.hasPassword && (
+              <>
+                <Label>{t("settings.currentPassword")}</Label>
+                <TextInput
+                  style={[s.input, ui.input]}
+                  placeholder="••••••••"
+                  placeholderTextColor={c.muted}
+                  secureTextEntry
+                  value={currentPassword}
+                  onChangeText={setCurrentPassword}
+                />
+              </>
+            )}
+            <Label>{t("settings.newPassword")}</Label>
+            <TextInput
+              style={[s.input, ui.input]}
+              placeholder="••••••••"
+              placeholderTextColor={c.muted}
+              secureTextEntry
+              value={newPassword}
+              onChangeText={setNewPassword}
+            />
+            <Label>{t("settings.confirmPassword")}</Label>
+            <TextInput
+              style={[s.input, ui.input]}
+              placeholder="••••••••"
+              placeholderTextColor={c.muted}
+              secureTextEntry
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+            />
+            <View style={{ height: 8 }} />
+            <PrimaryButton
+              label={me.hasPassword ? t("settings.changePassword") : t("settings.setPassword")}
+              onPress={changePassword}
+            />
+            <View style={{ height: 12 }} />
             <Label>{t("settings.notifications")}</Label>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8 }}>
               <Switch

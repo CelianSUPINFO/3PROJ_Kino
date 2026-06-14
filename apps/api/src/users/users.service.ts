@@ -21,7 +21,7 @@ export class UsersService {
   ) {}
 
   async me(userId: string) {
-    return this.prisma.user.findUniqueOrThrow({
+    const user = await this.prisma.user.findUniqueOrThrow({
       where: { id: userId },
       select: {
         id: true,
@@ -38,8 +38,11 @@ export class UsersService {
         notifyEmail: true,
         role: true,
         createdAt: true,
+        passwordHash: true,
       },
     });
+    const { passwordHash, ...profile } = user;
+    return { ...profile, hasPassword: passwordHash !== null };
   }
 
   async updateMe(userId: string, data: UpdateProfileDto) {

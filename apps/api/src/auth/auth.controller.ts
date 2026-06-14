@@ -7,6 +7,7 @@ import {
   Post,
   Req,
   Res,
+  UseGuards,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Response, Request, NextFunction } from 'express';
@@ -16,7 +17,17 @@ import { LoginDto } from './dto/login.dto';
 import { RefreshDto } from './dto/refresh.dto';
 import { RegisterDto } from './dto/register.dto';
 import { User } from '@prisma/client';
-import { RequestEmailActionDto, ResetPasswordDto, VerifyTokenDto } from './dto/recovery.dto';
+import {
+  ChangePasswordDto,
+  RequestEmailActionDto,
+  ResetPasswordDto,
+  VerifyTokenDto,
+} from './dto/recovery.dto';
+import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import {
+  CurrentUser,
+  JwtUser,
+} from '../common/decorators/current-user.decorator';
 
 @Controller('auth')
 export class AuthController {
@@ -55,6 +66,12 @@ export class AuthController {
   @Post('password/reset')
   resetPassword(@Body() dto: ResetPasswordDto) {
     return this.auth.resetPassword(dto.token, dto.password);
+  }
+
+  @Post('password/change')
+  @UseGuards(JwtAuthGuard)
+  changePassword(@CurrentUser() user: JwtUser, @Body() dto: ChangePasswordDto) {
+    return this.auth.changePassword(user.sub, dto.currentPassword, dto.newPassword);
   }
 
   @Post('email/request-verification')
