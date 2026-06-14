@@ -26,7 +26,7 @@ export function TonightScreen({
     navigate: (name: "Title", params: RootStackParamList["Title"]) => void;
   };
 }) {
-  const { locale } = useLocale();
+  const { locale, t } = useLocale();
   const { colors } = useThemeColors();
   const ui = useUiStyles();
   const [items, setItems] = useState<TonightResult[]>([]);
@@ -76,12 +76,10 @@ export function TonightScreen({
       pageRef.current = page;
       if (reset) setIndex(0);
       setStatus(
-        res.personalized
-          ? "Suggestions personnalisées."
-          : "Mode découverte : notez plus d'œuvres pour personnaliser.",
+        res.personalized ? t("tonight.personalized") : t("tonight.discover"),
       );
     } catch {
-      setStatus("Connectez-vous pour enregistrer vos choix.");
+      setStatus(t("tonight.signInSwipe"));
     } finally {
       if (reset) setLoading(false);
       loadingMoreRef.current = false;
@@ -120,13 +118,11 @@ export function TonightScreen({
     setToast(
       choice === "SMASH"
         ? {
-            msg: saved
-              ? "Ajouté à votre profil"
-              : "Connectez-vous pour mémoriser ce choix",
+            msg: saved ? t("tonight.savedSmash") : t("tonight.signInRemember"),
             tone: saved ? "success" : "danger",
           }
         : {
-            msg: saved ? "Passé, choix enregistré" : "Passé en mode invité",
+            msg: saved ? t("tonight.passSaved") : t("tonight.passGuest"),
             tone: "danger",
           },
     );
@@ -211,12 +207,10 @@ export function TonightScreen({
           </View>
         ) : !current ? (
           <View style={[s.emptyCard, ui.emptyCard]}>
-            <Text style={[s.h1, { color: colors.text }]}>{locale === "fr" ? "Vous avez tout parcouru" : "You're all caught up"}</Text>
-            <Text style={[s.sub, ui.sub]}>
-              {locale === "fr" ? "Changez de catégorie ou actualisez les suggestions." : "Switch category or refresh to see fresh picks."}
-            </Text>
+            <Text style={[s.h1, { color: colors.text }]}>{t("tonight.allSeen")}</Text>
+            <Text style={[s.sub, ui.sub]}>{t("tonight.allSeenHint")}</Text>
             <View style={{ height: 12 }} />
-            <PrimaryButton label={locale === "fr" ? "Actualiser" : "Refresh picks"} onPress={() => void load(true)} />
+            <PrimaryButton label={t("tonight.reload")} onPress={() => void load(true)} />
           </View>
         ) : (
           <View style={{ flex: 1 }}>
@@ -291,7 +285,7 @@ export function TonightScreen({
             }
           >
             <Text style={{ color: colors.text, fontWeight: "600" }}>
-              {locale === "fr" ? "Détails" : "Details"} →
+              {t("tonight.details")} →
             </Text>
           </TouchableOpacity>
           <TouchableOpacity

@@ -32,11 +32,43 @@ describe('RecommendationsService', () => {
     expect(result.results.some((item) => item.id === 99)).toBe(false);
   });
 
-  it('persists swipe decisions', async () => {
+  it('persists swipe decisions and adds SMASH picks to the Ce soir ? list', async () => {
     const upsert = jest.fn().mockResolvedValue({ id: 'decision' });
-    const service = new RecommendationsService({ swipeDecision: { upsert } } as never, {} as never);
+    const list = { id: 'list-1', userId: 'user', name: 'Ce soir ?' };
+    const findFirst = jest.fn().mockResolvedValue(list);
+    const count = jest.fn().mockResolvedValue(0);
+    const itemUpsert = jest.fn().mockResolvedValue({ id: 'item-1' });
+    const activityCreate = jest.fn().mockResolvedValue({});
+    const service = new RecommendationsService(
+      {
+        swipeDecision: { upsert },
+        customList: { findFirst },
+        customListItem: { upsert: itemUpsert, count },
+        activity: { create: activityCreate },
+      } as never,
+      {} as never,
+    );
     const result = await service.swipe('user', 1, MediaType.MOVIE, SwipeChoice.SMASH);
     expect(result.ok).toBe(true);
     expect(upsert).toHaveBeenCalled();
+    expect(findFirst).toHaveBeenCalledWith({
+      where: { userId: 'user', name: 'Ce soir ?' },
+    });
+    expect(itemUpsert).toHaveBeenCalled();
+    expect(activityCreate).toHaveBeenCalled();
+  });
+
+  it('does not add PASS picks to the Ce soir ? list', async () => {
+    const upsert = jest.fn().mockResolvedValue({ id: 'decision' });
+    const findFirst = jest.fn();
+    const service = new RecommendationsService(
+      {
+        swipeDecision: { upsert },
+        customList: { findFirst },
+      } as never,
+      {} as never,
+    );
+    await service.swipe('user', 1, MediaType.MOVIE, SwipeChoice.PASS);
+    expect(findFirst).not.toHaveBeenCalled();
   });
 });

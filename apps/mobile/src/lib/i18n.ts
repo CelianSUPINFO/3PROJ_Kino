@@ -256,6 +256,17 @@ const fr = {
   "title.removeStatus": "Retirer de ma bibliothèque",
   "title.statusRemoved": "Œuvre retirée de votre bibliothèque.",
   "tonight.title": "Ce soir ?",
+  "tonight.savedSmash": "Ajouté à votre liste Ce soir ?",
+  "tonight.signInRemember": "Connectez-vous pour mémoriser ce choix",
+  "tonight.passSaved": "Passé, choix enregistré",
+  "tonight.passGuest": "Passé en mode invité",
+  "tonight.personalized": "Suggestions personnalisées.",
+  "tonight.discover": "Mode découverte : notez plus d'œuvres pour personnaliser.",
+  "tonight.signInSwipe": "Connectez-vous pour enregistrer vos choix.",
+  "tonight.allSeen": "Vous avez tout parcouru",
+  "tonight.allSeenHint": "Changez de catégorie ou actualisez les suggestions.",
+  "tonight.reload": "Actualiser",
+  "tonight.details": "Détails",
 } as const;
 
 const en: Record<keyof typeof fr, string> = {
@@ -514,6 +525,17 @@ const en: Record<keyof typeof fr, string> = {
   "title.removeStatus": "Remove from my library",
   "title.statusRemoved": "Removed from your library.",
   "tonight.title": "Tonight?",
+  "tonight.savedSmash": "Added to your Tonight? list",
+  "tonight.signInRemember": "Sign in to remember this choice",
+  "tonight.passSaved": "Passed, choice saved",
+  "tonight.passGuest": "Passed as guest",
+  "tonight.personalized": "Personalized picks.",
+  "tonight.discover": "Discovery mode: rate more titles to personalize.",
+  "tonight.signInSwipe": "Sign in to save your choices.",
+  "tonight.allSeen": "You're all caught up",
+  "tonight.allSeenHint": "Switch category or refresh to see fresh picks.",
+  "tonight.reload": "Refresh picks",
+  "tonight.details": "Details",
 };
 
 export type I18nKey = keyof typeof fr;

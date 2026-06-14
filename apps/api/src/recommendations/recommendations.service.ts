@@ -4,6 +4,8 @@ import { JwtUser } from '../common/decorators/current-user.decorator';
 import { PrismaService } from '../prisma/prisma.service';
 import { TmdbService } from '../media/tmdb.service';
 
+const TONIGHT_LIST_NAME = 'Ce soir ?';
+
 @Injectable()
 export class RecommendationsService {
   constructor(
@@ -147,6 +149,56 @@ export class RecommendationsService {
       create: { userId, tmdbId, mediaType, choice },
       update: { choice },
     });
+
+    if (choice === SwipeChoice.SMASH) {
+      await this.addToTonightList(userId, tmdbId, mediaType);
+    }
+
     return { ok: true, decision };
+  }
+
+  private async ensureTonightList(userId: string) {
+    const existing = await this.prisma.customList.findFirst({
+      where: { userId, name: TONIGHT_LIST_NAME },
+    });
+    if (existing) return existing;
+    return this.prisma.customList.create({
+      data: {
+        userId,
+        name: TONIGHT_LIST_NAME,
+        description: 'Œuvres gardées depuis Ce soir ?',
+        isPublic: false,
+      },
+    });
+  }
+
+  private async addToTonightList(
+    userId: string,
+    tmdbId: number,
+    mediaType: MediaType,
+  ) {
+    const list = await this.ensureTonightList(userId);
+    const item = await this.prisma.customListItem.upsert({
+      where: {
+        listId_tmdbId_mediaType: { listId: list.id, tmdbId, mediaType },
+      },
+      create: {
+        listId: list.id,
+        tmdbId,
+        mediaType,
+        position: await this.prisma.customListItem.count({
+          where: { listId: list.id },
+        }),
+      },
+      update: {},
+    });
+    await this.prisma.activity.create({
+      data: {
+        userId,
+        type: 'LIST_ADDED',
+        payload: { listId: list.id, tmdbId, mediaType: mediaType.toString() },
+      },
+    });
+    return item;
   }
 }
